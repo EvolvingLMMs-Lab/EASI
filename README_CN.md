@@ -81,7 +81,7 @@ python run.py --data MindCubeBench_tiny_raw_qa \
 
 ## 🖊️ 引用
 
-空间智能是一个发展很快的领域，我们的评测范围已经从GPT-5拓展到更多的模型，因此论文的标题改为了[*Holistic Evaluation of Multimodal LLMs on Spatial Intelligence*](https://arxiv.org/pdf/2508.13142)。但是为了方便大家引用，引用的BibTeX还是使用最初的标题。
+空间智能是一个快速发展的领域，我们的评测范围已经从GPT-5拓展到更多的模型，因此论文的标题改为了[*Holistic Evaluation of Multimodal LLMs on Spatial Intelligence*](https://arxiv.org/pdf/2508.13142)。但是为了方便大家引用，BibTeX中还是使用最初的标题。
 
 ```bib
 @article{easi2025,
