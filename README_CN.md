@@ -5,7 +5,7 @@
 [English](README.md) | 简体中文
 
 <p align="center">
-    <a href="https://arxiv.org/pdf/2508.13142" target="_blank">
+    <a href="https://arxiv.org/abs/2508.13142" target="_blank">
         <img alt="arXiv" src="https://img.shields.io/badge/arXiv-EASI-red?logo=arxiv" height="20" />
     </a>
     <a href="https://huggingface.co/spaces/lmms-lab-si/EASI-Leaderboard" target="_blank">
@@ -20,8 +20,8 @@ EASI 构建了一个全面的空间任务分类体系，制定了一套标准化
 
 主要特点包括：
 
-- 支持评估**新兴和不断发展的空间智能模型**。
-- 系统性地收集和整合**不断发展的空间智能基准测试**。
+- 支持评估**最先进的空间智能模型**。
+- 系统性地收集和整合**不断演进的空间智能基准测试**。
 - 提出**标准化测试协议**，确保公平评估并支持跨基准测试的比较。
 
 ## 🗓️ 最新动态
@@ -81,7 +81,7 @@ python run.py --data MindCubeBench_tiny_raw_qa \
 
 ## 🖊️ 引用
 
-空间智能是一个快速发展的领域，我们的评测范围已经从GPT-5拓展到更多的模型，因此论文的标题改为了[*Holistic Evaluation of Multimodal LLMs on Spatial Intelligence*](https://arxiv.org/pdf/2508.13142)。但是为了方便大家引用，BibTeX中还是使用最初的标题。
+空间智能是一个快速发展的领域，我们的评测范围已经从GPT-5拓展到更多的模型，因此论文的标题改为了[*Holistic Evaluation of Multimodal LLMs on Spatial Intelligence*](https://arxiv.org/abs/2508.13142)。但是为了方便大家引用，BibTeX中还是使用最初的标题。
 
 ```bib
 @article{easi2025,

@@ -5,7 +5,7 @@
 English | [简体中文](README_CN.md) 
 
 <p align="center">
-    <a href="https://arxiv.org/pdf/2508.13142" target="_blank">
+    <a href="https://arxiv.org/abs/2508.13142" target="_blank">
         <img alt="arXiv" src="https://img.shields.io/badge/arXiv-EASI-red?logo=arxiv" height="20" />
     </a>
     <a href="https://huggingface.co/spaces/lmms-lab-si/EASI-Leaderboard" target="_blank">
@@ -20,7 +20,7 @@ EASI conceptualizes a comprehensive taxonomy of spatial tasks that unifies exist
 
 Key features include:
 
-- Supports the evaluation of **emerging and evolving Spatial Intelligence models**.
+- Supports the evaluation of **state-of-the-art Spatial Intelligence models**.
 - Systematically collects and integrates **evolving Spatial Intelligence benchmarks**.
 - Proposes a **standardized testing protocol** to ensure fair evaluation and enable cross-benchmark comparisons.
 
@@ -82,7 +82,7 @@ python run.py --data MindCubeBench_tiny_raw_qa \
 
 ## 🖊️ Citation
 
-Spatial intelligence is a rapidly evolving field. Our evaluation scope has expanded beyond GPT-5 to include a broader range of models, leading us to update the paper's title to [*Holistic Evaluation of Multimodal LLMs on Spatial Intelligence*](https://arxiv.org/pdf/2508.13142). For consistency, however, the BibTeX below retains the original title for reference.
+Spatial intelligence is a rapidly evolving field. Our evaluation scope has expanded beyond GPT-5 to include a broader range of models, leading us to update the paper's title to [*Holistic Evaluation of Multimodal LLMs on Spatial Intelligence*](https://arxiv.org/abs/2508.13142). For consistency, however, the BibTeX below retains the original title for reference.
 
 ```bib
 @article{easi2025,
