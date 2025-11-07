@@ -1,2 +1,55 @@
 # EASI
-Holistic Evaluation and Analysis for Spatial Intelligence Made Easy
+
+<b>Holistic Evaluation and Analysis for Spatial Intelligence Made Easy</b>
+
+English | [简体中文](README_CN.md) 
+
+<p align="center">
+    <a href="https://arxiv.org/pdf/2508.13142" target="_blank">
+        <img alt="arXiv" src="https://img.shields.io/badge/arXiv-EASI-red?logo=arxiv" height="20" />
+    </a>
+    <a href="https://huggingface.co/spaces/lmms-lab/EASI-Leaderboard" target="_blank">
+        <img alt="Data" src="https://img.shields.io/badge/%F0%9F%A4%97%20_EASI-Leaderboard-ffc107?color=ffc107&logoColor=white" height="20" />
+    </a>
+    <a href="https://github.com/EvolvingLMMs-Lab/EASI/blob/main/LICENSE"><img src="https://img.shields.io/github/license/EvolvingLMMs-Lab/EASI?style=flat"></a>
+</p>
+
+## Overview
+
+EASI conceptualizes a comprehensive taxonomy of spatial tasks that unifies existing benchmarks and a standardized protocol for the fair evaluation of state-of-the-art proprietary and open-source models.
+
+Key features include:
+
+- Supports the evaluation of **emerging and evolving Spatial Intelligence models**.
+- Systematically collects and integrates **evolving Spatial Intelligence benchmarks**.
+- Proposes a **standardized testing protocol** to ensure fair evaluation and enable cross-benchmark comparisons.
+
+## 🗓️ News
+
+🌟 **[2025-11-07]** [EASI v0.1.0]() is released. Major updates include:
+- Supports 7 recent Spatial Intelligence models:
+    - SenseSI Family: [SenseSI-InternVL3-8B](https://huggingface.co/sensenova/SenseSI-InternVL3-8B), [SenseSI-InternVL3-2B](https://huggingface.co/sensenova/SenseSI-InternVL3-2B)
+    - MindCube Family: [MindCube-3B-RawQA-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-RawQA-SFT), [MindCube-3B-Aug-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Aug-CGMap-FFR-Out-SFT),[MindCube-3B-Plain-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Plain-CGMap-FFR-Out-SFT)
+    - SpatialLadder: [SpatialLadder-3B](https://huggingface.co/hongxingli/SpatialLadder-3B)
+    - SpatialMLLM: [SpatialMLLM-4B](https://diankun-wu.github.io/Spatial-MLLM/)
+- Supports 6 recent Spatial Intelligence benchmarks:
+    - 4 image-based benchmarks: [MindCube](https://mind-cube.github.io/), [ViewSpatial](https://zju-real.github.io/ViewSpatial-Page/), [EmbSpatial](https://github.com/mengfeidu/EmbSpatial-Bench) and [MMSI(no circular evaluation)](https://arxiv.org/abs/2505.23764)
+    - 2 image-and-video benchmarks: [VSI-Bench](https://vision-x-nyu.github.io/thinking-in-space.github.io/) and [SITE-Bench](https://wenqi-wang20.github.io/SITE-Bench.github.io/)
+- Introduces a standardized testing protocol as outlined in [EASI](https://arxiv.org/pdf/2508.13142)
+
+
+## 🛠️ QuickStart
+
+
+
+
+## 🖊️ Citation
+
+```bib
+@article{easi2025,
+  title={Holistic Evaluation of Multimodal LLMs on Spatial Intelligence},
+  author={Cai, Zhongang and Wang, Yubo and Sun, Qingping and Wang, Ruisi and Gu, Chenyang and Yin, Wanqi and Lin, Zhiqian and Yang, Zhitao and Wei, Chen and Shi, Xuanke and Deng, Kewang and Han, Xiaoyang and Chen, Zukai and Li, Jiaqi and Fan, Xiangyu and Deng, Hanming and Lu, Lewei and Li, Bo and Liu, Ziwei and Wang, Quan and Lin, Dahua and Yang, Lei},
+  journal={arXiv preprint arXiv:2508.13142},
+  year={2025}
+}
+```
