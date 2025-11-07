@@ -1,6 +1,6 @@
 # EASI
 
-<b>Holistic Evaluation and Analysis for Spatial Intelligence Made Easy</b>
+<b>Holistic Evaluation of Multimodal LLMs on Spatial Intelligence</b>
 
 [English](README.md) | 简体中文
 
