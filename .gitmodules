@@ -1,0 +1,3 @@
+[submodule "VLMEvalKit"]
+	path = VLMEvalKit
+	url = git@github.com:EvolvingLMMs-Lab/VLMEvalKit.git

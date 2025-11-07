@@ -2,7 +2,7 @@
 
 <b>Holistic Evaluation of Multimodal LLMs on Spatial Intelligence</b>
 
-English | [简体中文](README_CN.md) 
+[English](README.md) | 简体中文
 
 <p align="center">
     <a href="https://arxiv.org/abs/2508.13142" target="_blank">
@@ -14,42 +14,43 @@ English | [简体中文](README_CN.md)
     <a href="https://github.com/EvolvingLMMs-Lab/EASI/blob/main/LICENSE"><img src="https://img.shields.io/github/license/EvolvingLMMs-Lab/EASI?style=flat"></a>
 </p>
 
-## Overview
+## 概述
 
-EASI conceptualizes a comprehensive taxonomy of spatial tasks that unifies existing benchmarks and a standardized protocol for the fair evaluation of state-of-the-art proprietary and open-source models.
+EASI 构建了一个全面的空间任务分类体系，制定了一套标准化评测协议。EASI统一了近期提出的多项空间智能基准测试，用于对当前最先进的闭源模型和开源模型进行公平评估。
 
-Key features include:
+主要特点包括：
 
-- Supports the evaluation of **state-of-the-art Spatial Intelligence models**.
-- Systematically collects and integrates **evolving Spatial Intelligence benchmarks**.
-- Proposes a **standardized testing protocol** to ensure fair evaluation and enable cross-benchmark comparisons.
+- 支持评估**最先进的空间智能模型**。
+- 系统性地收集和整合**不断演进的空间智能基准测试**。
+- 提出**标准化测试协议**，确保公平评估并支持跨基准测试的比较。
 
-## 🗓️ News
+## 🗓️ 最新动态
+🌟 [2025-11-07] [EASI v0.1.0]() 发布。主要更新包括：
 
-🌟 **[2025-11-07]** [EASI v0.1.0]() is released. Major updates include:
-- Supports 7 recent Spatial Intelligence models:
-    - SenseSI Family: [SenseSI-InternVL3-8B](https://huggingface.co/sensenova/SenseSI-InternVL3-8B), [SenseSI-InternVL3-2B](https://huggingface.co/sensenova/SenseSI-InternVL3-2B)
-    - MindCube Family: [MindCube-3B-RawQA-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-RawQA-SFT), [MindCube-3B-Aug-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Aug-CGMap-FFR-Out-SFT),[MindCube-3B-Plain-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Plain-CGMap-FFR-Out-SFT)
+- 支持 7 个最新的空间智能模型：
+    - SenseSI系列: [SenseSI-InternVL3-8B](https://huggingface.co/sensenova/SenseSI-InternVL3-8B), [SenseSI-InternVL3-2B](https://huggingface.co/sensenova/SenseSI-InternVL3-2B)
+    - MindCube系列: [MindCube-3B-RawQA-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-RawQA-SFT), [MindCube-3B-Aug-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Aug-CGMap-FFR-Out-SFT),[MindCube-3B-Plain-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Plain-CGMap-FFR-Out-SFT)
     - SpatialLadder: [SpatialLadder-3B](https://huggingface.co/hongxingli/SpatialLadder-3B)
     - SpatialMLLM: [SpatialMLLM-4B](https://diankun-wu.github.io/Spatial-MLLM/)
-- Supports 6 recent Spatial Intelligence benchmarks:
-    - 4 image-based benchmarks: [MindCube](https://mind-cube.github.io/), [ViewSpatial](https://zju-real.github.io/ViewSpatial-Page/), [EmbSpatial](https://github.com/mengfeidu/EmbSpatial-Bench) and [MMSI(no circular evaluation)](https://arxiv.org/abs/2505.23764)
-    - 2 image-and-video benchmarks: [VSI-Bench](https://vision-x-nyu.github.io/thinking-in-space.github.io/) and [SITE-Bench](https://wenqi-wang20.github.io/SITE-Bench.github.io/)
-- Introduces a standardized testing protocol as outlined in [EASI](https://arxiv.org/pdf/2508.13142)
+- 支持 6 个最近的空间智能基准测试：
+    - 4个基于图像的空间智能基准测试: [MindCube](https://mind-cube.github.io/), [ViewSpatial](https://zju-real.github.io/ViewSpatial-Page/), [EmbSpatial](https://github.com/mengfeidu/EmbSpatial-Bench) and [MMSI(no circular evaluation)](https://arxiv.org/abs/2505.23764)
+    - 2个基于图像和视频的空间智能基准测试: [VSI-Bench](https://vision-x-nyu.github.io/thinking-in-space.github.io/) and [SITE-Bench](https://wenqi-wang20.github.io/SITE-Bench.github.io/)
+- 支持[EASI](https://arxiv.org/pdf/2508.13142)中提出的标准化测试协议
 
-
-## 🛠️ QuickStart
-### Installation
+## 🛠️ 快速上手
+### 安装
 ```bash
 git clone --recursive https://github.com/EvolvingLMMs-Lab/EASI.git
 cd EASI
 pip install -e ./VLMEvalKit
 ```
 
-### Configuration
-**VLM Configuration**: All VLMs are configured in `vlmeval/config.py`. During evaluation, you should use the model name specified in `supported_VLM` in `vlmeval/config.py` to select the VLM. Make sure you can successfully infer with the VLM before starting the evaluation with the following command `vlmutil check {MODEL_NAME}`.
+### 配置
 
-**Benchmark Configuration**: The full list of supported Benchmarks can be found in the official VLMEvalKit documentation [VLMEvalKit Supported Benchmarks (Feishu)](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY). For the [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard), the following Benchmarks are currently supported:
+VLM 配置：所有 VLM 都在 vlmeval/config.py 中配置。在评测时，你应当使用该文件中 supported_VLM 指定的模型名称来选择 VLM。开始评测前，请先通过如下命令确认该 VLM 可以成功推理：vlmutil check {MODEL_NAME}。
+
+基准（Benchmark）配置：完整的已支持基准列表见 VLMEvalKit 官方文档 [VLMEvalKit Supported Benchmarks (Feishu)](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY)。对于 [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard)，当前支持的基准如下：
+
 | Benchmark   | Evaluation settings          |
 |-------------|------------------------------|
 | [VSI-Bench](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | VSI-Bench_origin_32frame (Generated during evaluation)   |
@@ -61,17 +62,16 @@ pip install -e ./VLMEvalKit
 | [ViewSpatial](https://huggingface.co/datasets/lidingm/ViewSpatial-Bench) | [ViewSpatialBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/ViewSpatialBench.tsv)            |
 | [EmbSpatial](https://huggingface.co/datasets/FlagEval/EmbSpatial-Bench)  | [EmbSpatialBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/EmbSpatialBench.tsv)             |
 
-
-### Evaluation
-**General command**
+### 评测
+**通用命令**
 ```bash
 python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --verbose --reuse
 ```
-See `run.py` for the full list of arguments.
+完整参数说明请参见 run.py
 
-**Example** 
+**示例**
 
-Evaluate `SenseSI-InternVL3-2B` on `MindCubeBench_tiny_raw_qa`:
+在 `MindCubeBench_tiny_raw_qa` 上评测 `SenseSI-InternVL3-2B`：
 
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
@@ -79,10 +79,9 @@ python run.py --data MindCubeBench_tiny_raw_qa \
               --verbose --reuse
 ```
 
+## 🖊️ 引用
 
-## 🖊️ Citation
-
-Spatial intelligence is a rapidly evolving field. Our evaluation scope has expanded beyond GPT-5 to include a broader range of models, leading us to update the paper's title to [*Holistic Evaluation of Multimodal LLMs on Spatial Intelligence*](https://arxiv.org/abs/2508.13142). For consistency, however, the BibTeX below retains the original title for reference.
+空间智能是一个快速发展的领域，我们的评测范围已经从GPT-5拓展到更多的模型，因此论文的标题改为了[*Holistic Evaluation of Multimodal LLMs on Spatial Intelligence*](https://arxiv.org/abs/2508.13142)。但是为了方便大家引用，BibTeX中还是使用最初的标题。
 
 ```bib
 @article{easi2025,
