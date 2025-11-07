@@ -49,7 +49,7 @@ pip install -e .
 ### Configuration
 **VLM Configuration**: All VLMs are configured in `vlmeval/config.py`. During evaluation, you should use the model name specified in `supported_VLM` in `vlmeval/config.py` to select the VLM. Make sure you can successfully infer with the VLM before starting the evaluation with the following command `vlmutil check {MODEL_NAME}`.
 
-**BenchMark Configuration**: The full list of supported benchmarks can be found in the official VLMEvalKit documentation [VLMEvalKit Supported Benchmarks (Feishu)](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY). For the EASI Leaderboard, the following benchmarks are currently supported:
+**BenchMark Configuration**: The full list of supported benchmarks can be found in the official VLMEvalKit documentation [VLMEvalKit Supported Benchmarks (Feishu)](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY). For the [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard), the following benchmarks are currently supported:
 ```
 - VSI-Bench_origin_32frame
 - SiteBenchVideo_32frame
