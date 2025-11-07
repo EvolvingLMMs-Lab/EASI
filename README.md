@@ -41,9 +41,9 @@ Key features include:
 ## 🛠️ QuickStart
 ### Installation
 ```bash
-git clone https://github.com/EvolvingLMMs-Lab/VLMEvalKit.git
-cd VLMEvalKit
-pip install -e .
+git clone --recursive https://github.com/EvolvingLMMs-Lab/EASI.git
+cd EASI
+pip install -e ./VLMEvalKit
 ```
 
 ### Configuration

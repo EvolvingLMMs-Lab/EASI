@@ -40,9 +40,9 @@ EASI 构建了一个全面的空间任务分类体系，制定了一套标准化
 ## 🛠️ 快速上手
 ### 安装
 ```bash
-git clone https://github.com/EvolvingLMMs-Lab/VLMEvalKit.git
-cd VLMEvalKit
-pip install -e .
+git clone --recursive https://github.com/EvolvingLMMs-Lab/EASI.git
+cd EASI
+pip install -e ./VLMEvalKit
 ```
 
 ### 配置
