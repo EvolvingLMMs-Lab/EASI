@@ -38,9 +38,40 @@ EASI 构建了一个全面的空间任务分类体系，制定了一套标准化
 - 支持[EASI](https://arxiv.org/pdf/2508.13142)中提出的标准化测试协议
 
 ## 🛠️ 快速上手
+### 安装
+```bash
+git clone --recursive https://github.com/EvolvingLMMs-Lab/EASI.git
+cd EASI
+pip install -e ./VLMEvalKit
+```
 
+### 配置
+VLM 配置：所有 VLM 都在 vlmeval/config.py 中配置。在评测时，你应当使用该文件中 supported_VLM 指定的模型名称来选择 VLM。开始评测前，请先通过如下命令确认该 VLM 可以成功推理：vlmutil check {MODEL_NAME}。
 
+基准（Benchmark）配置：完整的已支持基准列表见 VLMEvalKit 官方文档 [VLMEvalKit Supported Benchmarks (Feishu)](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY)。对于 [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard)，当前支持的基准如下：
+| Benchmark   | Evaluation settings          |
+|-------------|------------------------------|
+| [VSI-Bench](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | VSI-Bench_origin_32frame (Generated during evaluation)   |
+| [SITE-Bench](https://huggingface.co/datasets/franky-veteran/SITE-Bench)  | [SiteBenchImage](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SiteBenchImage.tsv)        |
+|             |  [SiteBenchVideo_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SiteBenchVideo.tsv)             |
+| [MMSI-Bench](https://huggingface.co/datasets/RunsenXu/MMSI-Bench)  | [MMSIBench_wo_circular](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MMSIBench_wo_circular.tsv)        |
+| [MindCube](https://huggingface.co/datasets/MLL-Lab/MindCube)    | [MindCubeBench_tiny_raw_qa](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MindCubeBench_tiny_raw_qa.tsv)    |
+|             | [MindCubeBench_raw_qa](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MindCubeBench_raw_qa.tsv)         |
+| [ViewSpatial](https://huggingface.co/datasets/lidingm/ViewSpatial-Bench) | [ViewSpatialBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/ViewSpatialBench.tsv)            |
+| [EmbSpatial](https://huggingface.co/datasets/FlagEval/EmbSpatial-Bench)  | [EmbSpatialBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/EmbSpatialBench.tsv)             |
 
+### 评测
+**通用命令**
+```bash
+python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --verbose --reuse
+```
+完整参数说明请参见 run.py。
+示例（在 MindCubeBench_tiny_raw_qa 上评测 SenseSI-InternVL3-2B）：
+```bash
+python run.py --data MindCubeBench_tiny_raw_qa \
+              --model SenseSI-InternVL3-2B \
+              --verbose --reuse
+```
 
 ## 🖊️ 引用
 
