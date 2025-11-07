@@ -65,8 +65,12 @@ VLM 配置：所有 VLM 都在 vlmeval/config.py 中配置。在评测时，你�
 ```bash
 python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --verbose --reuse
 ```
-完整参数说明请参见 run.py。
-示例（在 MindCubeBench_tiny_raw_qa 上评测 SenseSI-InternVL3-2B）：
+完整参数说明请参见 run.py
+
+**示例**
+
+在 MindCubeBench_tiny_raw_qa 上评测 SenseSI-InternVL3-2B：
+
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
               --model SenseSI-InternVL3-2B \

@@ -69,7 +69,10 @@ python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --verbose --reuse
 ```
 See `run.py` for the full list of arguments.
 
-**Example** (evaluate `SenseSI-InternVL3-2B` on `MindCubeBench_tiny_raw_qa`):
+**Example** 
+
+Evaluate `SenseSI-InternVL3-2B` on `MindCubeBench_tiny_raw_qa`:
+
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
               --model SenseSI-InternVL3-2B \
