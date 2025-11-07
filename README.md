@@ -49,17 +49,18 @@ pip install -e ./VLMEvalKit
 ### Configuration
 **VLM Configuration**: All VLMs are configured in `vlmeval/config.py`. During evaluation, you should use the model name specified in `supported_VLM` in `vlmeval/config.py` to select the VLM. Make sure you can successfully infer with the VLM before starting the evaluation with the following command `vlmutil check {MODEL_NAME}`.
 
-**BenchMark Configuration**: The full list of supported benchmarks can be found in the official VLMEvalKit documentation [VLMEvalKit Supported Benchmarks (Feishu)](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY). For the [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard), the following benchmarks are currently supported:
-```
-- VSI-Bench_origin_32frame
-- SiteBenchVideo_32frame
-- SiteBenchImage
-- MMSIBench_wo_circular
-- MindCubeBench_tiny_raw_qa
-- MindCubeBench_raw_qa
-- ViewSpatialBench
-- EmbSpatialBench
-```
+**Benchmark Configuration**: The full list of supported Benchmarks can be found in the official VLMEvalKit documentation [VLMEvalKit Supported Benchmarks (Feishu)](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY). For the [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard), the following Benchmarks are currently supported:
+| Benchmark   | Evaluation settings          |
+|-------------|------------------------------|
+| [VSI-Bench](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | VSI-Bench_origin_32frame (Generated during evaluation)   |
+| [SITE-Bench](https://huggingface.co/datasets/franky-veteran/SITE-Bench)  | [SiteBenchImage](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SiteBenchImage.tsv)        |
+|             |  [SiteBenchVideo_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SiteBenchVideo.tsv)             |
+| [MMSI-Bench](https://huggingface.co/datasets/RunsenXu/MMSI-Bench)  | [MMSIBench_wo_circular](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MMSIBench_wo_circular.tsv)        |
+| [MindCube](https://huggingface.co/datasets/MLL-Lab/MindCube)    | [MindCubeBench_tiny_raw_qa](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MindCubeBench_tiny_raw_qa.tsv)    |
+|             | [MindCubeBench_raw_qa](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MindCubeBench_raw_qa.tsv)         |
+| [ViewSpatial](https://huggingface.co/datasets/lidingm/ViewSpatial-Bench) | [ViewSpatialBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/ViewSpatialBench.tsv)            |
+| [EmbSpatial](https://huggingface.co/datasets/FlagEval/EmbSpatial-Bench)  | [EmbSpatialBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/EmbSpatialBench.tsv)             |
+
 
 ### Evaluation
 **General command**
