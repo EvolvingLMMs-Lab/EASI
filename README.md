@@ -28,7 +28,7 @@ Key features include:
 
 🌟 **[2025-11-07]** [EASI v0.1.0]() is released. Major updates include:
 - Supports 7 recent Spatial Intelligence models:
-    - SenseSI Family: [SenseSI-InternVL3-8B](https://huggingface.co/sensenova/SenseSI-InternVL3-8B), [SenseSI-InternVL3-2B](https://huggingface.co/sensenova/SenseSI-InternVL3-2B)
+    - SenseNova-SI Family: [SenseNova-SI-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-InternVL3-8B), [SenseNova-SI-InternVL3-2B](https://huggingface.co/collections/sensenova/sensenova-si)
     - MindCube Family: [MindCube-3B-RawQA-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-RawQA-SFT), [MindCube-3B-Aug-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Aug-CGMap-FFR-Out-SFT),[MindCube-3B-Plain-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Plain-CGMap-FFR-Out-SFT)
     - SpatialLadder: [SpatialLadder-3B](https://huggingface.co/hongxingli/SpatialLadder-3B)
     - SpatialMLLM: [SpatialMLLM-4B](https://diankun-wu.github.io/Spatial-MLLM/)
@@ -49,7 +49,7 @@ pip install -e ./VLMEvalKit
 ### Configuration
 **VLM Configuration**: All VLMs are configured in `vlmeval/config.py`. During evaluation, you should use the model name specified in `supported_VLM` in `vlmeval/config.py` to select the VLM. Make sure you can successfully infer with the VLM before starting the evaluation with the following command `vlmutil check {MODEL_NAME}`.
 
-**Benchmark Configuration**: The full list of supported Benchmarks can be found in the official VLMEvalKit documentation [VLMEvalKit Supported Benchmarks (Feishu)](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY). For the [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard), the following Benchmarks are currently supported:
+**Benchmark Configuration**: The full list of supported Benchmarks can be found in the official VLMEvalKit documentation [VLMEvalKit Supported Benchmarks](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY). For the [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard), the following Benchmarks are currently supported:
 | Benchmark   | Evaluation settings          |
 |-------------|------------------------------|
 | [VSI-Bench](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | VSI-Bench_origin_32frame (Generated during evaluation)   |
@@ -69,10 +69,10 @@ python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --verbose --reuse
 ```
 See `run.py` for the full list of arguments.
 
-**Example** (evaluate `SenseSI-InternVL3-2B` on `MindCubeBench_tiny_raw_qa`):
+**Example** (evaluate `SenseNova-SI-InternVL3-2B` on `MindCubeBench_tiny_raw_qa`):
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
-              --model SenseSI-InternVL3-2B \
+              --model SenseNova-SI-InternVL3-2B \
               --verbose --reuse
 ```
 
