@@ -1,14 +1,14 @@
 # EASI
 
-<b>Holistic Evaluation and Analysis for Spatial Intelligence Made Easy</b>
+<b>Holistic Evaluation of Multimodal LLMs on Spatial Intelligence</b>
 
 [English](README.md) | 简体中文
 
 <p align="center">
-    <a href="https://arxiv.org/pdf/2508.13142" target="_blank">
+    <a href="https://arxiv.org/abs/2508.13142" target="_blank">
         <img alt="arXiv" src="https://img.shields.io/badge/arXiv-EASI-red?logo=arxiv" height="20" />
     </a>
-    <a href="https://huggingface.co/spaces/lmms-lab/EASI-Leaderboard" target="_blank">
+    <a href="https://huggingface.co/spaces/lmms-lab-si/EASI-Leaderboard" target="_blank">
         <img alt="Data" src="https://img.shields.io/badge/%F0%9F%A4%97%20_EASI-Leaderboard-ffc107?color=ffc107&logoColor=white" height="20" />
     </a>
     <a href="https://github.com/EvolvingLMMs-Lab/EASI/blob/main/LICENSE"><img src="https://img.shields.io/github/license/EvolvingLMMs-Lab/EASI?style=flat"></a>
@@ -20,8 +20,8 @@ EASI 构建了一个全面的空间任务分类体系，制定了一套标准化
 
 主要特点包括：
 
-- 支持评估**新兴和不断发展的空间智能模型**。
-- 系统性地收集和整合**不断发展的空间智能基准测试**。
+- 支持评估**最先进的空间智能模型**。
+- 系统性地收集和整合**不断演进的空间智能基准测试**。
 - 提出**标准化测试协议**，确保公平评估并支持跨基准测试的比较。
 
 ## 🗓️ 最新动态
@@ -46,9 +46,11 @@ pip install -e ./VLMEvalKit
 ```
 
 ### 配置
+
 VLM 配置：所有 VLM 都在 vlmeval/config.py 中配置。在评测时，你应当使用该文件中 supported_VLM 指定的模型名称来选择 VLM。开始评测前，请先通过如下命令确认该 VLM 可以成功推理：vlmutil check {MODEL_NAME}。
 
-基准（Benchmark）配置：完整的已支持基准列表见 VLMEvalKit 官方文档 [VLMEvalKit Supported Benchmarks](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY)。对于 [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard)，当前支持的基准如下：
+基准（Benchmark）配置：完整的已支持基准列表见 VLMEvalKit 官方文档 [VLMEvalKit Supported Benchmarks (Feishu)](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY)。对于 [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard)，当前支持的基准如下：
+
 | Benchmark   | Evaluation settings          |
 |-------------|------------------------------|
 | [VSI-Bench](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | VSI-Bench_origin_32frame (Generated during evaluation)   |
@@ -65,8 +67,12 @@ VLM 配置：所有 VLM 都在 vlmeval/config.py 中配置。在评测时，你�
 ```bash
 python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --verbose --reuse
 ```
-完整参数说明请参见 run.py。
-示例（在 MindCubeBench_tiny_raw_qa 上评测 SenseNova-SI-InternVL3-2B）：
+完整参数说明请参见 run.py
+
+**示例**
+
+在 `MindCubeBench_tiny_raw_qa` 上评测 `SenseNova-SI-InternVL3-2B`：
+
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
               --model SenseNova-SI-InternVL3-2B \
@@ -75,9 +81,11 @@ python run.py --data MindCubeBench_tiny_raw_qa \
 
 ## 🖊️ 引用
 
+空间智能是一个快速发展的领域，我们的评测范围已经从GPT-5拓展到更多的模型，因此论文的标题改为了[*Holistic Evaluation of Multimodal LLMs on Spatial Intelligence*](https://arxiv.org/abs/2508.13142)。但是为了方便大家引用，BibTeX中还是使用最初的标题。
+
 ```bib
 @article{easi2025,
-  title={Holistic Evaluation of Multimodal LLMs on Spatial Intelligence},
+  title={Has gpt-5 achieved spatial intelligence? an empirical study},
   author={Cai, Zhongang and Wang, Yubo and Sun, Qingping and Wang, Ruisi and Gu, Chenyang and Yin, Wanqi and Lin, Zhiqian and Yang, Zhitao and Wei, Chen and Shi, Xuanke and Deng, Kewang and Han, Xiaoyang and Chen, Zukai and Li, Jiaqi and Fan, Xiangyu and Deng, Hanming and Lu, Lewei and Li, Bo and Liu, Ziwei and Wang, Quan and Lin, Dahua and Yang, Lei},
   journal={arXiv preprint arXiv:2508.13142},
   year={2025}

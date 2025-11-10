@@ -1,14 +1,14 @@
 # EASI
 
-<b>Holistic Evaluation and Analysis for Spatial Intelligence Made Easy</b>
+<b>Holistic Evaluation of Multimodal LLMs on Spatial Intelligence</b>
 
 English | [简体中文](README_CN.md) 
 
 <p align="center">
-    <a href="https://arxiv.org/pdf/2508.13142" target="_blank">
+    <a href="https://arxiv.org/abs/2508.13142" target="_blank">
         <img alt="arXiv" src="https://img.shields.io/badge/arXiv-EASI-red?logo=arxiv" height="20" />
     </a>
-    <a href="https://huggingface.co/spaces/lmms-lab/EASI-Leaderboard" target="_blank">
+    <a href="https://huggingface.co/spaces/lmms-lab-si/EASI-Leaderboard" target="_blank">
         <img alt="Data" src="https://img.shields.io/badge/%F0%9F%A4%97%20_EASI-Leaderboard-ffc107?color=ffc107&logoColor=white" height="20" />
     </a>
     <a href="https://github.com/EvolvingLMMs-Lab/EASI/blob/main/LICENSE"><img src="https://img.shields.io/github/license/EvolvingLMMs-Lab/EASI?style=flat"></a>
@@ -20,7 +20,7 @@ EASI conceptualizes a comprehensive taxonomy of spatial tasks that unifies exist
 
 Key features include:
 
-- Supports the evaluation of **emerging and evolving Spatial Intelligence models**.
+- Supports the evaluation of **state-of-the-art Spatial Intelligence models**.
 - Systematically collects and integrates **evolving Spatial Intelligence benchmarks**.
 - Proposes a **standardized testing protocol** to ensure fair evaluation and enable cross-benchmark comparisons.
 
@@ -49,7 +49,7 @@ pip install -e ./VLMEvalKit
 ### Configuration
 **VLM Configuration**: All VLMs are configured in `vlmeval/config.py`. During evaluation, you should use the model name specified in `supported_VLM` in `vlmeval/config.py` to select the VLM. Make sure you can successfully infer with the VLM before starting the evaluation with the following command `vlmutil check {MODEL_NAME}`.
 
-**Benchmark Configuration**: The full list of supported Benchmarks can be found in the official VLMEvalKit documentation [VLMEvalKit Supported Benchmarks](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY). For the [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard), the following Benchmarks are currently supported:
+**Benchmark Configuration**: The full list of supported Benchmarks can be found in the official VLMEvalKit documentation [VLMEvalKit Supported Benchmarks (Feishu)](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY). For the [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard), the following Benchmarks are currently supported:
 | Benchmark   | Evaluation settings          |
 |-------------|------------------------------|
 | [VSI-Bench](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | VSI-Bench_origin_32frame (Generated during evaluation)   |
@@ -69,7 +69,10 @@ python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --verbose --reuse
 ```
 See `run.py` for the full list of arguments.
 
-**Example** (evaluate `SenseNova-SI-InternVL3-2B` on `MindCubeBench_tiny_raw_qa`):
+**Example** 
+
+Evaluate `SenseNova-SI-InternVL3-2B` on `MindCubeBench_tiny_raw_qa`:
+
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
               --model SenseNova-SI-InternVL3-2B \
@@ -79,9 +82,11 @@ python run.py --data MindCubeBench_tiny_raw_qa \
 
 ## 🖊️ Citation
 
+Spatial intelligence is a rapidly evolving field. Our evaluation scope has expanded beyond GPT-5 to include a broader range of models, leading us to update the paper's title to [*Holistic Evaluation of Multimodal LLMs on Spatial Intelligence*](https://arxiv.org/abs/2508.13142). For consistency, however, the BibTeX below retains the original title for reference.
+
 ```bib
 @article{easi2025,
-  title={Holistic Evaluation of Multimodal LLMs on Spatial Intelligence},
+  title={Has gpt-5 achieved spatial intelligence? an empirical study},
   author={Cai, Zhongang and Wang, Yubo and Sun, Qingping and Wang, Ruisi and Gu, Chenyang and Yin, Wanqi and Lin, Zhiqian and Yang, Zhitao and Wei, Chen and Shi, Xuanke and Deng, Kewang and Han, Xiaoyang and Chen, Zukai and Li, Jiaqi and Fan, Xiangyu and Deng, Hanming and Lu, Lewei and Li, Bo and Liu, Ziwei and Wang, Quan and Lin, Dahua and Yang, Lei},
   journal={arXiv preprint arXiv:2508.13142},
   year={2025}
