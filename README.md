@@ -26,6 +26,25 @@ Key features include:
 
 ## 🗓️ News
 
+🌟 **[2025-11-21]**
+Recent improvements include:
+
+- **Expanded model support**  
+  Added **9 new Spatial Intelligence models**, increasing total from **7 → 16**:
+    - **SenseNova-SI 1.1 Series**  
+        - [SenseNova-SI-1.1-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-1.1-InternVL3-8B)  
+        - [SenseNova-SI-1.1-InternVL3-2B](https://huggingface.co/sensenova/SenseNova-SI-1.1-InternVL3-2B)
+    - SpaceR: [SpaceR-8B](https://huggingface.co/RUBBISHLIKE/SpaceR)
+    - VST Series: [VST-3B-SFT](https://huggingface.co/rayruiyang/VST-3B-SFT), [VST-7B-SFT](https://huggingface.co/rayruiyang/VST-7B-SFT)
+    - Cambrian-S series: [Cambrian-S-0.5B](https://huggingface.co/nyu-visionx/Cambrian-S-0.5B), [Cambrian-S-1.5B](https://huggingface.co/nyu-visionx/Cambrian-S-1.5B), [Cambrian-S-3B](https://huggingface.co/nyu-visionx/Cambrian-S-3B), [Cambrian-S-7B](https://huggingface.co/nyu-visionx/Cambrian-S-7B)
+
+- **Expanded benchmark support**  
+  Added **1 new image–video benchmark**, increasing total from **6 → 7**:
+    - [**VSI-Bench-Debiased**](https://vision-x-nyu.github.io/thinking-in-space.github.io/)
+
+---
+
+
 🌟 **[2025-11-07]** [EASI v0.1.0]() is released. Major updates include:
 - Supports 7 recent Spatial Intelligence models:
     - SenseNova-SI Family: [SenseNova-SI-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-InternVL3-8B), [SenseNova-SI-InternVL3-2B](https://huggingface.co/collections/sensenova/sensenova-si)
@@ -52,7 +71,8 @@ pip install -e ./VLMEvalKit
 **Benchmark Configuration**: The full list of supported Benchmarks can be found in the official VLMEvalKit documentation [VLMEvalKit Supported Benchmarks (Feishu)](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY). For the [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard), the following Benchmarks are currently supported:
 | Benchmark   | Evaluation settings          |
 |-------------|------------------------------|
-| [VSI-Bench](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | VSI-Bench_origin_32frame (Generated during evaluation)   |
+| [VSI-Bench](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | [VSI-Bench_origin_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/VSI-Bench.tsv)  |
+|             |  [VSI-Bench-Debiased_origin_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/VSI-Bench-Debiased.tsv)             |
 | [SITE-Bench](https://huggingface.co/datasets/franky-veteran/SITE-Bench)  | [SiteBenchImage](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SiteBenchImage.tsv)        |
 |             |  [SiteBenchVideo_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SiteBenchVideo.tsv)             |
 | [MMSI-Bench](https://huggingface.co/datasets/RunsenXu/MMSI-Bench)  | [MMSIBench_wo_circular](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MMSIBench_wo_circular.tsv)        |
@@ -71,11 +91,11 @@ See `run.py` for the full list of arguments.
 
 **Example** 
 
-Evaluate `SenseNova-SI-InternVL3-2B` on `MindCubeBench_tiny_raw_qa`:
+Evaluate `SenseNova-SI-1.1-InternVL3-8B` on `MindCubeBench_tiny_raw_qa`:
 
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
-              --model SenseNova-SI-InternVL3-2B \
+              --model SenseNova-SI-1.1-InternVL3-8B \
               --verbose --reuse
 ```
 

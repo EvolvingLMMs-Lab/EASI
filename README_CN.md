@@ -25,6 +25,29 @@ EASI 构建了一个全面的空间任务分类体系，制定了一套标准化
 - 提出**标准化测试协议**，确保公平评估并支持跨基准测试的比较。
 
 ## 🗓️ 最新动态
+
+🌟 **[2025-11-21]**
+近期更新如下：
+
+- **模型支持扩展**  
+  新增 **9 个空间智能模型**，模型总数从 **7 个增加至 16 个**：
+    - **SenseNova-SI 1.1 系列**  
+        - [SenseNova-SI-1.1-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-1.1-InternVL3-8B)  
+        - [SenseNova-SI-1.1-InternVL3-2B](https://huggingface.co/sensenova/SenseNova-SI-1.1-InternVL3-2B)
+    - SpaceR: [SpaceR-8B](https://huggingface.co/RUBBISHLIKE/SpaceR)
+    - VST 系列: [VST-3B-SFT](https://huggingface.co/rayruiyang/VST-3B-SFT), [VST-7B-SFT](https://huggingface.co/rayruiyang/VST-7B-SFT)
+    - Cambrian-S 系列:  
+        [Cambrian-S-0.5B](https://huggingface.co/nyu-visionx/Cambrian-S-0.5B),  
+        [Cambrian-S-1.5B](https://huggingface.co/nyu-visionx/Cambrian-S-1.5B),  
+        [Cambrian-S-3B](https://huggingface.co/nyu-visionx/Cambrian-S-3B),  
+        [Cambrian-S-7B](https://huggingface.co/nyu-visionx/Cambrian-S-7B)
+
+- **基准测试支持扩展**  
+  新增 **1 个图像–视频空间智能基准测试**，基准数量从 **6 个增加至 7 个**：
+    - [**VSI-Bench-Debiased**](https://vision-x-nyu.github.io/thinking-in-space.github.io/)
+
+---
+
 🌟 [2025-11-07] [EASI v0.1.0]() 发布。主要更新包括：
 
 - 支持 7 个最新的空间智能模型：
@@ -53,7 +76,8 @@ VLM 配置：所有 VLM 都在 vlmeval/config.py 中配置。在评测时，你�
 
 | Benchmark   | Evaluation settings          |
 |-------------|------------------------------|
-| [VSI-Bench](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | VSI-Bench_origin_32frame (Generated during evaluation)   |
+| [VSI-Bench](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | [VSI-Bench_origin_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/VSI-Bench.tsv)  |
+|             |  [VSI-Bench-Debiased_origin_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/VSI-Bench-Debiased.tsv)             |
 | [SITE-Bench](https://huggingface.co/datasets/franky-veteran/SITE-Bench)  | [SiteBenchImage](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SiteBenchImage.tsv)        |
 |             |  [SiteBenchVideo_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SiteBenchVideo.tsv)             |
 | [MMSI-Bench](https://huggingface.co/datasets/RunsenXu/MMSI-Bench)  | [MMSIBench_wo_circular](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MMSIBench_wo_circular.tsv)        |
@@ -71,11 +95,11 @@ python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --verbose --reuse
 
 **示例**
 
-在 `MindCubeBench_tiny_raw_qa` 上评测 `SenseNova-SI-InternVL3-2B`：
+在 `MindCubeBench_tiny_raw_qa` 上评测 `SenseNova-SI-1.1-InternVL3-8B`：
 
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
-              --model SenseNova-SI-InternVL3-2B \
+              --model SenseNova-SI-1.1-InternVL3-8B \
               --verbose --reuse
 ```
 
