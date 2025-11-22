@@ -27,19 +27,19 @@ EASI 构建了一个全面的空间任务分类体系，制定了一套标准化
 ## 🗓️ 最新动态
 
 🌟 **[2025-11-21]**
-近期更新如下：
+[EASI v0.1.1]() 发布。主要更新包括：：
 
 - **模型支持扩展**  
   新增 **9 个空间智能模型**，模型总数从 **7 个增加至 16 个**：
     - **SenseNova-SI 1.1 系列**  
         - [SenseNova-SI-1.1-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-1.1-InternVL3-8B)  
         - [SenseNova-SI-1.1-InternVL3-2B](https://huggingface.co/sensenova/SenseNova-SI-1.1-InternVL3-2B)
-    - SpaceR: [SpaceR-8B](https://huggingface.co/RUBBISHLIKE/SpaceR)
+    - SpaceR: [SpaceR-7B](https://huggingface.co/RUBBISHLIKE/SpaceR)kv
     - VST 系列: [VST-3B-SFT](https://huggingface.co/rayruiyang/VST-3B-SFT), [VST-7B-SFT](https://huggingface.co/rayruiyang/VST-7B-SFT)
     - Cambrian-S 系列:  
         [Cambrian-S-0.5B](https://huggingface.co/nyu-visionx/Cambrian-S-0.5B),  
         [Cambrian-S-1.5B](https://huggingface.co/nyu-visionx/Cambrian-S-1.5B),  
-        [Cambrian-S-3B](https://huggingface.co/nyu-visionx/Cambrian-S-3B),  
+        [Cambrian-S-3B](https://huggingface.co/nyu-visionx/Cambrian-S-3B), 
         [Cambrian-S-7B](https://huggingface.co/nyu-visionx/Cambrian-S-7B)
 
 - **基准测试支持扩展**  
@@ -48,7 +48,7 @@ EASI 构建了一个全面的空间任务分类体系，制定了一套标准化
 
 ---
 
-🌟 [2025-11-07] [EASI v0.1.0]() 发布。主要更新包括：
+🌟 [2025-11-07] [EASI v0.1.0](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.0) 发布。主要更新包括：
 
 - 支持 7 个最新的空间智能模型：
     - SenseNova-SI系列: [SenseNova-SI-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-InternVL3-8B), [SenseNova-SI-InternVL3-2B](https://huggingface.co/collections/sensenova/sensenova-si)

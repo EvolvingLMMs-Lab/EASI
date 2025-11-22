@@ -27,14 +27,14 @@ Key features include:
 ## 🗓️ News
 
 🌟 **[2025-11-21]**
-Recent improvements include:
+[EASI v0.1.1]() is released. Major updates include:
 
 - **Expanded model support**  
   Added **9 new Spatial Intelligence models**, increasing total from **7 → 16**:
     - **SenseNova-SI 1.1 Series**  
         - [SenseNova-SI-1.1-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-1.1-InternVL3-8B)  
         - [SenseNova-SI-1.1-InternVL3-2B](https://huggingface.co/sensenova/SenseNova-SI-1.1-InternVL3-2B)
-    - SpaceR: [SpaceR-8B](https://huggingface.co/RUBBISHLIKE/SpaceR)
+    - SpaceR: [SpaceR-7B](https://huggingface.co/RUBBISHLIKE/SpaceR)
     - VST Series: [VST-3B-SFT](https://huggingface.co/rayruiyang/VST-3B-SFT), [VST-7B-SFT](https://huggingface.co/rayruiyang/VST-7B-SFT)
     - Cambrian-S series: [Cambrian-S-0.5B](https://huggingface.co/nyu-visionx/Cambrian-S-0.5B), [Cambrian-S-1.5B](https://huggingface.co/nyu-visionx/Cambrian-S-1.5B), [Cambrian-S-3B](https://huggingface.co/nyu-visionx/Cambrian-S-3B), [Cambrian-S-7B](https://huggingface.co/nyu-visionx/Cambrian-S-7B)
 
@@ -45,7 +45,7 @@ Recent improvements include:
 ---
 
 
-🌟 **[2025-11-07]** [EASI v0.1.0]() is released. Major updates include:
+🌟 **[2025-11-07]** [EASI v0.1.0](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.0) is released. Major updates include:
 - Supports 7 recent Spatial Intelligence models:
     - SenseNova-SI Family: [SenseNova-SI-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-InternVL3-8B), [SenseNova-SI-InternVL3-2B](https://huggingface.co/collections/sensenova/sensenova-si)
     - MindCube Family: [MindCube-3B-RawQA-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-RawQA-SFT), [MindCube-3B-Aug-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Aug-CGMap-FFR-Out-SFT),[MindCube-3B-Plain-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Plain-CGMap-FFR-Out-SFT)
