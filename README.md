@@ -27,7 +27,7 @@ Key features include:
 ## 🗓️ News
 
 🌟 **[2025-11-21]**
-[EASI v0.1.1]() is released. Major updates include:
+[EASI v0.1.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.1) is released. Major updates include:
 
 - **Expanded model support**  
   Added **9 new Spatial Intelligence models**, increasing total from **7 → 16**:
