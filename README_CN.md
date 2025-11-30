@@ -105,11 +105,9 @@ python run.py --data MindCubeBench_tiny_raw_qa \
 
 ## 🖊️ 引用
 
-空间智能是一个快速发展的领域，我们的评测范围已经从GPT-5拓展到更多的模型，因此论文的标题改为了[*Holistic Evaluation of Multimodal LLMs on Spatial Intelligence*](https://arxiv.org/abs/2508.13142)。但是为了方便大家引用，BibTeX中还是使用最初的标题。
-
 ```bib
 @article{easi2025,
-  title={Has gpt-5 achieved spatial intelligence? an empirical study},
+  title={Holistic Evaluation of Multimodal LLMs on Spatial Intelligence},
   author={Cai, Zhongang and Wang, Yubo and Sun, Qingping and Wang, Ruisi and Gu, Chenyang and Yin, Wanqi and Lin, Zhiqian and Yang, Zhitao and Wei, Chen and Shi, Xuanke and Deng, Kewang and Han, Xiaoyang and Chen, Zukai and Li, Jiaqi and Fan, Xiangyu and Deng, Hanming and Lu, Lewei and Li, Bo and Liu, Ziwei and Wang, Quan and Lin, Dahua and Yang, Lei},
   journal={arXiv preprint arXiv:2508.13142},
   year={2025}

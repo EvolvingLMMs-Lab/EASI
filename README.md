@@ -102,11 +102,9 @@ python run.py --data MindCubeBench_tiny_raw_qa \
 
 ## 🖊️ Citation
 
-Spatial intelligence is a rapidly evolving field. Our evaluation scope has expanded beyond GPT-5 to include a broader range of models, leading us to update the paper's title to [*Holistic Evaluation of Multimodal LLMs on Spatial Intelligence*](https://arxiv.org/abs/2508.13142). For consistency, however, the BibTeX below retains the original title for reference.
-
 ```bib
 @article{easi2025,
-  title={Has gpt-5 achieved spatial intelligence? an empirical study},
+  title={Holistic Evaluation of Multimodal LLMs on Spatial Intelligence},
   author={Cai, Zhongang and Wang, Yubo and Sun, Qingping and Wang, Ruisi and Gu, Chenyang and Yin, Wanqi and Lin, Zhiqian and Yang, Zhitao and Wei, Chen and Shi, Xuanke and Deng, Kewang and Han, Xiaoyang and Chen, Zukai and Li, Jiaqi and Fan, Xiangyu and Deng, Hanming and Lu, Lewei and Li, Bo and Liu, Ziwei and Wang, Quan and Lin, Dahua and Yang, Lei},
   journal={arXiv preprint arXiv:2508.13142},
   year={2025}
