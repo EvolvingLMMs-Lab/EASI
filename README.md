@@ -99,6 +99,13 @@ python run.py --data MindCubeBench_tiny_raw_qa \
               --verbose --reuse
 ```
 
+### Submision
+
+To submit your evaluation results to our [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard):
+
+1. Go to the [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard) page.
+2. Click **🚀 Submit here!** to the submission form.
+3. Follow the instructions to fill in the submission form, and submit your results.
 
 ## 🖊️ Citation
 

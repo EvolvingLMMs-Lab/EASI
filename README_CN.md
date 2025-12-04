@@ -103,6 +103,14 @@ python run.py --data MindCubeBench_tiny_raw_qa \
               --verbose --reuse
 ```
 
+### 提交
+
+将您的评测结果提交到我们的 [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard)：
+
+1. 访问 [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard) 页面。
+2. 点击 **🚀 Submit here!** 进入提交表单。
+3. 按照页面上的说明填写提交表单，并提交你的结果。
+
 ## 🖊️ 引用
 
 ```bib
