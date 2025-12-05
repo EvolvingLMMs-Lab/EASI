@@ -26,6 +26,36 @@ Key features include:
 
 ## 🗓️ News
 
+🌟 **[2025-12-05]** 
+[EASI v0.1.2](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.2) is released. Major updates include:
+
+- **Expanded model support**  
+  Added **1 new Spatial Intelligence models**, increasing total from **16 → 17**:
+    - VLM-3R: [VLM-3R](https://github.com/VITA-Group/VLM-3R)
+
+  Added **1 unified understanding–generation model**:
+    - BAGEL-7B-MoT: [BAGEL-7B-MoT](https://huggingface.co/ByteDance-Seed/BAGEL-7B-MoT)
+
+- **Expanded benchmark support**  
+  Added **4 image-based benchmarks**, increasing total from **7 → 11**:
+    - [**STAR-Bench**](https://huggingface.co/datasets/internlm/STAR-Bench), 
+    [**OmniSpatial**](https://huggingface.co/datasets/qizekun/OmniSpatial), 
+    [**Spatial-Visualization-Benchmark**](https://huggingface.co/datasets/PLM-Team/Spatial-Visualization-Benchmark), 
+    [**SPAR-Bench**](https://huggingface.co/datasets/jasonzhango/SPAR-Bench), 
+
+- **LLM-based answer extraction for EASI benchmarks**  
+  Added optional LLM-based answer extraction for several EASI benchmarks. You can now enable OpenAI judging by specifying:
+  ```bash
+  --judge gpt-4o-1120
+  ```
+  which routes to gpt-4o-2024-11-20 for automated evaluation.
+
+
+---
+
+
+
+
 🌟 **[2025-11-21]**
 [EASI v0.1.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.1) is released. Major updates include:
 
@@ -71,8 +101,8 @@ pip install -e ./VLMEvalKit
 **Benchmark Configuration**: The full list of supported Benchmarks can be found in the official VLMEvalKit documentation [VLMEvalKit Supported Benchmarks (Feishu)](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY). For the [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard), the following Benchmarks are currently supported:
 | Benchmark   | Evaluation settings          |
 |-------------|------------------------------|
-| [VSI-Bench](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | [VSI-Bench_origin_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/VSI-Bench.tsv)  |
-|             |  [VSI-Bench-Debiased_origin_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/VSI-Bench-Debiased.tsv)             |
+| [VSI-Bench](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | [VSI-Bench_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/VSI-Bench.tsv)  |
+|             |  [VSI-Bench-Debiased_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/VSI-Bench-Debiased.tsv)             |
 | [SITE-Bench](https://huggingface.co/datasets/franky-veteran/SITE-Bench)  | [SiteBenchImage](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SiteBenchImage.tsv)        |
 |             |  [SiteBenchVideo_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SiteBenchVideo.tsv)             |
 | [MMSI-Bench](https://huggingface.co/datasets/RunsenXu/MMSI-Bench)  | [MMSIBench_wo_circular](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MMSIBench_wo_circular.tsv)        |
@@ -80,12 +110,22 @@ pip install -e ./VLMEvalKit
 |             | [MindCubeBench_raw_qa](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MindCubeBench_raw_qa.tsv)         |
 | [ViewSpatial](https://huggingface.co/datasets/lidingm/ViewSpatial-Bench) | [ViewSpatialBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/ViewSpatialBench.tsv)            |
 | [EmbSpatial](https://huggingface.co/datasets/FlagEval/EmbSpatial-Bench)  | [EmbSpatialBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/EmbSpatialBench.tsv)             |
+| [SparBench](https://huggingface.co/datasets/jasonzhango/SPAR-Bench)  | [SparBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SparBench.tsv)             |
+|             |  [SparBench_tiny](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SparBench_tiny.tsv)             |
+| [STAR-Bench](https://huggingface.co/datasets/internlm/STAR-Bench)  | [StareBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/StareBench.tsv)             |
+|             |  [StareBench_CoT](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/StareBench.tsv)             |
+| [Spatial-Visualization-Benchmark](https://huggingface.co/datasets/PLM-Team/Spatial-Visualization-Benchmark)  | [SpatialVizBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SpatialVizBench.tsv)             |
+|             |  [SpatialVizBench_CoT](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SpatialVizBench.tsv)             |
+| [OmniSpatial](https://huggingface.co/datasets/qizekun/OmniSpatial)  | [OmniSpatialBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/OmniSpatialBench.tsv)             |
+|             |  [OmniSpatialBench_default](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/OmniSpatialBench.tsv)             |
+|             |  [OmniSpatialBench_zeroshot_cot](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/OmniSpatialBench.tsv)             |
+|             |  [OmniSpatialBench_manual_cot](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/OmniSpatialBench.tsv)             |
 
 
 ### Evaluation
 **General command**
 ```bash
-python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --verbose --reuse
+python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --verbose --reuse --judge extract_matching
 ```
 See `run.py` for the full list of arguments.
 
@@ -96,7 +136,7 @@ Evaluate `SenseNova-SI-1.1-InternVL3-8B` on `MindCubeBench_tiny_raw_qa`:
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
               --model SenseNova-SI-1.1-InternVL3-8B \
-              --verbose --reuse
+              --verbose --reuse --judge extract_matching
 ```
 
 ### Submision
