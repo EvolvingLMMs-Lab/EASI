@@ -26,6 +26,39 @@ Key features include:
 
 ## 🗓️ News
 
+🌟 **[2025-12-05]** 
+[EASI v0.1.2](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.2) is released. Major updates include:
+
+- **Expanded model support**  
+  Added **1 new Spatial Intelligence models**, increasing total from **16 → 17**:
+    - VLM-3R: [VLM-3R](https://github.com/VITA-Group/VLM-3R)
+
+  Added **1 unified understanding–generation model**:
+    - BAGEL-7B-MoT: [BAGEL-7B-MoT](https://huggingface.co/ByteDance-Seed/BAGEL-7B-MoT)
+
+- **Expanded benchmark support**  
+  Added **7 image-based benchmarks**, increasing total from **7 → 14**:
+    - [**STAR-Bench**](https://huggingface.co/datasets/internlm/STAR-Bench), 
+    [**OmniSpatial**](https://huggingface.co/datasets/qizekun/OmniSpatial), 
+    [**STAR-Bench**](https://huggingface.co/datasets/internlm/STAR-Bench), 
+    [**SPAR-Bench**](https://huggingface.co/datasets/jasonzhango/SPAR-Bench), 
+    <!-- [**RefSpatial-Bench**](https://huggingface.co/datasets/BAAI/RefSpatial-Bench),
+    [**RoboSpatial-Home**](https://huggingface.co/datasets/chanhee-luke/RoboSpatial-Home),
+    [**ERQA**](https://huggingface.co/datasets/FlagEval/ERQA) -->
+
+- **LLM-based answer extraction for EASI benchmarks**  
+  Added optional LLM-based answer extraction for several EASI benchmarks. You can now enable OpenAI judging by specifying:
+  ```bash
+  --judge gpt-4o-1120
+  ```
+  which routes to gpt-4o-2024-11-20 for automated evaluation.
+
+
+---
+
+
+
+
 🌟 **[2025-11-21]**
 [EASI v0.1.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.1) is released. Major updates include:
 
@@ -85,7 +118,7 @@ pip install -e ./VLMEvalKit
 ### Evaluation
 **General command**
 ```bash
-python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --verbose --reuse
+python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --verbose --reuse --judge extract_matching
 ```
 See `run.py` for the full list of arguments.
 
@@ -96,7 +129,7 @@ Evaluate `SenseNova-SI-1.1-InternVL3-8B` on `MindCubeBench_tiny_raw_qa`:
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
               --model SenseNova-SI-1.1-InternVL3-8B \
-              --verbose --reuse
+              --verbose --reuse --judge extract_matching
 ```
 
 
