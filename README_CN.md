@@ -26,6 +26,30 @@ EASI 构建了一个全面的空间任务分类体系，制定了一套标准化
 
 ## 🗓️ 最新动态
 
+🌟 **[2025-12-05]**  
+[EASI v0.1.2](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.2) 发布。主要更新包括：
+
+- **模型支持扩展**  
+  新增 **1 个空间智能模型**，模型总数从 **16 个增加至 17 个**：
+    - VLM-3R: [VLM-3R](https://github.com/VITA-Group/VLM-3R)
+
+  新增 **1 个统一理解–生成模型（Unified Understanding–Generation Model）**：
+    - BAGEL-7B-MoT: [BAGEL-7B-MoT](https://huggingface.co/ByteDance-Seed/BAGEL-7B-MoT)
+
+- **基准测试支持扩展**  
+  新增 **4 个图像空间智能基准测试**，基准数量从 **7 个增加至 11 个**：
+    - [**STAR-Bench**](https://huggingface.co/datasets/internlm/STAR-Bench)  
+    - [**OmniSpatial**](https://huggingface.co/datasets/qizekun/OmniSpatial)  
+    - [**Spatial-Visualization-Benchmark**](https://huggingface.co/datasets/PLM-Team/Spatial-Visualization-Benchmark)  
+    - [**SPAR-Bench**](https://huggingface.co/datasets/jasonzhango/SPAR-Bench)
+
+- **EASI 基准的 LLM 答案抽取评测**  
+  为部分 EASI 基准新增可选的「基于大模型的答案抽取」评测模式。你可以通过指定：
+  ```bash
+  --judge gpt-4o-1120
+  ```
+  来启用 OpenAI 评测，内部将路由到 gpt-4o-2024-11-20 进行自动打分。
+
 🌟 **[2025-11-21]**
 [EASI v0.1.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.1) 发布。主要更新包括：：
 
@@ -76,8 +100,8 @@ VLM 配置：所有 VLM 都在 vlmeval/config.py 中配置。在评测时，你�
 
 | Benchmark   | Evaluation settings          |
 |-------------|------------------------------|
-| [VSI-Bench](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | [VSI-Bench_origin_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/VSI-Bench.tsv)  |
-|             |  [VSI-Bench-Debiased_origin_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/VSI-Bench-Debiased.tsv)             |
+| [VSI-Bench](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | [VSI-Bench_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/VSI-Bench.tsv)  |
+|             |  [VSI-Bench-Debiased_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/VSI-Bench-Debiased.tsv)             |
 | [SITE-Bench](https://huggingface.co/datasets/franky-veteran/SITE-Bench)  | [SiteBenchImage](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SiteBenchImage.tsv)        |
 |             |  [SiteBenchVideo_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SiteBenchVideo.tsv)             |
 | [MMSI-Bench](https://huggingface.co/datasets/RunsenXu/MMSI-Bench)  | [MMSIBench_wo_circular](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MMSIBench_wo_circular.tsv)        |
@@ -85,11 +109,20 @@ VLM 配置：所有 VLM 都在 vlmeval/config.py 中配置。在评测时，你�
 |             | [MindCubeBench_raw_qa](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MindCubeBench_raw_qa.tsv)         |
 | [ViewSpatial](https://huggingface.co/datasets/lidingm/ViewSpatial-Bench) | [ViewSpatialBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/ViewSpatialBench.tsv)            |
 | [EmbSpatial](https://huggingface.co/datasets/FlagEval/EmbSpatial-Bench)  | [EmbSpatialBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/EmbSpatialBench.tsv)             |
-
+| [SparBench](https://huggingface.co/datasets/jasonzhango/SPAR-Bench)  | [SparBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SparBench.tsv)             |
+|             |  [SparBench_tiny](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SparBench_tiny.tsv)             |
+| [STAR-Bench](https://huggingface.co/datasets/internlm/STAR-Bench)  | [StareBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/StareBench.tsv)             |
+|             |  [StareBench_CoT](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/StareBench.tsv)             |
+| [Spatial-Visualization-Benchmark](https://huggingface.co/datasets/PLM-Team/Spatial-Visualization-Benchmark)  | [SpatialVizBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SpatialVizBench.tsv)             |
+|             |  [SpatialVizBench_CoT](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SpatialVizBench.tsv)             |
+| [OmniSpatial](https://huggingface.co/datasets/qizekun/OmniSpatial)  | [OmniSpatialBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/OmniSpatialBench.tsv)             |
+|             |  [OmniSpatialBench_default](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/OmniSpatialBench.tsv)             |
+|             |  [OmniSpatialBench_zeroshot_cot](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/OmniSpatialBench.tsv)             |
+|             |  [OmniSpatialBench_manual_cot](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/OmniSpatialBench.tsv)             |
 ### 评测
 **通用命令**
 ```bash
-python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --verbose --reuse
+python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --verbose --reuse --judge extract_matching
 ```
 完整参数说明请参见 run.py
 
@@ -100,7 +133,7 @@ python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --verbose --reuse
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
               --model SenseNova-SI-1.1-InternVL3-8B \
-              --verbose --reuse
+              --verbose --reuse --judge extract_matching
 ```
 
 ## 🖊️ 引用
