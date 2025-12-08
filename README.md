@@ -24,67 +24,64 @@ Key features include:
 - Systematically collects and integrates **evolving Spatial Intelligence benchmarks**.
 - Proposes a **standardized testing protocol** to ensure fair evaluation and enable cross-benchmark comparisons.
 
+For the full list of supported models and benchmarks, please refer to  👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**.
+
+
 ## 🗓️ News
 
-🌟 **[2025-12-05]** 
-[EASI v0.1.2](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.2) is released. Major updates include:
+🌟 **[2025-12-08]** [EASI v0.1.2](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.2) is released. Major updates include:
 
 - **Expanded model support**  
-  Added **1 new Spatial Intelligence models**, increasing total from **16 → 17**:
-    - VLM-3R: [VLM-3R](https://github.com/VITA-Group/VLM-3R)
-
-  Added **1 unified understanding–generation model**:
-    - BAGEL-7B-MoT: [BAGEL-7B-MoT](https://huggingface.co/ByteDance-Seed/BAGEL-7B-MoT)
-
+  Added **5 Spatial Intelligence models** and **1 unified understanding–generation model**:
+  - SenseNova-SI 1.1 Series (Qwen2.5-VL-3B / Qwen2.5-VL-7B / Qwen3-VL-8B)
+  - SenseNova-SI 1.2 Series (InternVL3-8B)
+  - VLM-3R
+  - BAGEL-7B-MoT
 - **Expanded benchmark support**  
-  Added **4 image-based benchmarks**, increasing total from **7 → 11**:
-    - [**STAR-Bench**](https://huggingface.co/datasets/internlm/STAR-Bench), 
-    [**OmniSpatial**](https://huggingface.co/datasets/qizekun/OmniSpatial), 
-    [**Spatial-Visualization-Benchmark**](https://huggingface.co/datasets/PLM-Team/Spatial-Visualization-Benchmark), 
-    [**SPAR-Bench**](https://huggingface.co/datasets/jasonzhango/SPAR-Bench), 
+  Added **4 image benchmarks**: STAR-Bench, OmniSpatial, Spatial-Visualization-Benchmark, SPAR-Bench.  
 
 - **LLM-based answer extraction for EASI benchmarks**  
-  Added optional LLM-based answer extraction for several EASI benchmarks. You can now enable OpenAI judging by specifying:
+  Added optional LLM-based answer extraction for several EASI benchmarks. You can enable OpenAI judging by:
   ```bash
   --judge gpt-4o-1120
   ```
   which routes to gpt-4o-2024-11-20 for automated evaluation.
-
-
 ---
 
 
-
-
-🌟 **[2025-11-21]**
-[EASI v0.1.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.1) is released. Major updates include:
+🌟 **[2025-11-21]**  [EASI v0.1.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.1) is released. Major updates include:
 
 - **Expanded model support**  
-  Added **9 new Spatial Intelligence models**, increasing total from **7 → 16**:
-    - **SenseNova-SI 1.1 Series**  
-        - [SenseNova-SI-1.1-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-1.1-InternVL3-8B)  
-        - [SenseNova-SI-1.1-InternVL3-2B](https://huggingface.co/sensenova/SenseNova-SI-1.1-InternVL3-2B)
-    - SpaceR: [SpaceR-7B](https://huggingface.co/RUBBISHLIKE/SpaceR)
-    - VST Series: [VST-3B-SFT](https://huggingface.co/rayruiyang/VST-3B-SFT), [VST-7B-SFT](https://huggingface.co/rayruiyang/VST-7B-SFT)
-    - Cambrian-S series: [Cambrian-S-0.5B](https://huggingface.co/nyu-visionx/Cambrian-S-0.5B), [Cambrian-S-1.5B](https://huggingface.co/nyu-visionx/Cambrian-S-1.5B), [Cambrian-S-3B](https://huggingface.co/nyu-visionx/Cambrian-S-3B), [Cambrian-S-7B](https://huggingface.co/nyu-visionx/Cambrian-S-7B)
+  Added **9 Spatial Intelligence models** (total **7 → 16**):
+  - SenseNova-SI 1.1 Series (InternVL3-8B / InternVL3-2B)
+  - SpaceR-7B
+  - VST Series (VST-3B-SFT / VST-7B-SFT)
+  - Cambrian-S Series (0.5B / 1.5B / 3B / 7B)
+
 
 - **Expanded benchmark support**  
-  Added **1 new image–video benchmark**, increasing total from **6 → 7**:
-    - [**VSI-Bench-Debiased**](https://vision-x-nyu.github.io/thinking-in-space.github.io/)
+  Added **1 image–video benchmark**: VSI-Bench-Debiased.
+
 
 ---
 
 
 🌟 **[2025-11-07]** [EASI v0.1.0](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.0) is released. Major updates include:
-- Supports 7 recent Spatial Intelligence models:
-    - SenseNova-SI Family: [SenseNova-SI-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-InternVL3-8B), [SenseNova-SI-InternVL3-2B](https://huggingface.co/collections/sensenova/sensenova-si)
-    - MindCube Family: [MindCube-3B-RawQA-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-RawQA-SFT), [MindCube-3B-Aug-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Aug-CGMap-FFR-Out-SFT),[MindCube-3B-Plain-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Plain-CGMap-FFR-Out-SFT)
-    - SpatialLadder: [SpatialLadder-3B](https://huggingface.co/hongxingli/SpatialLadder-3B)
-    - SpatialMLLM: [SpatialMLLM-4B](https://diankun-wu.github.io/Spatial-MLLM/)
-- Supports 6 recent Spatial Intelligence benchmarks:
-    - 4 image-based benchmarks: [MindCube](https://mind-cube.github.io/), [ViewSpatial](https://zju-real.github.io/ViewSpatial-Page/), [EmbSpatial](https://github.com/mengfeidu/EmbSpatial-Bench) and [MMSI(no circular evaluation)](https://arxiv.org/abs/2505.23764)
-    - 2 image-and-video benchmarks: [VSI-Bench](https://vision-x-nyu.github.io/thinking-in-space.github.io/) and [SITE-Bench](https://wenqi-wang20.github.io/SITE-Bench.github.io/)
-- Introduces a standardized testing protocol as outlined in [EASI](https://arxiv.org/pdf/2508.13142)
+
+- **Expanded model support**  
+  Supported **7 Spatial Intelligence models**:
+  - SenseNova-SI Series (InternVL3-8B / InternVL3-2B)
+  - MindCube Series (3B-RawQA-SFT / 3B-Aug-CGMap-FFR-Out-SFT / 3B-Plain-CGMap-FFR-Out-SFT)
+  - SpatialLadder-3B
+  - SpatialMLLM-4B
+
+- **Expanded benchmark support**  
+  Supported **6 Spatial Intelligence benchmarks**:
+  - 4 image benchmarks: MindCube, ViewSpatial, EmbSpatial, MMSI (no circular evaluation)
+  - 2 image–video benchmarks: VSI-Bench, SITE-Bench
+
+- **Standardized testing protocol**  
+  Introduced the EASI testing protocol as described in the [EASI paper](https://arxiv.org/pdf/2508.13142).
 
 
 ## 🛠️ QuickStart
@@ -96,49 +93,44 @@ pip install -e ./VLMEvalKit
 ```
 
 ### Configuration
-**VLM Configuration**: All VLMs are configured in `vlmeval/config.py`. During evaluation, you should use the model name specified in `supported_VLM` in `vlmeval/config.py` to select the VLM. Make sure you can successfully infer with the VLM before starting the evaluation with the following command `vlmutil check {MODEL_NAME}`.
+**VLM Configuration**: During evaluation, all supported VLMs are configured in `vlmeval/config.py`. Make sure you can successfully infer with the VLM before starting the evaluation with the following command `vlmutil check {MODEL_NAME}`. 
 
-**Benchmark Configuration**: The full list of supported Benchmarks can be found in the official VLMEvalKit documentation [VLMEvalKit Supported Benchmarks (Feishu)](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY). For the [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard), the following Benchmarks are currently supported:
+**Benchmark Configuration**: The full list of supported Benchmarks can be found in the official VLMEvalKit documentation [VLMEvalKit Supported Benchmarks](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY). 
+
+For the [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard), all EASI benchmarks are summarized in [Supported Models & Benchmarks](docs/Support_bench_models.md). A minimal example of recommended --data settings for EASI is:
+
 | Benchmark   | Evaluation settings          |
 |-------------|------------------------------|
 | [VSI-Bench](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | [VSI-Bench_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/VSI-Bench.tsv)  |
 |             |  [VSI-Bench-Debiased_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/VSI-Bench-Debiased.tsv)             |
-| [SITE-Bench](https://huggingface.co/datasets/franky-veteran/SITE-Bench)  | [SiteBenchImage](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SiteBenchImage.tsv)        |
-|             |  [SiteBenchVideo_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SiteBenchVideo.tsv)             |
-| [MMSI-Bench](https://huggingface.co/datasets/RunsenXu/MMSI-Bench)  | [MMSIBench_wo_circular](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MMSIBench_wo_circular.tsv)        |
 | [MindCube](https://huggingface.co/datasets/MLL-Lab/MindCube)    | [MindCubeBench_tiny_raw_qa](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MindCubeBench_tiny_raw_qa.tsv)    |
-|             | [MindCubeBench_raw_qa](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MindCubeBench_raw_qa.tsv)         |
-| [ViewSpatial](https://huggingface.co/datasets/lidingm/ViewSpatial-Bench) | [ViewSpatialBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/ViewSpatialBench.tsv)            |
-| [EmbSpatial](https://huggingface.co/datasets/FlagEval/EmbSpatial-Bench)  | [EmbSpatialBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/EmbSpatialBench.tsv)             |
-| [SparBench](https://huggingface.co/datasets/jasonzhango/SPAR-Bench)  | [SparBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SparBench.tsv)             |
-|             |  [SparBench_tiny](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SparBench_tiny.tsv)             |
-| [STAR-Bench](https://huggingface.co/datasets/internlm/STAR-Bench)  | [StareBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/StareBench.tsv)             |
-|             |  [StareBench_CoT](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/StareBench.tsv)             |
-| [Spatial-Visualization-Benchmark](https://huggingface.co/datasets/PLM-Team/Spatial-Visualization-Benchmark)  | [SpatialVizBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SpatialVizBench.tsv)             |
-|             |  [SpatialVizBench_CoT](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/SpatialVizBench.tsv)             |
-| [OmniSpatial](https://huggingface.co/datasets/qizekun/OmniSpatial)  | [OmniSpatialBench](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/OmniSpatialBench.tsv)             |
-|             |  [OmniSpatialBench_default](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/OmniSpatialBench.tsv)             |
-|             |  [OmniSpatialBench_zeroshot_cot](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/OmniSpatialBench.tsv)             |
-|             |  [OmniSpatialBench_manual_cot](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/OmniSpatialBench.tsv)             |
 
 
 ### Evaluation
 **General command**
 ```bash
-python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --verbose --reuse --judge extract_matching
+python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --judge {JUDGE_MODE} --verbose --reuse 
 ```
 See `run.py` for the full list of arguments.
 
 **Example** 
 
-Evaluate `SenseNova-SI-1.1-InternVL3-8B` on `MindCubeBench_tiny_raw_qa`:
+Evaluate `SenseNova-SI-1.2-InternVL3-8B` on `MindCubeBench_tiny_raw_qa`:
 
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
-              --model SenseNova-SI-1.1-InternVL3-8B \
+              --model SenseNova-SI-1.2-InternVL3-8B \
               --verbose --reuse --judge extract_matching
 ```
+This will use regular expressions to extract the answer. If you want to use an LLM-based judge (e.g., when evaluating SpatialVizBench_CoT),
+you can switch the judge to OpenAI:
 
+```
+python run.py --data SpatialVizBench_CoT \
+              --model {MODEL_NAME} \
+              --verbose --reuse --judge gpt-4o-1120
+```
+Note: to use OpenAI models, you must set the environment variable OPENAI_API_KEY.
 
 ## 🖊️ Citation
 
