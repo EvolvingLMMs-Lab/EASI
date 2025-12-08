@@ -126,7 +126,7 @@ python run.py --data SpatialVizBench_CoT \
               --model {MODEL_NAME} \
               --verbose --reuse --judge gpt-4o-1120
 ```
-注意：要使用 OpenAI 模型，必须设置环境变量 OPENAI_API_KEY。
+注意：要使用 OpenAI 模型，必须设置环境变量 `OPENAI_API_KEY`。
 
 ### 提交
 
