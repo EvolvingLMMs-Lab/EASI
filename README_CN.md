@@ -128,13 +128,19 @@ python run.py --data SpatialVizBench_CoT \
 ```
 注意：要使用 OpenAI 模型，必须设置环境变量 OPENAI_API_KEY。
 
-## 🖊️ 引用
+### 提交
 
-空间智能是一个快速发展的领域，我们的评测范围已经从GPT-5拓展到更多的模型，因此论文的标题改为了[*Holistic Evaluation of Multimodal LLMs on Spatial Intelligence*](https://arxiv.org/abs/2508.13142)。但是为了方便大家引用，BibTeX中还是使用最初的标题。
+将您的评测结果提交到我们的 [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard)：
+
+1. 访问 [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard) 页面。
+2. 点击 **🚀 Submit here!** 进入提交表单。
+3. 按照页面上的说明填写提交表单，并提交你的结果。
+
+## 🖊️ 引用
 
 ```bib
 @article{easi2025,
-  title={Has gpt-5 achieved spatial intelligence? an empirical study},
+  title={Holistic Evaluation of Multimodal LLMs on Spatial Intelligence},
   author={Cai, Zhongang and Wang, Yubo and Sun, Qingping and Wang, Ruisi and Gu, Chenyang and Yin, Wanqi and Lin, Zhiqian and Yang, Zhitao and Wei, Chen and Shi, Xuanke and Deng, Kewang and Han, Xiaoyang and Chen, Zukai and Li, Jiaqi and Fan, Xiangyu and Deng, Hanming and Lu, Lewei and Li, Bo and Liu, Ziwei and Wang, Quan and Lin, Dahua and Yang, Lei},
   journal={arXiv preprint arXiv:2508.13142},
   year={2025}
