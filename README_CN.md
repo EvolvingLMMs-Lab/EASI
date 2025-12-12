@@ -33,7 +33,7 @@ EASI 构建了一个全面的空间任务分类体系，制定了一套标准化
   新增 **3 个图像空间智能基准**: ERQA, RefSpatial-Bench, RoboSpatial-Home.  
 
 - **环境与部署支持优化**  
-  为 Cambrian-S 与 VLM3R 新增 Dockerfile，进一步简化环境配置流程，提升评测的可复现性。
+  新增通用 EASI Dockerfile，以及面向 Cambrian-S 与 VLM3R 的模型专用 Dockerfile，简化环境配置流程，提升评测的可复现性。
 ---
 
 
@@ -91,10 +91,24 @@ EASI 构建了一个全面的空间任务分类体系，制定了一套标准化
 
 ## 🛠️ 快速上手
 ### 安装
+#### 方式一：本地环境
+
 ```bash
 git clone --recursive https://github.com/EvolvingLMMs-Lab/EASI.git
 cd EASI
 pip install -e ./VLMEvalKit
+```
+
+#### 方式二：基于Docker
+
+```bash
+bash dockerfiles/EASI/build_runtime_docker.sh
+
+docker run --gpus all -it --rm \
+  -v /path/to/your/data:/mnt/data \
+  --name easi-runtime \
+  vlmevalkit_EASI:latest \
+  /bin/bash
 ```
 
 ### 配置

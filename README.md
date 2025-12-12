@@ -34,7 +34,7 @@ For the full list of supported models and benchmarks, please refer to  👉 **[S
   Added **3 image benchmarks**: ERQA, RefSpatial-Bench, RoboSpatial-Home.  
 
 - **Improved environment & deployment support**  
-  Added Dockerfiles for Cambrian-S and VLM3R to simplify environment setup and reproducible evaluation.
+  Added a generic EASI Dockerfile, as well as model-specific Dockerfiles for Cambrian-S and VLM3R, simplifying environment setup and improving reproducible evaluation.
 ---
 
 
@@ -95,11 +95,24 @@ For the full list of supported models and benchmarks, please refer to  👉 **[S
 
 ## 🛠️ QuickStart
 ### Installation
+#### Option 1: Local environment
 ```bash
 git clone --recursive https://github.com/EvolvingLMMs-Lab/EASI.git
 cd EASI
 pip install -e ./VLMEvalKit
 ```
+
+#### Option 2: Docker-based environment
+```
+bash dockerfiles/EASI/build_runtime_docker.sh
+
+docker run --gpus all -it --rm \
+  -v /path/to/your/data:/mnt/data \
+  --name easi-runtime \
+  vlmevalkit_EASI:latest \
+  /bin/bash
+```
+
 
 ### Configuration
 **VLM Configuration**: During evaluation, all supported VLMs are configured in `vlmeval/config.py`. Make sure you can successfully infer with the VLM before starting the evaluation with the following command `vlmutil check {MODEL_NAME}`. 
