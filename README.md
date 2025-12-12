@@ -29,6 +29,15 @@ For the full list of supported models and benchmarks, please refer to  👉 **[S
 
 ## 🗓️ News
 
+🌟 **[2025-12-12]** [EASI v0.1.3](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.3) is released. Major updates include:
+- **Expanded benchmark support**  
+  Added **3 image benchmarks**: ERQA, RefSpatial-Bench, RoboSpatial-Home.  
+
+- **Improved environment & deployment support**  
+  Added Dockerfiles for Cambrian-S and VLM3R to simplify environment setup and reproducible evaluation.
+---
+
+
 🌟 **[2025-12-08]** [EASI v0.1.2](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.2) is released. Major updates include:
 
 - **Expanded model support**  

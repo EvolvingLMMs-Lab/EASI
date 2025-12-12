@@ -28,7 +28,16 @@ EASI 构建了一个全面的空间任务分类体系，制定了一套标准化
 
 ## 🗓️ 最新动态
 
-🌟 **[2025-12-05]** [EASI v0.1.2](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.2) 发布。主要更新包括：
+🌟 **[2025-12-12]** [EASI v0.1.3](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.3) 发布。主要更新包括：
+- **基准测试支持扩展**  
+  新增 **3 个图像空间智能基准**: ERQA, RefSpatial-Bench, RoboSpatial-Home.  
+
+- **环境与部署支持优化**  
+  为 Cambrian-S 与 VLM3R 新增 Dockerfile，进一步简化环境配置流程，提升评测的可复现性。
+---
+
+
+🌟 **[2025-12-08]** [EASI v0.1.2](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.2) 发布。主要更新包括：
 
 - **模型支持扩展**  
   新增 **5 个空间智能模型** 和 **1 个统一理解–生成模型**：

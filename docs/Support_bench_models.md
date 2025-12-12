@@ -20,7 +20,7 @@ This page summarizes all **Spatial Intelligence models** and **benchmarks** curr
 |                   | MindCube-3B-Aug-CGMap-FFR-Out-SFT          | SI   | https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Aug-CGMap-FFR-Out-SFT |
 |                   | MindCube-3B-Plain-CGMap-FFR-Out-SFT        | SI   | https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Plain-CGMap-FFR-Out-SFT |
 | SpatialLadder     | SpatialLadder-3B                           | SI   | https://huggingface.co/hongxingli/SpatialLadder-3B              |
-| SpatialMLLM       | SpatialMLLM-4B                             | SI   | https://diankun-wu.github.io/Spatial-MLLM/                      |
+| SpatialMLLM       | SpatialMLLM-4B                             | SI   | https://huggingface.co/Diankun/Spatial-MLLM-subset-sft/         |
 | SpaceR            | SpaceR-7B                                  | SI   | https://huggingface.co/RUBBISHLIKE/SpaceR                       |
 | VST               | VST-3B-SFT                                 | SI   | https://huggingface.co/rayruiyang/VST-3B-SFT                    |
 |                   | VST-7B-SFT                                 | SI   | https://huggingface.co/rayruiyang/VST-7B-SFT                    |
@@ -49,3 +49,6 @@ This page summarizes all **Spatial Intelligence models** and **benchmarks** curr
 | STAR-Bench                       | image      | `StareBench`, `StareBench_CoT`                                                            | https://huggingface.co/datasets/internlm/STAR-Bench |
 | Spatial-Visualization-Benchmark  | image      | `SpatialVizBench`, `SpatialVizBench_CoT`                                                  | https://huggingface.co/datasets/PLM-Team/Spatial-Visualization-Benchmark |
 | OmniSpatial                      | image      | `OmniSpatialBench`, `OmniSpatialBench_default`, `OmniSpatialBench_zeroshot_cot`, `OmniSpatialBench_manual_cot` | https://huggingface.co/datasets/qizekun/OmniSpatial |
+| ERQA                             | image      | `ERQA`                                                                                    | https://huggingface.co/datasets/FlagEval/ERQA |
+| RefSpatial-Bench                 | image      | `RefSpatial`, `RefSpatial_wo_unseen`                                                      | https://huggingface.co/datasets/BAAI/RefSpatial-Bench |
+| RoboSpatial-Home                 | image      | `RoboSpatialHome`                                                 | https://huggingface.co/datasets/chanhee-luke/RoboSpatial-Home |
