@@ -16,15 +16,16 @@ English | [简体中文](README_CN.md)
 
 ## Overview
 
-EASI conceptualizes a comprehensive taxonomy of spatial tasks that unifies existing benchmarks and a standardized protocol for the fair evaluation of state-of-the-art proprietary and open-source models.
+EASI is a unified evaluation suite for Spatial Intelligence. It benchmarks state-of-the-art proprietary and open-source multimodal LLMs across a growing set of spatial benchmarks.
 
 Key features include:
 
 - Supports the evaluation of **state-of-the-art Spatial Intelligence models**.
 - Systematically collects and integrates **evolving Spatial Intelligence benchmarks**.
-- Proposes a **standardized testing protocol** to ensure fair evaluation and enable cross-benchmark comparisons.
 
-For the full list of supported models and benchmarks, please refer to  👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**.
+As of v0.1.3, EASI supports **21 Spatial Intelligence models** and **13 spatial benchmarks**, and the list is continuously expanding. Full details are available at 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**.
+
+
 
 
 ## 🗓️ News
@@ -35,63 +36,9 @@ For the full list of supported models and benchmarks, please refer to  👉 **[S
 
 - **Improved environment & deployment support**  
   Added a generic EASI Dockerfile, as well as model-specific Dockerfiles for Cambrian-S and VLM3R, simplifying environment setup and improving reproducible evaluation.
----
 
 
-🌟 **[2025-12-08]** [EASI v0.1.2](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.2) is released. Major updates include:
-
-- **Expanded model support**  
-  Added **5 Spatial Intelligence models** and **1 unified understanding–generation model**:
-  - SenseNova-SI 1.1 Series (Qwen2.5-VL-3B / Qwen2.5-VL-7B / Qwen3-VL-8B)
-  - SenseNova-SI 1.2 Series (InternVL3-8B)
-  - VLM-3R
-  - BAGEL-7B-MoT
-- **Expanded benchmark support**  
-  Added **4 image benchmarks**: STAR-Bench, OmniSpatial, Spatial-Visualization-Benchmark, SPAR-Bench.  
-
-- **LLM-based answer extraction for EASI benchmarks**  
-  Added optional LLM-based answer extraction for several EASI benchmarks. You can enable OpenAI judging by:
-  ```bash
-  --judge gpt-4o-1120
-  ```
-  which routes to gpt-4o-2024-11-20 for automated evaluation.
----
-
-
-🌟 **[2025-11-21]**  [EASI v0.1.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.1) is released. Major updates include:
-
-- **Expanded model support**  
-  Added **9 Spatial Intelligence models** (total **7 → 16**):
-  - SenseNova-SI 1.1 Series (InternVL3-8B / InternVL3-2B)
-  - SpaceR-7B
-  - VST Series (VST-3B-SFT / VST-7B-SFT)
-  - Cambrian-S Series (0.5B / 1.5B / 3B / 7B)
-
-
-- **Expanded benchmark support**  
-  Added **1 image–video benchmark**: VSI-Bench-Debiased.
-
-
----
-
-
-🌟 **[2025-11-07]** [EASI v0.1.0](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.0) is released. Major updates include:
-
-- **Expanded model support**  
-  Supported **7 Spatial Intelligence models**:
-  - SenseNova-SI Series (InternVL3-8B / InternVL3-2B)
-  - MindCube Series (3B-RawQA-SFT / 3B-Aug-CGMap-FFR-Out-SFT / 3B-Plain-CGMap-FFR-Out-SFT)
-  - SpatialLadder-3B
-  - SpatialMLLM-4B
-
-- **Expanded benchmark support**  
-  Supported **6 Spatial Intelligence benchmarks**:
-  - 4 image benchmarks: MindCube, ViewSpatial, EmbSpatial, MMSI (no circular evaluation)
-  - 2 image–video benchmarks: VSI-Bench, SITE-Bench
-
-- **Standardized testing protocol**  
-  Introduced the EASI testing protocol as described in the [EASI paper](https://arxiv.org/pdf/2508.13142).
-
+For the full release history and detailed changelog, please see 👉 **[Changelog](docs/CHANGELOG.md)**.
 
 ## 🛠️ QuickStart
 ### Installation
@@ -113,6 +60,30 @@ docker run --gpus all -it --rm \
   /bin/bash
 ```
 
+### Evaluation
+**General command**
+```bash
+python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --judge {JUDGE_MODE} --verbose --reuse 
+```
+Please refer to the Configuration section below for the full list of available models and benchmarks
+. See run.py for the full list of arguments.
+
+**Example** 
+
+Evaluate `SenseNova-SI-1.2-InternVL3-8B` on `MindCubeBench_tiny_raw_qa`:
+
+```bash
+python run.py --data MindCubeBench_tiny_raw_qa \
+              --model SenseNova-SI-1.2-InternVL3-8B \
+              --verbose --reuse --judge extract_matching
+```
+This uses regex-based answer extraction. For LLM-based judging (e.g., on SpatialVizBench_CoT), switch to the OpenAI judge:
+```
+export OPENAI_API_KEY=YOUR_KEY
+python run.py --data SpatialVizBench_CoT \
+              --model {MODEL_NAME} \
+              --verbose --reuse --judge gpt-4o-1120
+```
 
 ### Configuration
 **VLM Configuration**: During evaluation, all supported VLMs are configured in `vlmeval/config.py`. Make sure you can successfully infer with the VLM before starting the evaluation with the following command `vlmutil check {MODEL_NAME}`. 
@@ -128,31 +99,14 @@ For the [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leader
 | [MindCube](https://huggingface.co/datasets/MLL-Lab/MindCube)    | [MindCubeBench_tiny_raw_qa](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MindCubeBench_tiny_raw_qa.tsv)    |
 
 
-### Evaluation
-**General command**
-```bash
-python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --judge {JUDGE_MODE} --verbose --reuse 
-```
-See `run.py` for the full list of arguments.
+### Submision
 
-**Example** 
+To submit your evaluation results to our [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard):
 
-Evaluate `SenseNova-SI-1.2-InternVL3-8B` on `MindCubeBench_tiny_raw_qa`:
+1. Go to the [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard) page.
+2. Click **🚀 Submit here!** to the submission form.
+3. Follow the instructions to fill in the submission form, and submit your results.
 
-```bash
-python run.py --data MindCubeBench_tiny_raw_qa \
-              --model SenseNova-SI-1.2-InternVL3-8B \
-              --verbose --reuse --judge extract_matching
-```
-This will use regular expressions to extract the answer. If you want to use an LLM-based judge (e.g., when evaluating SpatialVizBench_CoT),
-you can switch the judge to OpenAI:
-
-```
-python run.py --data SpatialVizBench_CoT \
-              --model {MODEL_NAME} \
-              --verbose --reuse --judge gpt-4o-1120
-```
-Note: to use OpenAI models, you must set the environment variable `OPENAI_API_KEY`.
 
 ## 🖊️ Citation
 

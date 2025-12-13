@@ -16,78 +16,25 @@
 
 ## 概述
 
-EASI 构建了一个全面的空间任务分类体系，制定了一套标准化评测协议。EASI统一了近期提出的多项空间智能基准测试，用于对当前最先进的闭源模型和开源模型进行公平评估。
+EASI 是一个面向空间智能的统一评测套件，用于在不断扩展的空间基准上评估最先进的闭源和开源多模态大模型。
 
 主要特点包括：
 
 - 支持评估**最先进的空间智能模型**。
 - 系统性地收集和整合**不断演进的空间智能基准测试**。
-- 提出**标准化测试协议**，确保公平评估并支持跨基准测试的比较。
 
-完整的支持模型与基准列表见  👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**。
+在 v0.1.3 版本中，EASI 已支持 **21 个空间智能模型** 和 **13 个空间基准测试**，并将持续扩展。完整的支持模型与基准列表见 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**。
 
 ## 🗓️ 最新动态
 
 🌟 **[2025-12-12]** [EASI v0.1.3](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.3) 发布。主要更新包括：
 - **基准测试支持扩展**  
-  新增 **3 个图像空间智能基准**: ERQA, RefSpatial-Bench, RoboSpatial-Home.  
+  新增 **3 个图像空间智能基准**：ERQA、RefSpatial-Bench、RoboSpatial-Home。  
 
 - **环境与部署支持优化**  
   新增通用 EASI Dockerfile，以及面向 Cambrian-S 与 VLM3R 的模型专用 Dockerfile，简化环境配置流程，提升评测的可复现性。
----
 
-
-🌟 **[2025-12-08]** [EASI v0.1.2](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.2) 发布。主要更新包括：
-
-- **模型支持扩展**  
-  新增 **5 个空间智能模型** 和 **1 个统一理解–生成模型**：
-  - SenseNova-SI 1.1 系列（Qwen2.5-VL-3B / Qwen2.5-VL-7B / Qwen3-VL-8B）
-  - SenseNova-SI 1.2 系列（InternVL3-8B）
-  - VLM-3R
-  - BAGEL-7B-MoT
-
-- **基准测试支持扩展**  
-  新增 **4 个图像空间智能基准**：STAR-Bench、OmniSpatial、Spatial-Visualization-Benchmark、SPAR-Bench。
-
-
-- **EASI 基准的 LLM 答案抽取评测**  
-  为多项 EASI 基准新增可选的「基于大语言模型的答案抽取」评测模式。可以通过：
-  ```bash
-  --judge gpt-4o-1120
-  ```
-  来启用 OpenAI 评测，内部将路由到 gpt-4o-2024-11-20 进行自动打分。
-
-🌟 **[2025-11-21]** [EASI v0.1.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.1) 发布。主要更新包括：
-
-- **模型支持扩展**  
-  新增 **9 个空间智能模型**（模型总数从 **7 个增加至 16 个**）：
-  - SenseNova-SI 1.1 系列（InternVL3-8B / InternVL3-2B）
-  - SpaceR-7B
-  - VST 系列（VST-3B-SFT / VST-7B-SFT）
-  - Cambrian-S 系列（0.5B / 1.5B / 3B / 7B）
-
-- **基准测试支持扩展**  
-  新增 **1 个图像–视频空间智能基准测试**：VSI-Bench-Debiased。
-
----
-
-
-🌟 **[2025-11-07]** [EASI v0.1.0](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.0) 发布。主要更新包括：
-
-- **模型支持扩展**  
-  支持 **7 个空间智能模型**：
-  - SenseNova-SI 系列（InternVL3-8B / InternVL3-2B）
-  - MindCube 系列（3B-RawQA-SFT / 3B-Aug-CGMap-FFR-Out-SFT / 3B-Plain-CGMap-FFR-Out-SFT）
-  - SpatialLadder-3B
-  - SpatialMLLM-4B
-
-- **基准测试支持扩展**  
-  支持 **6 个空间智能基准测试**：
-  - 4 个图像基准：MindCube、ViewSpatial、EmbSpatial、MMSI（no circular evaluation）
-  - 2 个图像–视频基准：VSI-Bench、SITE-Bench
-
-- **标准化测试协议**  
-  支持 [EASI 论文](https://arxiv.org/pdf/2508.13142) 中提出的标准化测试协议。
+完整发版历史和详细更新日志，请参见 👉 **[Changelog](docs/CHANGELOG.md)**。
 
 ## 🛠️ 快速上手
 ### 安装
@@ -111,6 +58,30 @@ docker run --gpus all -it --rm \
   /bin/bash
 ```
 
+### 评测
+**通用命令**
+```bash
+python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --judge {JUDGE_MODE} --verbose --reuse 
+```
+请参阅下方的“配置”部分，查看所有可用模型和基准测试的完整列表。 请参阅 run.py 文件，查看所有参数的完整列表。
+
+**示例**
+
+在 `MindCubeBench_tiny_raw_qa` 上评测 `SenseNova-SI-1.2-InternVL3-8B`：
+
+```bash
+python run.py --data MindCubeBench_tiny_raw_qa \
+              --model SenseNova-SI-1.2-InternVL3-8B \
+              --verbose --reuse --judge extract_matching
+```
+这将使用正则表达式来提取答案。如果您想使用基于 LLM 的评判系统（例如，在评估 SpatialVizBench_CoT 时），您可以将评判系统切换到 OpenAI：
+```
+export OPENAI_API_KEY=YOUR_KEY
+python run.py --data SpatialVizBench_CoT \
+              --model {MODEL_NAME} \
+              --verbose --reuse --judge gpt-4o-1120
+```
+
 ### 配置
 
 VLM 配置：所有 VLM 都在 vlmeval/config.py 中配置。在评测时，你应当使用该文件中 supported_VLM 指定的模型名称来选择 VLM。开始评测前，请先通过如下命令确认该 VLM 可以成功推理： `vlmutil check {MODEL_NAME}`。
@@ -126,30 +97,6 @@ VLM 配置：所有 VLM 都在 vlmeval/config.py 中配置。在评测时，你�
 | [MindCube](https://huggingface.co/datasets/MLL-Lab/MindCube)    | [MindCubeBench_tiny_raw_qa](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MindCubeBench_tiny_raw_qa.tsv)    |
 
 有关 EASI 支持的模型和基准，请参阅[支持的模型和基准](docs/Support_bench_models.md)。
-
-### 评测
-**通用命令**
-```bash
-python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --judge {JUDGE_MODE} --verbose --reuse 
-```
-完整参数说明请参见 run.py
-
-**示例**
-
-在 `MindCubeBench_tiny_raw_qa` 上评测 `SenseNova-SI-1.2-InternVL3-8B`：
-
-```bash
-python run.py --data MindCubeBench_tiny_raw_qa \
-              --model SenseNova-SI-1.2-InternVL3-8B \
-              --verbose --reuse --judge extract_matching
-```
-这将使用正则表达式来提取答案。如果您想使用基于 LLM 的评判系统（例如，在评估 SpatialVizBench_CoT 时），您可以将评判系统切换到 OpenAI：
-```
-python run.py --data SpatialVizBench_CoT \
-              --model {MODEL_NAME} \
-              --verbose --reuse --judge gpt-4o-1120
-```
-注意：要使用 OpenAI 模型，必须设置环境变量 `OPENAI_API_KEY`。
 
 ### 提交
 
