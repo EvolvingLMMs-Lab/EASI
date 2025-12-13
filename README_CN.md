@@ -14,6 +14,17 @@
     <a href="https://github.com/EvolvingLMMs-Lab/EASI/blob/main/LICENSE"><img src="https://img.shields.io/github/license/EvolvingLMMs-Lab/EASI?style=flat"></a>
 </p>
 
+## 快速了解（TL;DR）
+
+- EASI 是一个面向多模态大模型空间智能（Spatial Intelligence）的统一评测套件。
+- 完成安装后，可以用下面的一行命令快速在 SenseNova-SI 模型上跑一个示例：
+
+```bash
+python run.py --data MindCubeBench_tiny_raw_qa \
+              --model SenseNova-SI-1.2-InternVL3-8B \
+              --verbose --reuse --judge extract_matching
+```
+
 ## 概述
 
 EASI 是一个面向空间智能的统一评测套件，用于在不断扩展的空间基准上评估最先进的闭源和开源多模态大模型。

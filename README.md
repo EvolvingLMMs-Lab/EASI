@@ -14,6 +14,17 @@ English | [简体中文](README_CN.md)
     <a href="https://github.com/EvolvingLMMs-Lab/EASI/blob/main/LICENSE"><img src="https://img.shields.io/github/license/EvolvingLMMs-Lab/EASI?style=flat"></a>
 </p>
 
+## TL;DR
+
+- EASI is a unified evaluation suite for Spatial Intelligence in multimodal LLMs.
+- After installation, you can quickly try a SenseNova-SI model with:
+
+```bash
+python run.py --data MindCubeBench_tiny_raw_qa \
+              --model SenseNova-SI-1.2-InternVL3-8B \
+              --verbose --reuse --judge extract_matching
+```
+
 ## Overview
 
 EASI is a unified evaluation suite for Spatial Intelligence. It benchmarks state-of-the-art proprietary and open-source multimodal LLMs across a growing set of spatial benchmarks.
