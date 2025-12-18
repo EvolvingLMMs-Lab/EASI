@@ -4,6 +4,14 @@ All notable changes to **EASI** are documented in this file.
 
 ---
 
+## [v0.1.4] – 2025-12-19
+
+### Added
+- 2 new benchmarks:
+  - SPBench, MMSI-Video-Bench
+
+---
+
 ## [v0.1.3] – 2025-12-12
 
 ### Added

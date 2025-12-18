@@ -34,20 +34,16 @@ Key features include:
 - Supports the evaluation of **state-of-the-art Spatial Intelligence models**.
 - Systematically collects and integrates **evolving Spatial Intelligence benchmarks**.
 
-As of v0.1.3, EASI supports **21 Spatial Intelligence models** and **13 spatial benchmarks**, and the list is continuously expanding. Full details are available at 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**.
+As of v0.1.4, EASI supports **21 Spatial Intelligence models** and **15 spatial benchmarks**, and the list is continuously expanding. Full details are available at 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**.
 
 
 
 
 ## 🗓️ News
 
-🌟 **[2025-12-12]** [EASI v0.1.3](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.3) is released. Major updates include:
+🌟 **[2025-12-19]** [EASI v0.1.4](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.4) is released. Major updates include:
 - **Expanded benchmark support**  
-  Added **3 image benchmarks**: ERQA, RefSpatial-Bench, RoboSpatial-Home.  
-
-- **Improved environment & deployment support**  
-  Added a generic EASI Dockerfile, as well as model-specific Dockerfiles for Cambrian-S and VLM3R, simplifying environment setup and improving reproducible evaluation.
-
+  Added **2 benchmarks**: SPBench, MMSI-Video-Bench.  
 
 For the full release history and detailed changelog, please see 👉 **[Changelog](docs/CHANGELOG.md)**.
 
