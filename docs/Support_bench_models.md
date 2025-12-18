@@ -52,3 +52,31 @@ This page summarizes all **Spatial Intelligence models** and **benchmarks** curr
 | ERQA                             | image      | `ERQA`                                                                                    | https://huggingface.co/datasets/FlagEval/ERQA |
 | RefSpatial-Bench                 | image      | `RefSpatial`, `RefSpatial_wo_unseen`                                                      | https://huggingface.co/datasets/BAAI/RefSpatial-Bench |
 | RoboSpatial-Home                 | image      | `RoboSpatialHome`                                                 | https://huggingface.co/datasets/chanhee-luke/RoboSpatial-Home |
+| SPBench                 | image      | `SPBench-MV`,`SPBench-SI`,`SPBench-MV_CoT`,`SPBench-SI_CoT`                | https://huggingface.co/datasets/hongxingli/SPBench |
+| MMSI-Video-Bench                 | video      | `MMSIVideoBench`                                                 | https://huggingface.co/datasets/rbler/MMSI-Video-Bench |
+
+
+## 📦 Upstream VLMEvalKit Benchmarks (non-EASI)
+
+EASI is built on VLMEvalKit. Besides the benchmarks listed above (maintained/added by EASI),
+you may also evaluate any benchmark natively supported by upstream VLMEvalKit by passing its
+official dataset name to `--data`.
+
+Here, we only list **Spatial Intelligence–related** benchmarks that are supported by upstream VLMEvalKit.
+For other benchmarks, please refer to the official VLMEvalKit documentation:
+[VLMEvalKit Supported Benchmarks](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY).
+
+- Dataset names are defined in VLMEvalKit `vlmeval/dataset/__init__.py` (and video configs).
+
+| Benchmark                        | Type        | Data                                                                                       | Link |
+|----------------------------------|------------|--------------------------------------------------------------------------------------------|------|
+| BLINK | image | `BLINK`, `BLINK_circular`| https://huggingface.co/datasets/BLINK-Benchmark/BLINK |
+| CV-Bench | image | `CV-Bench-2D`, `CV-Bench-3D`| https://huggingface.co/datasets/nyu-visionx/CV-Bench |
+| 3DSRBench | image | `3DSRBench` | https://huggingface.co/datasets/ccvl/3DSRBench |
+| LEGO-Puzzles | image | `LEGO`, `LEGO_circular` | https://huggingface.co/datasets/KexianTang/LEGO-Puzzles |
+| Spatial457 | image | `Spatial457` | https://huggingface.co/datasets/RyanWW/Spatial457 |
+
+
+
+
+
