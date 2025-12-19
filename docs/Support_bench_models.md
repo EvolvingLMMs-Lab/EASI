@@ -54,6 +54,8 @@ This page summarizes all **Spatial Intelligence models** and **benchmarks** curr
 | RoboSpatial-Home                 | image      | `RoboSpatialHome`                                                 | https://huggingface.co/datasets/chanhee-luke/RoboSpatial-Home |
 | SPBench                 | image      | `SPBench-MV`,`SPBench-SI`,`SPBench-MV_CoT`,`SPBench-SI_CoT`                | https://huggingface.co/datasets/hongxingli/SPBench |
 | MMSI-Video-Bench                 | video      | `MMSIVideoBench`                                                 | https://huggingface.co/datasets/rbler/MMSI-Video-Bench |
+| VSI-SUPER-Recall                 | video      | `{VsiSuperRecall}_{10mins,30mins,60mins,120mins,240mins}_{128frame,64frame,32frame,16frame,2fps,1fps}`| https://huggingface.co/datasets/nyu-visionx/VSI-SUPER-Recall |
+| VSI-SUPER-Count                | video      | `{VsiSuperCount}_{10mins,30mins,60mins,120mins}_{128frame,64frame,32frame,16frame,2fps,1fps}`| https://huggingface.co/datasets/nyu-visionx/VSI-SUPER-Count |
 
 
 ## 📦 Upstream VLMEvalKit Benchmarks (non-EASI)

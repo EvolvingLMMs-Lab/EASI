@@ -34,16 +34,14 @@ EASI 是一个面向空间智能的统一评测套件，用于在不断扩展的
 - 支持评估**最先进的空间智能模型**。
 - 系统性地收集和整合**不断演进的空间智能基准测试**。
 
-在 v0.1.3 版本中，EASI 已支持 **21 个空间智能模型** 和 **13 个空间基准测试**，并将持续扩展。完整的支持模型与基准列表见 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**。
+在 v0.1.4 版本中，EASI 已支持 **21 个空间智能模型** 和 **17 个空间基准测试**，并将持续扩展。完整的支持模型与基准列表见 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**。
 
 ## 🗓️ 最新动态
 
-🌟 **[2025-12-12]** [EASI v0.1.3](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.3) 发布。主要更新包括：
+🌟 **[2025-12-19]** [EASI v0.1.4](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.4) 发布。主要更新包括：
 - **基准测试支持扩展**  
-  新增 **3 个图像空间智能基准**：ERQA、RefSpatial-Bench、RoboSpatial-Home。  
+  新增 **4 个空间智能基准**：SPBench、MMSI-Video-Bench、VSI-SUPER-Recall、VSI-SUPER-Count。
 
-- **环境与部署支持优化**  
-  新增通用 EASI Dockerfile，以及面向 Cambrian-S 与 VLM3R 的模型专用 Dockerfile，简化环境配置流程，提升评测的可复现性。
 
 完整发版历史和详细更新日志，请参见 👉 **[Changelog](docs/CHANGELOG.md)**。
 

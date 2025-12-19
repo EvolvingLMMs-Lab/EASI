@@ -34,7 +34,7 @@ Key features include:
 - Supports the evaluation of **state-of-the-art Spatial Intelligence models**.
 - Systematically collects and integrates **evolving Spatial Intelligence benchmarks**.
 
-As of v0.1.4, EASI supports **21 Spatial Intelligence models** and **15 spatial benchmarks**, and the list is continuously expanding. Full details are available at 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**.
+As of v0.1.4, EASI supports **21 Spatial Intelligence models** and **17 spatial benchmarks**, and the list is continuously expanding. Full details are available at 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**.
 
 
 
@@ -43,7 +43,7 @@ As of v0.1.4, EASI supports **21 Spatial Intelligence models** and **15 spatial 
 
 🌟 **[2025-12-19]** [EASI v0.1.4](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.4) is released. Major updates include:
 - **Expanded benchmark support**  
-  Added **2 benchmarks**: SPBench, MMSI-Video-Bench.  
+  Added **4 benchmarks**: SPBench, MMSI-Video-Bench, VSI-SUPER-Recall, VSI-SUPER-Count.  
 
 For the full release history and detailed changelog, please see 👉 **[Changelog](docs/CHANGELOG.md)**.
 
