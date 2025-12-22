@@ -21,8 +21,7 @@ COPY . .
 RUN pip install -e .
 
 # Install vlm3r
-RUN mkdir -p third_party
-WORKDIR /app/third_party
+WORKDIR /opt
 RUN git clone --recursive https://github.com/VITA-Group/VLM-3R.git && \
     cd VLM-3R && \
     pip install -e .

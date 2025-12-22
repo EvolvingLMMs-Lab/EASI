@@ -19,8 +19,7 @@ COPY . .
 RUN pip install -e .
 
 # Install Cambrian-S
-RUN mkdir -p third_party
-WORKDIR /app/third_party
+WORKDIR /opt
 RUN git clone https://github.com/cambrian-mllm/cambrian-s.git && \
     cd cambrian-s && \
     git checkout 383f321 && \
