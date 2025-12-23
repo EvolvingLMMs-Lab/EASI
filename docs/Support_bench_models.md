@@ -37,26 +37,26 @@ This page summarizes all **Spatial Intelligence models** and **benchmarks** curr
 
 > In the command line, please use the values in the **Data** column as the `--data` argument.
 
-| Benchmark                        | Type        | Data                                                                                       | Link |
-|----------------------------------|------------|--------------------------------------------------------------------------------------------|------|
-| MindCube                         | image      | `MindCubeBench_tiny_raw_qa`, `MindCubeBench_raw_qa`                                       | https://huggingface.co/datasets/MLL-Lab/MindCube |
-| ViewSpatial                      | image      | `ViewSpatialBench`                                                                         | https://huggingface.co/datasets/lidingm/ViewSpatial-Bench |
-| EmbSpatial-Bench                 | image      | `EmbSpatialBench`                                                                          | https://huggingface.co/datasets/FlagEval/EmbSpatial-Bench |
-| MMSI-Bench (no circular)         | image      | `MMSIBench_wo_circular`                                                                    | https://huggingface.co/datasets/RunsenXu/MMSI-Bench |
-| VSI-Bench                        | video      | `{VSI-Bench, VSI-Bench-Debiased}_{128frame,64frame,32frame,16frame,2fps,1fps}`            | https://huggingface.co/datasets/nyu-visionx/VSI-Bench |
-| SITE-Bench                       | image+video| image: `SiteBenchImage`<br>video: `{SiteBenchVideo}_{64frame,32frame,1fps}`               | https://huggingface.co/datasets/franky-veteran/SITE-Bench |
-| SPAR-Bench                       | image      | `SparBench`, `SparBench_tiny`                                                             | https://huggingface.co/datasets/jasonzhango/SPAR-Bench |
-| STAR-Bench                       | image      | `StareBench`, `StareBench_CoT`                                                            | https://huggingface.co/datasets/internlm/STAR-Bench |
-| Spatial-Visualization-Benchmark  | image      | `SpatialVizBench`, `SpatialVizBench_CoT`                                                  | https://huggingface.co/datasets/PLM-Team/Spatial-Visualization-Benchmark |
-| OmniSpatial                      | image      | `OmniSpatialBench`, `OmniSpatialBench_default`, `OmniSpatialBench_zeroshot_cot`, `OmniSpatialBench_manual_cot` | https://huggingface.co/datasets/qizekun/OmniSpatial |
-| ERQA                             | image      | `ERQA`                                                                                    | https://huggingface.co/datasets/FlagEval/ERQA |
-| RefSpatial-Bench                 | image      | `RefSpatial`, `RefSpatial_wo_unseen`                                                      | https://huggingface.co/datasets/BAAI/RefSpatial-Bench |
-| RoboSpatial-Home                 | image      | `RoboSpatialHome`                                                 | https://huggingface.co/datasets/chanhee-luke/RoboSpatial-Home |
-| SPBench                 | image      | `SPBench-MV`, `SPBench-SI`, `SPBench-MV_CoT`, `SPBench-SI_CoT`                | https://huggingface.co/datasets/hongxingli/SPBench |
-| MMSI-Video-Bench                 | video      | `MMSIVideoBench_{300frame,64frame,50frame,32frame,1fps}`| https://huggingface.co/datasets/rbler/MMSI-Video-Bench |
-| VSI-SUPER-Recall                 | video      | `{VsiSuperRecall}_{10mins,30mins,60mins,120mins,240mins}_{128frame,64frame,32frame,16frame,2fps,1fps}`| https://huggingface.co/datasets/nyu-visionx/VSI-SUPER-Recall |
-| VSI-SUPER-Count                | video      | `{VsiSuperCount}_{10mins,30mins,60mins,120mins}_{128frame,64frame,32frame,16frame,2fps,1fps}`| https://huggingface.co/datasets/nyu-visionx/VSI-SUPER-Count |
-
+| Benchmark | Type | Data | Release Date |
+| :--- | :--- | :--- | :--- |
+| [**MindCube**](https://huggingface.co/datasets/MLL-Lab/MindCube) | image | `MindCubeBench_tiny_raw_qa`,<br>`MindCubeBench_raw_qa` | Jun 2025 |
+| [**ViewSpatial**](https://huggingface.co/datasets/lidingm/ViewSpatial-Bench) | image | `ViewSpatialBench` | May 2025 |
+| [**EmbSpatial-Bench**](https://huggingface.co/datasets/FlagEval/EmbSpatial-Bench) | image | `EmbSpatialBench` | Jun 2024 |
+| [**MMSI-Bench** (no circular)](https://huggingface.co/datasets/RunsenXu/MMSI-Bench) | image | `MMSIBench_wo_circular` | May 2025 |
+| [**VSI-Bench**](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | video | `{VSI-Bench}_`<br>`{128frame,64frame,32frame,16frame,2fps,1fps}` | Dec 2024 |
+| [**VSI-Bench-Debiased**](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | video | `{VSI-Bench-Debiased}_`<br>`{128frame,64frame,32frame,16frame,2fps,1fps}` | Nov 2025 |
+| [**SITE-Bench**](https://huggingface.co/datasets/franky-veteran/SITE-Bench) | image+video | image: `SiteBenchImage`<br>video: `{SiteBenchVideo}_`<br>`{64frame,32frame,1fps}` | May 2025 |
+| [**SPAR-Bench**](https://huggingface.co/datasets/jasonzhango/SPAR-Bench) | image | `SparBench`, `SparBench_tiny` | Mar 2025 |
+| [**STARE-Bench**](https://huggingface.co/datasets/internlm/STAR-Bench) | image | `StareBench`, `StareBench_CoT` | Jun 2025 |
+| [**Spatial-Visualization-Benchmark**](https://huggingface.co/datasets/PLM-Team/Spatial-Visualization-Benchmark) | image | `SpatialVizBench`,<br>`SpatialVizBench_CoT` | Jul 2025 |
+| [**OmniSpatial**](https://huggingface.co/datasets/qizekun/OmniSpatial) | image | `OmniSpatialBench`, `OmniSpatialBench_default`,<br>`OmniSpatialBench_zeroshot_cot`,<br>`OmniSpatialBench_manual_cot` | Jun 2025 |
+| [**ERQA**](https://huggingface.co/datasets/FlagEval/ERQA) | image | `ERQA` | Apr 2025 |
+| [**RefSpatial-Bench**](https://huggingface.co/datasets/BAAI/RefSpatial-Bench) | image | `RefSpatial`,<br>`RefSpatial_wo_unseen` | Jun 2025 |
+| [**RoboSpatial-Home**](https://huggingface.co/datasets/chanhee-luke/RoboSpatial-Home) | image | `RoboSpatialHome` | Nov 2024 |
+| [**SPBench**](https://huggingface.co/datasets/hongxingli/SPBench) | image | `SPBench-MV`, `SPBench-SI`,<br>`SPBench-MV_CoT`, `SPBench-SI_CoT` | Oct 2025 |
+| [**MMSI-Video-Bench**](https://huggingface.co/datasets/rbler/MMSI-Video-Bench) | video | `MMSIVideoBench_`<br>`{300frame,64frame,50frame,32frame,1fps}` | Dec 2025 |
+| [**VSI-SUPER-Recall**](https://huggingface.co/datasets/nyu-visionx/VSI-SUPER-Recall) | video | `{VsiSuperRecall}_`<br>`{10mins,30mins,60mins,120mins,240mins}_`<br>`{128frame,64frame,32frame,16frame,2fps,1fps}` | Nov 2025 |
+| [**VSI-SUPER-Count**](https://huggingface.co/datasets/nyu-visionx/VSI-SUPER-Count) | video | `{VsiSuperCount}_`<br>`{10mins,30mins,60mins,120mins}_`<br>`{128frame,64frame,32frame,16frame,2fps,1fps}` | Nov 2025 |
 
 ## 📦 Upstream VLMEvalKit Benchmarks (non-EASI)
 
@@ -70,15 +70,11 @@ For other benchmarks, please refer to the official VLMEvalKit documentation:
 
 - Dataset names are defined in VLMEvalKit `vlmeval/dataset/__init__.py` (and video configs).
 
-| Benchmark                        | Type        | Data                                                                                       | Link |
-|----------------------------------|------------|--------------------------------------------------------------------------------------------|------|
-| BLINK | image | `BLINK`, `BLINK_circular`| https://huggingface.co/datasets/BLINK-Benchmark/BLINK |
-| CV-Bench | image | `CV-Bench-2D`, `CV-Bench-3D`| https://huggingface.co/datasets/nyu-visionx/CV-Bench |
-| 3DSRBench | image | `3DSRBench` | https://huggingface.co/datasets/ccvl/3DSRBench |
-| LEGO-Puzzles | image | `LEGO`, `LEGO_circular` | https://huggingface.co/datasets/KexianTang/LEGO-Puzzles |
-| Spatial457 | image | `Spatial457` | https://huggingface.co/datasets/RyanWW/Spatial457 |
-
-
-
-
+| Benchmark | Type | Data | Release Date |
+| :--- | :--- | :--- | :--- |
+| [**BLINK**](https://huggingface.co/datasets/BLINK-Benchmark/BLINK) | image | `BLINK`, `BLINK_circular` | Apr 2024 |
+| [**CV-Bench**](https://huggingface.co/datasets/nyu-visionx/CV-Bench) | image | `CV-Bench-2D`, `CV-Bench-3D` | Jun 2024 |
+| [**3DSRBench**](https://huggingface.co/datasets/ccvl/3DSRBench) | image | `3DSRBench` | Dec 2024 |
+| [**LEGO-Puzzles**](https://huggingface.co/datasets/KexianTang/LEGO-Puzzles) | image | `LEGO`, `LEGO_circular` | Mar 2025 |
+| [**Spatial457**](https://huggingface.co/datasets/RyanWW/Spatial457) | image | `Spatial457` | Feb 2025 |
 
