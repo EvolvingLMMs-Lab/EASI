@@ -6,30 +6,30 @@ This page summarizes all **Spatial Intelligence models** and **benchmarks** curr
 
 > In the command line, please use the values in the **Model** column as the `--model` argument.
 
-| Family / Series   | Model                                       | Type | Link |
-|-------------------|---------------------------------------------|------|------|
-| SenseNova-SI 1.0  | SenseNova-SI-InternVL3-2B                  | SI   | https://huggingface.co/sensenova/SenseNova-SI-InternVL3-2B |
-|                   | SenseNova-SI-InternVL3-8B                  | SI   | https://huggingface.co/sensenova/SenseNova-SI-InternVL3-8B |
-| SenseNova-SI 1.1  | SenseNova-SI-1.1-Qwen2.5-VL-3B             | SI   | https://huggingface.co/sensenova/SenseNova-SI-1.1-Qwen2.5-VL-3B |
-|                   | SenseNova-SI-1.1-Qwen2.5-VL-7B             | SI   | https://huggingface.co/sensenova/SenseNova-SI-1.1-Qwen2.5-VL-7B |
-|                   | SenseNova-SI-1.1-Qwen3-VL-8B               | SI   | https://huggingface.co/sensenova/SenseNova-SI-1.1-Qwen3-VL-8B   |
-|                   | SenseNova-SI-1.1-InternVL3-2B              | SI   | https://huggingface.co/sensenova/SenseNova-SI-1.1-InternVL3-2B  |
-|                   | SenseNova-SI-1.1-InternVL3-8B              | SI   | https://huggingface.co/sensenova/SenseNova-SI-1.1-InternVL3-8B  |
-| SenseNova-SI 1.2  | SenseNova-SI-1.2-InternVL3-8B              | SI   | https://huggingface.co/sensenova/SenseNova-SI-1.2-InternVL3-8B  |
-| MindCube          | MindCube-3B-RawQA-SFT                      | SI   | https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-RawQA-SFT     |
-|                   | MindCube-3B-Aug-CGMap-FFR-Out-SFT          | SI   | https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Aug-CGMap-FFR-Out-SFT |
-|                   | MindCube-3B-Plain-CGMap-FFR-Out-SFT        | SI   | https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Plain-CGMap-FFR-Out-SFT |
-| SpatialLadder     | SpatialLadder-3B                           | SI   | https://huggingface.co/hongxingli/SpatialLadder-3B              |
-| SpatialMLLM       | SpatialMLLM-4B                             | SI   | https://huggingface.co/Diankun/Spatial-MLLM-subset-sft/         |
-| SpaceR            | SpaceR-7B                                  | SI   | https://huggingface.co/RUBBISHLIKE/SpaceR                       |
-| VST               | VST-3B-SFT                                 | SI   | https://huggingface.co/rayruiyang/VST-3B-SFT                    |
-|                   | VST-7B-SFT                                 | SI   | https://huggingface.co/rayruiyang/VST-7B-SFT                    |
-| Cambrian-S        | Cambrian-S-0.5B                            | SI   | https://huggingface.co/nyu-visionx/Cambrian-S-0.5B              |
-|                   | Cambrian-S-1.5B                            | SI   | https://huggingface.co/nyu-visionx/Cambrian-S-1.5B              |
-|                   | Cambrian-S-3B                              | SI   | https://huggingface.co/nyu-visionx/Cambrian-S-3B                |
-|                   | Cambrian-S-7B                              | SI   | https://huggingface.co/nyu-visionx/Cambrian-S-7B                |
-| VLM-3R            | VLM-3R                                     | SI   | https://github.com/VITA-Group/VLM-3R                            |
-| BAGEL-7B-MoT      | BAGEL-7B-MoT                               | UMM  | https://huggingface.co/ByteDance-Seed/BAGEL-7B-MoT              |
+| Family / Series | Type | Model | Link |
+| :--- | :--- | :--- | :--- |
+| **SenseNova-SI 1.0** | SI | `SenseNova-SI-InternVL3-2B` | [sensenova/SenseNova-SI-InternVL3-2B](https://huggingface.co/sensenova/SenseNova-SI-InternVL3-2B) |
+| | | `SenseNova-SI-InternVL3-8B` | [sensenova/SenseNova-SI-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-InternVL3-8B) |
+| **SenseNova-SI 1.1** | SI | `SenseNova-SI-1.1-Qwen2.5-VL-3B` | [sensenova/SenseNova-SI-1.1-Qwen2.5-VL-3B](https://huggingface.co/sensenova/SenseNova-SI-1.1-Qwen2.5-VL-3B) |
+| | | `SenseNova-SI-1.1-Qwen2.5-VL-7B` | [sensenova/SenseNova-SI-1.1-Qwen2.5-VL-7B](https://huggingface.co/sensenova/SenseNova-SI-1.1-Qwen2.5-VL-7B) |
+| | | `SenseNova-SI-1.1-Qwen3-VL-8B` | [sensenova/SenseNova-SI-1.1-Qwen3-VL-8B](https://huggingface.co/sensenova/SenseNova-SI-1.1-Qwen3-VL-8B) |
+| | | `SenseNova-SI-1.1-InternVL3-2B` | [sensenova/SenseNova-SI-1.1-InternVL3-2B](https://huggingface.co/sensenova/SenseNova-SI-1.1-InternVL3-2B) |
+| | | `SenseNova-SI-1.1-InternVL3-8B` | [sensenova/SenseNova-SI-1.1-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-1.1-InternVL3-8B) |
+| **SenseNova-SI 1.2** | SI | `SenseNova-SI-1.2-InternVL3-8B` | [sensenova/SenseNova-SI-1.2-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-1.2-InternVL3-8B) |
+| **MindCube** | SI | `MindCube-3B-RawQA-SFT` | [MLL-Lab/MindCube-Qwen2.5VL-RawQA-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-RawQA-SFT) |
+| | | `MindCube-3B-Aug-CGMap-FFR-Out-SFT` | [MLL-Lab/MindCube-Qwen2.5VL-Aug-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Aug-CGMap-FFR-Out-SFT) |
+| | | `MindCube-3B-Plain-CGMap-FFR-Out-SFT` | [MLL-Lab/MindCube-Qwen2.5VL-Plain-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Plain-CGMap-FFR-Out-SFT) |
+| **SpatialLadder** | SI | `SpatialLadder-3B` | [hongxingli/SpatialLadder-3B](https://huggingface.co/hongxingli/SpatialLadder-3B) |
+| **SpatialMLLM** | SI | `SpatialMLLM-4B` | [Diankun/Spatial-MLLM-subset-sft](https://huggingface.co/Diankun/Spatial-MLLM-subset-sft/) |
+| **SpaceR** | SI | `SpaceR-7B` | [RUBBISHLIKE/SpaceR](https://huggingface.co/RUBBISHLIKE/SpaceR) |
+| **VST** | SI | `VST-3B-SFT` | [rayruiyang/VST-3B-SFT](https://huggingface.co/rayruiyang/VST-3B-SFT) |
+| | | `VST-7B-SFT` | [rayruiyang/VST-7B-SFT](https://huggingface.co/rayruiyang/VST-7B-SFT) |
+| **Cambrian-S** | SI | `Cambrian-S-0.5B` | [nyu-visionx/Cambrian-S-0.5B](https://huggingface.co/nyu-visionx/Cambrian-S-0.5B) |
+| | | `Cambrian-S-1.5B` | [nyu-visionx/Cambrian-S-1.5B](https://huggingface.co/nyu-visionx/Cambrian-S-1.5B) |
+| | | `Cambrian-S-3B` | [nyu-visionx/Cambrian-S-3B](https://huggingface.co/nyu-visionx/Cambrian-S-3B) |
+| | | `Cambrian-S-7B` | [nyu-visionx/Cambrian-S-7B](https://huggingface.co/nyu-visionx/Cambrian-S-7B) |
+| **VLM-3R** | SI | `VLM-3R` | [VITA-Group/VLM-3R](https://github.com/VITA-Group/VLM-3R) |
+| **BAGEL** | UMM | `BAGEL-7B-MoT` | [ByteDance-Seed/BAGEL-7B-MoT](https://huggingface.co/ByteDance-Seed/BAGEL-7B-MoT) |
 
 ---
 
