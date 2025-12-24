@@ -47,7 +47,7 @@ This page summarizes all **Spatial Intelligence models** and **benchmarks** curr
 | [**VSI-Bench-Debiased**](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | video | `{VSI-Bench-Debiased}_`<br>`{128frame,64frame,32frame,16frame,2fps,1fps}` | Nov 2025 |
 | [**SITE-Bench**](https://huggingface.co/datasets/franky-veteran/SITE-Bench) | image+video | image: `SiteBenchImage`<br>video: `{SiteBenchVideo}_`<br>`{64frame,32frame,1fps}` | May 2025 |
 | [**SPAR-Bench**](https://huggingface.co/datasets/jasonzhango/SPAR-Bench) | image | `SparBench`, `SparBench_tiny` | Mar 2025 |
-| [**STARE-Bench**](https://huggingface.co/datasets/internlm/STAR-Bench) | image | `StareBench`, `StareBench_CoT` | Jun 2025 |
+| [**STARE-Bench**](https://huggingface.co/datasets/kuvvi/STARE) | image | `StareBench`, `StareBench_CoT` | Jun 2025 |
 | [**Spatial-Visualization-Benchmark**](https://huggingface.co/datasets/PLM-Team/Spatial-Visualization-Benchmark) | image | `SpatialVizBench`,<br>`SpatialVizBench_CoT` | Jul 2025 |
 | [**OmniSpatial**](https://huggingface.co/datasets/qizekun/OmniSpatial) | image | `OmniSpatialBench`, `OmniSpatialBench_default`,<br>`OmniSpatialBench_zeroshot_cot`,<br>`OmniSpatialBench_manual_cot` | Jun 2025 |
 | [**ERQA**](https://huggingface.co/datasets/FlagEval/ERQA) | image | `ERQA` | Apr 2025 |
