@@ -8,9 +8,9 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 
 | Symbol | Status | Criteria |
 | :---: | :--- | :--- |
-| ✅ | **Strong Agreement** | $0.0\% \le \lvert\Delta\rvert \le 2.5\%$ |
-| ☑️ | **Acceptable Variance** | $2.5\% < \lvert\Delta\rvert \le 5.0\%$ |
-| ❌ | **Discrepancy** | $5.0\% < \lvert\Delta\rvert$ |
+| ✅ | **Strong Agreement** | $0.0\% \le \Delta \le 2.5\%$ |
+| ☑️ | **Acceptable Variance** | $2.5\% < \Delta \le 5.0\%$ |
+| ❌ | **Discrepancy** | $5.0\% < \Delta$ |
 
 > **📝 Note on $\Delta$ Calculation:**
 > * Formula: $\Delta = \text{EASI} - \text{Target Score}$
