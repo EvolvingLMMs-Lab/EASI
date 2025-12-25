@@ -37,7 +37,7 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 15. [SPBench](#15-spbench)
 16. [MMSI-Video-Bench](#16-mmsi-video-bench)
 17. [VSI-SUPER-Recall](#17-vsi-super-recall)
-<!-- 18. [VSI-SUPER-Count](#18-vsi-super-count) 没数据 -->
+18. [VSI-SUPER-Count](#18-vsi-super-count)
 
 ---
 
