@@ -26,7 +26,7 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 4. [MMSI-Bench (no circular)](#4-mmsi-bench-no-circular)
 5. [VSI-Bench](#5-vsi-bench)
 6. [VSI-Bench-Debiased](#6-vsi-bench-debiased)
-<!-- 7. [SITE-Bench](#7-site-bench) 对齐差的有点多 -->
+7. [SITE-Bench](#7-site-bench)
 8. [SPAR-Bench](#8-spar-bench)
 9. [STARE-Bench](#9-stare-bench)
 10. [Spatial-Visualization-Benchmark](#10-spatial-visualization-benchmark)
@@ -36,8 +36,8 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 14. [RoboSpatial-Home](#14-robospatial-home)
 15. [SPBench](#15-spbench)
 16. [MMSI-Video-Bench](#16-mmsi-video-bench)
-<!-- 17. [VSI-SUPER-Recall](#17-vsi-super-recall) 没数据
-18. [VSI-SUPER-Count](#18-vsi-super-count) 没数据 -->
+17. [VSI-SUPER-Recall](#17-vsi-super-recall)
+<!-- 18. [VSI-SUPER-Count](#18-vsi-super-count) 没数据 -->
 
 ---
 
@@ -106,7 +106,14 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 | Cambrian-S-3B  | `VSI-Bench-Debiased_32frame` | - | 46.47 | 48.76 | +2.29 | ✅ |
 | Cambrian-S-7B  | `VSI-Bench-Debiased_32frame` | - | 55.58 | 55.35 | -0.23 | ✅ |
 
- 
+### 7. SITE-Bench
+* **Metric:** CAA
+
+| Model | Data | Paper | Official Code | EASI | Δ | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| Qwen2.5-VL-3B-Instruct  | `SiteBenchImage`<br>`SiteBenchVideo_32frame` | 29.5 | - | 33.1 | +3.6 | ☑️ |
+<!-- | Qwen2.5-VL-7B-Instruct  | `SiteBenchImage`<br>`SiteBenchVideo_32frame` | 31.4 | 32.3 | 37.6 | +5.3 | ❌ | -->
+
 ### 8. SPAR-Bench
 * **Metric:** Accuracy && MRA
 
@@ -190,3 +197,24 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 | Qwen2.5-VL-7B-Instruct  | `MMSIVideoBench_50frame` | 29.7 | - | 26.9 | -2.8 | ☑️ |
 | Qwen3-VL-8B-Instruct  | `MMSIVideoBench_50frame` | 27.6 | - | 28.4 | +0.8 | ✅ |
 | InternVL3-8B  | `MMSIVideoBench_50frame` | 30.4 | - | 30.2 | -0.32 | ✅ |
+
+### 17. VSI-SUPER-Recall
+* **Metric:** Accuracy
+
+| Model | Data | Cambrian-S Paper | Official Code | EASI | Δ | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| Cambrian-S-7B  | `VsiSuperRecall_10mins_128frame` | 26.7 | - | 26.7 | +0.0 | ✅ |
+| Cambrian-S-7B  | `VsiSuperRecall_30mins_128frame` | 21.7 | - | 21.7 | +0.0 | ✅ |
+| Cambrian-S-7B  | `VsiSuperRecall_60mins_128frame` | 23.3 | - | 23.3 | +0.0 | ✅ |
+| Cambrian-S-7B  | `VsiSuperRecall_120mins_128frame` | 30.0 | - | 30.0 | +0.0 | ✅ |
+| Cambrian-S-7B  | `VsiSuperRecall_240mins_128frame` | 28.2 | - | 30.0 | +1.8 | ✅ |
+
+
+### 18. VSI-SUPER-Count (No streaming)
+* **Metric:** Accuracy
+
+| Model | Data | Cambrian-S Paper | Official Code | EASI | Δ | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| Cambrian-S-7B  | `VsiSuperCount_10mins_128frame` | 16.0 | - | 16.2 | +0.2 | ✅ |
+| Cambrian-S-7B  | `VsiSuperCount_30mins_128frame` | 0.0 | - | 0.0 | +0.0 | ✅ |
+
