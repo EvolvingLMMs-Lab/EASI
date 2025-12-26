@@ -34,7 +34,7 @@ Key features include:
 - Supports the evaluation of **state-of-the-art Spatial Intelligence models**.
 - Systematically collects and integrates **evolving Spatial Intelligence benchmarks**.
 
-As of v0.1.4, EASI supports **21 Spatial Intelligence models** and **17 spatial benchmarks**, and the list is continuously expanding. Full details are available at 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**.
+As of v0.1.4, EASI supports **21 Spatial Intelligence models** and **23 spatial benchmarks**, and the list is continuously expanding. Full details are available at 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**.
 
 
 
