@@ -119,7 +119,10 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 
 | Model | Data | Paper | Official Code | EASI | Δ | Status |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| Qwen2.5-VL-72B-Instruct  | `SparBench_tiny` | 39.40 | - | 39.84 | +0.44 | ✅ |
 | Qwen2.5-VL-7B-Instruct  | `SparBench` | 33.07 | - | 33.78 | +0.71 | ✅ |
+| Qwen2.5-VL-72B-Instruct  | `SparBench` | 37.01 | - | 38.94 | +1.93 | ✅ |
+| SpaceR-SFT-7B  | `SparBench` | 37.55 | - | 34.12 | -3.43 | ☑️ |
 
 
 ### 9. STARE-Bench
@@ -136,9 +139,9 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 
 | Model | Data | Paper | Official Code | EASI | Δ | Status |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| Qwen2.5-VL-3B-Instruct  | `SpatialVizBench` | 26.10 | 25.00 | 23.98 | -1.02 | ✅ |
 | Qwen2.5-VL-7B-Instruct  | `SpatialVizBench` | 30.76 | - | 31.02 | +0.26 | ✅ |
 | InternVL3-8B  | `SpatialVizBench` | 30.25 | - | 31.86 | +1.61 | ✅ |
-| Qwen2.5-VL-3B-Instruct  | `SpatialVizBench` | 26.10 | 25.00 | 23.98 | -1.02 | ✅ |
 | Qwen2.5-VL-7B-Instruct  | `SpatialVizBench_CoT` | 27.97 | - | 27.54 | -0.43 | ✅ |
 | InternVL3-8B  | `SpatialVizBench_CoT` | 30.08 | - | 30.00 | -0.08 | ✅ |
 
@@ -192,11 +195,33 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 ### 16. MMSI-Video-Bench
 * **Metric:** Accuracy
 
+**Main table:**
+
 | Model | Data | Paper | Official Code | EASI | Δ | Status |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
 | Qwen2.5-VL-7B-Instruct  | `MMSIVideoBench_50frame` | 29.7 | - | 26.9 | -2.8 | ☑️ |
-| Qwen3-VL-8B-Instruct  | `MMSIVideoBench_50frame` | 27.6 | - | 28.4 | +0.8 | ✅ |
-| InternVL3-8B  | `MMSIVideoBench_50frame` | 30.4 | - | 30.2 | -0.32 | ✅ |
+| Qwen3-VL-8B-Instruct  | `MMSIVideoBench_50frame` | 27.6 | - | 28.3 | +0.7 | ✅ |
+| InternVL3-8B  | `MMSIVideoBench_50frame` | 30.4 | - | 30.2 | -0.2 | ✅ |
+| InternVL3-78B  | `MMSIVideoBench_50frame` | 32.7 | - | 32.6 | -0.1 | ✅ |
+| Gemini-3-pro-preview  | `MMSIVideoBench_50frame` | 38.0 | - | 40.4 | +2.4 | ✅ |
+
+<!-- **Sub bench table:**
+
+| Model | Hard | Med| Easy | **Avg** | &nbsp; | Hard(EASI) | Med(EASI) | Easy(EASI) | **Avg(EASI)** |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | 
+| **Qwen2.5-VL-7B** | 11.3 | 29.0 | 46.2 | **29.7** | | 16.2 | 24.8 | 38.3 | **26.9** |
+| **Qwen3-VL-8B** | 8.0 | 21.8 | 50.7 | **27.6** | | 11.0 | 25.0 | 46.7 | **28.3** |
+| **InternVL3-8B** | 13.8 | 27.5 | 47.8 | **30.4** | | 17.4 | 28.5 | 43.0 | **30.2** |
+
+
+| Model | IS | Robot | Grd | &nbsp; | IS(EASI) | Robot(EASI) | Grd(EASI) |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Qwen2.5-VL-7B** | 27.1 | 34.8 | 26.6 | | 25.8 | 27.5 | 30.0 |
+| **Qwen3-VL-8B** | 28.7 | 27.0 | 28.7 | | 30.2 | 27.0 | 26.6 |
+| **InternVL3-8B** | 27.0 | 37.8 | 31.9 | | 28.9 | 35.3 | 31.0 |
+
+*Note: **IS**: Indoor Scene Perception; **Grd**: Grounding.* -->
+
 
 ### 17. VSI-SUPER-Recall
 * **Metric:** Accuracy
