@@ -114,6 +114,16 @@ To submit your evaluation results to our [EASI Leaderboard](https://huggingface.
 2. Click **🚀 Submit here!** to the submission form.
 3. Follow the instructions to fill in the submission form, and submit your results.
 
+## 🤝 Contribution
+
+EASI is an open and evolving evaluation suite. We warmly welcome community contributions, including:
+- New spatial benchmarks
+- New model baselines
+- Evaluation tools
+
+If you are interested in contributing, or have questions about integration, please contact us at
+📧 easi-lmms-lab@outlook.com
+
 
 ## 🖊️ Citation
 
