@@ -21,7 +21,7 @@
 
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
-              --model SenseNova-SI-1.2-InternVL3-8B \
+              --model SenseNova-SI-1.3-InternVL3-8B \
               --verbose --reuse --judge extract_matching
 ```
 
@@ -34,13 +34,14 @@ EASI 是一个面向空间智能的统一评测套件，用于在不断扩展的
 - 支持评估**最先进的空间智能模型**。
 - 系统性地收集和整合**不断演进的空间智能基准测试**。
 
-在 v0.1.4 版本中，EASI 已支持 **21 个空间智能模型** 和 **23 个空间基准测试**，并将持续扩展。完整的支持模型与基准列表见 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**。此外，EASI 还提供透明的 👉 **[Benchmark Verification](docs/Benchmark_Verification.md)**，方便与官方评分进行对比。
+在 [v0.1.5](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.4) 版本中，EASI 已支持 **23 个空间智能模型** 和 **24 个空间基准测试**，并将持续扩展。完整的支持模型与基准列表见 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**。此外，EASI 还提供透明的 👉 **[Benchmark Verification](docs/Benchmark_Verification.md)**，方便与官方评分进行对比。
 
 ## 🗓️ 最新动态
 
-🌟 **[2025-12-19]** [EASI v0.1.4](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.4) 发布。主要更新包括：
-- **基准测试支持扩展**  
-  新增 **4 个空间智能基准**：SPBench、MMSI-Video-Bench、VSI-SUPER-Recall、VSI-SUPER-Count。
+🌟 **[2026-01-09]** [EASI v0.1.5](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.5) 发布。主要更新包括：
+- **基准测试支持扩展**: 新增 STI-Bench。
+- **模型支持扩展**：新增 SenseNova-SI-1.1-BAGEL-7B-MoT, SenseNova-SI-1.3-InternVL3-8B。
+- 增加详细的基准测试数值对齐信息 **[Benchmark Verification](docs/Benchmark_Verification.md)**
 
 
 完整发版历史和详细更新日志，请参见 👉 **[Changelog](docs/CHANGELOG.md)**。
@@ -76,11 +77,11 @@ python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --judge {JUDGE_MODE} 
 
 **示例**
 
-在 `MindCubeBench_tiny_raw_qa` 上评测 `SenseNova-SI-1.2-InternVL3-8B`：
+在 `MindCubeBench_tiny_raw_qa` 上评测 `SenseNova-SI-1.3-InternVL3-8B`：
 
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
-              --model SenseNova-SI-1.2-InternVL3-8B \
+              --model SenseNova-SI-1.3-InternVL3-8B \
               --verbose --reuse --judge extract_matching
 ```
 这将使用正则表达式来提取答案。如果您想使用基于 LLM 的评判系统（例如，在评估 SpatialVizBench_CoT 时），您可以将评判系统切换到 OpenAI：

@@ -21,7 +21,7 @@ English | [简体中文](README_CN.md)
 
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
-              --model SenseNova-SI-1.2-InternVL3-8B \
+              --model SenseNova-SI-1.3-InternVL3-8B \
               --verbose --reuse --judge extract_matching
 ```
 
@@ -34,14 +34,16 @@ Key features include:
 - Supports the evaluation of **state-of-the-art Spatial Intelligence models**.
 - Systematically collects and integrates **evolving Spatial Intelligence benchmarks**.
 
-As of v0.1.4, EASI supports **21 Spatial Intelligence models** and **23 spatial benchmarks**, and the list is continuously expanding. Full details are available at 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**. EASI also provides transparent 👉**[Benchmark Verification](docs/Benchmark_Verification.md)** against official scores.
+As of [v0.1.5](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.4), EASI supports **23 Spatial Intelligence models** and **24 spatial benchmarks**, and the list is continuously expanding. Full details are available at 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**. EASI also provides transparent 👉 **[Benchmark Verification](docs/Benchmark_Verification.md)** against official scores.
 
 
 ## 🗓️ News
 
-🌟 **[2025-12-19]** [EASI v0.1.4](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.4) is released. Major updates include:
-- **Expanded benchmark support**  
-  Added **4 benchmarks**: SPBench, MMSI-Video-Bench, VSI-SUPER-Recall, VSI-SUPER-Count.  
+🌟 **[2026-01-09]** [EASI v0.1.5](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.5) is released. Major updates include:
+- **Expanded benchmark support**: Added STI-Bench.  
+- **Expanded model support**: Added SenseNova-SI-1.1-BAGEL-7B-MoT, SenseNova-SI-1.3-InternVL3-8B.  
+- **[Benchmark Verification](docs/Benchmark_Verification.md)** now includes verification details for each newly added benchmark.
+
 
 For the full release history and detailed changelog, please see 👉 **[Changelog](docs/CHANGELOG.md)**.
 
@@ -75,11 +77,11 @@ Please refer to the Configuration section below for the full list of available m
 
 **Example** 
 
-Evaluate `SenseNova-SI-1.2-InternVL3-8B` on `MindCubeBench_tiny_raw_qa`:
+Evaluate `SenseNova-SI-1.3-InternVL3-8B` on `MindCubeBench_tiny_raw_qa`:
 
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
-              --model SenseNova-SI-1.2-InternVL3-8B \
+              --model SenseNova-SI-1.3-InternVL3-8B \
               --verbose --reuse --judge extract_matching
 ```
 This uses regex-based answer extraction. For LLM-based judging (e.g., on SpatialVizBench_CoT), switch to the OpenAI judge:
