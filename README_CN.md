@@ -34,7 +34,7 @@ EASI 是一个面向空间智能的统一评测套件，用于在不断扩展的
 - 支持评估**最先进的空间智能模型**。
 - 系统性地收集和整合**不断演进的空间智能基准测试**。
 
-在 [v0.1.5](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.4) 版本中，EASI 已支持 **23 个空间智能模型** 和 **24 个空间基准测试**，并将持续扩展。完整的支持模型与基准列表见 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**。此外，EASI 还提供透明的 👉 **[Benchmark Verification](docs/Benchmark_Verification.md)**，方便与官方评分进行对比。
+在 [v0.1.5](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.5) 版本中，EASI 已支持 **23 个空间智能模型** 和 **24 个空间基准测试**，并将持续扩展。完整的支持模型与基准列表见 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**。此外，EASI 还提供透明的 👉 **[Benchmark Verification](docs/Benchmark_Verification.md)**，方便与官方评分进行对比。
 
 ## 🗓️ 最新动态
 
