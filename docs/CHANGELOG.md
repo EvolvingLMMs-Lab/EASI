@@ -7,7 +7,7 @@ All notable changes to **EASI** are documented in this file.
 ## [v0.1.5] – 2026-01-09
 
 ### Added
-- 1 new benchmark1:
+- 1 new benchmark:
   - STI-Bench
 - 2 new models:
   - SenseNova-SI-1.1-BAGEL-7B-MoT, SenseNova-SI-1.3-InternVL3-8B
