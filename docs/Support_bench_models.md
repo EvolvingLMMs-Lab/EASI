@@ -15,7 +15,9 @@ This page summarizes all **Spatial Intelligence models** and **benchmarks** curr
 | | | `SenseNova-SI-1.1-Qwen3-VL-8B` | [sensenova/SenseNova-SI-1.1-Qwen3-VL-8B](https://huggingface.co/sensenova/SenseNova-SI-1.1-Qwen3-VL-8B) |
 | | | `SenseNova-SI-1.1-InternVL3-2B` | [sensenova/SenseNova-SI-1.1-InternVL3-2B](https://huggingface.co/sensenova/SenseNova-SI-1.1-InternVL3-2B) |
 | | | `SenseNova-SI-1.1-InternVL3-8B` | [sensenova/SenseNova-SI-1.1-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-1.1-InternVL3-8B) |
+| | UMM | `SenseNova-SI-1.1-BAGEL-7B-MoT` | [sensenova/SenseNova-SI-1.1-BAGEL-7B-MoT](https://huggingface.co/sensenova/SenseNova-SI-1.1-BAGEL-7B-MoT) |
 | **SenseNova-SI 1.2** | SI | `SenseNova-SI-1.2-InternVL3-8B` | [sensenova/SenseNova-SI-1.2-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-1.2-InternVL3-8B) |
+| **SenseNova-SI 1.3** | SI | `SenseNova-SI-1.3-InternVL3-8B` | [sensenova/SenseNova-SI-1.3-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-1.3-InternVL3-8B) |
 | **MindCube** | SI | `MindCube-3B-RawQA-SFT` | [MLL-Lab/MindCube-Qwen2.5VL-RawQA-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-RawQA-SFT) |
 | | | `MindCube-3B-Aug-CGMap-FFR-Out-SFT` | [MLL-Lab/MindCube-Qwen2.5VL-Aug-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Aug-CGMap-FFR-Out-SFT) |
 | | | `MindCube-3B-Plain-CGMap-FFR-Out-SFT` | [MLL-Lab/MindCube-Qwen2.5VL-Plain-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Plain-CGMap-FFR-Out-SFT) |
@@ -57,6 +59,7 @@ This page summarizes all **Spatial Intelligence models** and **benchmarks** curr
 | [**MMSI-Video-Bench**](https://huggingface.co/datasets/rbler/MMSI-Video-Bench) | video | `MMSIVideoBench_`<br>`{300frame,64frame,50frame,32frame,1fps}` | Dec 2025 |
 | [**VSI-SUPER-Recall**](https://huggingface.co/datasets/nyu-visionx/VSI-SUPER-Recall) | video | `{VsiSuperRecall}_`<br>`{10mins,30mins,60mins,120mins,240mins}_`<br>`{128frame,64frame,32frame,16frame,2fps,1fps}` | Nov 2025 |
 | [**VSI-SUPER-Count**](https://huggingface.co/datasets/nyu-visionx/VSI-SUPER-Count) | video | `{VsiSuperCount}_`<br>`{10mins,30mins,60mins,120mins}_`<br>`{128frame,64frame,32frame,16frame,2fps,1fps}` | Nov 2025 |
+| [**STI-Bench**](https://huggingface.co/datasets/MINT-SJTU/STI-Bench) | video | `{STI-Bench}_`<br>`{64frame,32frame,30frame,1fps}` | Apr 2025 |
 
 ## 📦 Upstream VLMEvalKit Benchmarks (non-EASI)
 

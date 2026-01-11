@@ -38,6 +38,7 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 16. [MMSI-Video-Bench](#16-mmsi-video-bench)
 17. [VSI-SUPER-Recall](#17-vsi-super-recall)
 18. [VSI-SUPER-Count](#18-vsi-super-count)
+19. [STI-Bench](#19-sti-bench)
 
 ---
 
@@ -242,4 +243,13 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
 | Cambrian-S-7B  | `VsiSuperCount_10mins_128frame` | 16.0 | - | 16.2 | +0.2 | ✅ |
 | Cambrian-S-7B  | `VsiSuperCount_30mins_128frame` | 0.0 | - | 0.0 | +0.0 | ✅ |
+
+
+### 19. STI-Bench
+* **Metric:** Accuracy
+
+| Model | Data | Paper | Official Code | EASI | Δ | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| Qwen2.5-VL-72B-Instruct  | `STI-Bench_30frame` | 40.7 | - | 42.1 | +1.4 | ✅ |
+
 
