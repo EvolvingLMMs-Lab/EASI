@@ -17,12 +17,24 @@
 ## 快速了解（TL;DR）
 
 - EASI 是一个面向多模态大模型空间智能（Spatial Intelligence）的统一评测套件。
-- 完成安装后，可以用下面的一行命令快速在 SenseNova-SI 模型上跑一个示例：
+- EASI 支持**两种评测后端**：[VLMEvalKit](https://github.com/open-compass/VLMEvalKit) 和 [lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval)。
+- 完成安装后，可以用下面的命令快速跑一个示例：
 
+**使用 VLMEvalKit 后端：**
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
               --model SenseNova-SI-1.3-InternVL3-8B \
               --verbose --reuse --judge extract_matching
+```
+
+**使用 lmms-eval 后端：**
+```bash
+lmms-eval --model qwen2_5_vl \
+          --model_args pretrained=Qwen/Qwen2.5-VL-3B-Instruct \
+          --tasks site_bench_image \
+          --batch_size 1 \
+          --log_samples \
+          --output_path ./logs/
 ```
 
 ## 概述
@@ -33,6 +45,9 @@ EASI 是一个面向空间智能的统一评测套件，用于在不断扩展的
 
 - 支持评估**最先进的空间智能模型**。
 - 系统性地收集和整合**不断演进的空间智能基准测试**。
+- 提供**两种评测后端**，灵活选择：
+  - **VLMEvalKit**：丰富的模型库，内置评判功能。
+  - **lmms-eval**：轻量级、基于 accelerate 的分布式评测，支持大量任务。
 
 在 [v0.1.5](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.5) 版本中，EASI 已支持 **23 个空间智能模型** 和 **24 个空间基准测试**，并将持续扩展。完整的支持模型与基准列表见 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**。此外，EASI 还提供透明的 👉 **[Benchmark Verification](docs/Benchmark_Verification.md)**，方便与官方评分进行对比。
 
@@ -48,7 +63,10 @@ EASI 是一个面向空间智能的统一评测套件，用于在不断扩展的
 
 ## 🛠️ 快速上手
 ### 安装
-#### 方式一：本地环境
+
+EASI 提供两种评测后端，您可以根据需要安装其中一个或两个。
+
+#### 方式一：本地环境（VLMEvalKit 后端）
 
 ```bash
 git clone --recursive https://github.com/EvolvingLMMs-Lab/EASI.git
@@ -56,7 +74,19 @@ cd EASI
 pip install -e ./VLMEvalKit
 ```
 
-#### 方式二：基于Docker
+#### 方式二：本地环境（lmms-eval 后端）
+
+```bash
+git clone --recursive https://github.com/EvolvingLMMs-Lab/EASI.git
+cd EASI
+pip install -e ./lmms-eval spacy
+# 推荐依赖
+# 在 pyproject.toml 中使用 "torch==2.7.1", "torchvision==0.22.1"（适用于大多数模型）
+# 安装 flash-attn 以加速推理
+pip install flash-attn --no-build-isolation
+```
+
+#### 方式三：基于Docker
 
 ```bash
 bash dockerfiles/EASI/build_runtime_docker.sh
@@ -69,11 +99,18 @@ docker run --gpus all -it --rm \
 ```
 
 ### 评测
+
+EASI 支持两种评测后端，请根据您的需求选择合适的后端。
+
+---
+
+#### 后端 1：VLMEvalKit
+
 **通用命令**
 ```bash
-python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --judge {JUDGE_MODE} --verbose --reuse 
+python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --judge {JUDGE_MODE} --verbose --reuse
 ```
-请参阅下方的“配置”部分，查看所有可用模型和基准测试的完整列表。 请参阅 run.py 文件，查看所有参数的完整列表。
+请参阅下方的"配置"部分，查看所有可用模型和基准测试的完整列表。请参阅 `run.py` 文件，查看所有参数的完整列表。
 
 **示例**
 
@@ -85,18 +122,76 @@ python run.py --data MindCubeBench_tiny_raw_qa \
               --verbose --reuse --judge extract_matching
 ```
 这将使用正则表达式来提取答案。如果您想使用基于 LLM 的评判系统（例如，在评估 SpatialVizBench_CoT 时），您可以将评判系统切换到 OpenAI：
-```
+```bash
 export OPENAI_API_KEY=YOUR_KEY
 python run.py --data SpatialVizBench_CoT \
               --model {MODEL_NAME} \
               --verbose --reuse --judge gpt-4o-1120
 ```
 
+---
+
+#### 后端 2：lmms-eval
+
+lmms-eval 提供基于 accelerate 的分布式评测，支持多 GPU 推理。
+
+**通用命令**
+```bash
+lmms-eval --model {MODEL_TYPE} \
+          --model_args pretrained={MODEL_PATH} \
+          --tasks {TASK_NAME} \
+          --batch_size 1 \
+          --log_samples \
+          --output_path ./logs/
+```
+
+**示例：单 GPU**
+
+在 `site_bench_image` 上评测 `Qwen2.5-VL-3B-Instruct`：
+
+```bash
+lmms-eval --model qwen2_5_vl \
+          --model_args pretrained=Qwen/Qwen2.5-VL-3B-Instruct \
+          --tasks site_bench_image \
+          --batch_size 1 \
+          --log_samples \
+          --output_path ./logs/
+```
+
+**示例：多 GPU（使用 accelerate）**
+
+```bash
+CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
+    --num_processes=4 \
+    --num_machines=1 \
+    --mixed_precision=no \
+    --dynamo_backend=no \
+    --main_process_port=12346 \
+    -m lmms_eval \
+    --model qwen2_5_vl \
+    --model_args pretrained=Qwen/Qwen2.5-VL-3B-Instruct,attn_implementation=flash_attention_2 \
+    --tasks site_bench_image \
+    --batch_size 1 \
+    --log_samples \
+    --output_path ./logs/
+```
+
+**列出所有可用任务**
+```bash
+lmms-eval --tasks list
+```
+
+更多 lmms-eval 使用详情，请参阅 [lmms-eval/docs/](lmms-eval/docs/) 中的文档，包括 [模型指南](lmms-eval/docs/model_guide.md)、[任务指南](lmms-eval/docs/task_guide.md) 和 [运行示例](lmms-eval/docs/run_examples.md)。
+
+---
+
 ### 配置
 
-VLM 配置：所有 VLM 都在 vlmeval/config.py 中配置。在评测时，你应当使用该文件中 supported_VLM 指定的模型名称来选择 VLM。开始评测前，请先通过如下命令确认该 VLM 可以成功推理： `vlmutil check {MODEL_NAME}`。
+#### VLMEvalKit 配置
 
-基准（Benchmark）配置：完整的已支持基准列表见 VLMEvalKit 官方文档 [VLMEvalKit Supported Benchmarks](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY)。对于 [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard)，所有 EASI 基准测试及其对应的 --data 名称汇总在 [支持的模型和基准测试](docs/Support_bench_models.md) 中。
+**VLM 配置**：所有 VLM 都在 `vlmeval/config.py` 中配置。在评测时，你应当使用该文件中 supported_VLM 指定的模型名称来选择 VLM。开始评测前，请先通过如下命令确认该 VLM 可以成功推理：`vlmutil check {MODEL_NAME}`。
+
+**基准（Benchmark）配置**：完整的已支持基准列表见 VLMEvalKit 官方文档 [VLMEvalKit Supported Benchmarks](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY)。对于 [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard)，所有 EASI 基准测试及其对应的 --data 名称汇总在 [支持的模型和基准测试](docs/Support_bench_models.md) 中。
 
 以下是 EASI Benchmark 设置的一个最小示例：
 
@@ -106,7 +201,22 @@ VLM 配置：所有 VLM 都在 vlmeval/config.py 中配置。在评测时，你�
 |             |  [VSI-Bench-Debiased_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/VSI-Bench-Debiased.tsv)             |
 | [MindCube](https://huggingface.co/datasets/MLL-Lab/MindCube)    | [MindCubeBench_tiny_raw_qa](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MindCubeBench_tiny_raw_qa.tsv)    |
 
-有关 EASI 支持的模型和基准，请参阅[支持的模型和基准](docs/Support_bench_models.md)。
+#### lmms-eval 配置
+
+**模型配置**：lmms-eval 支持多种模型类型，包括 `qwen2_5_vl`、`llava`、`internvl2` 等。使用 `--model_args` 指定模型参数，如 `pretrained`、`attn_implementation` 等。
+
+**任务配置**：任务定义在 `lmms-eval/lmms_eval/tasks/` 目录下。列出所有可用任务：
+```bash
+lmms-eval --tasks list
+```
+
+空间智能评测的示例任务：
+| 任务名称 | 描述 |
+|-----------|-------------|
+| `site_bench_image` | SITE-Bench 图像评测 |
+| `site_bench_video` | SITE-Bench 视频评测 |
+
+更多 lmms-eval 使用详情，请参阅 [lmms-eval 文档](lmms-eval/README.md)。
 
 ### 提交
 
