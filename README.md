@@ -30,7 +30,7 @@ python run.py --data MindCubeBench_tiny_raw_qa \
 **Using lmms-eval backend:**
 ```bash
 lmms-eval --model qwen2_5_vl \
-          --model_args pretrained=Qwen/Qwen2.5-VL-3B-Instruct \
+          --model_args pretrained=sensenova/SenseNova-SI-1.1-Qwen2.5-VL-3B \
           --tasks site_bench_image \
           --batch_size 1 \
           --log_samples \
@@ -145,11 +145,11 @@ lmms-eval --model {MODEL_TYPE} \
 
 **Example: Single GPU**
 
-Evaluate `Qwen2.5-VL-3B-Instruct` on `site_bench_image`:
+Evaluate `SenseNova-SI-1.1-Qwen2.5-VL-3B` on `site_bench_image`:
 
 ```bash
 lmms-eval --model qwen2_5_vl \
-          --model_args pretrained=Qwen/Qwen2.5-VL-3B-Instruct \
+          --model_args pretrained=sensenova/SenseNova-SI-1.1-Qwen2.5-VL-3B \
           --tasks site_bench_image \
           --batch_size 1 \
           --log_samples \
@@ -167,7 +167,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
     --main_process_port=12346 \
     -m lmms_eval \
     --model qwen2_5_vl \
-    --model_args pretrained=Qwen/Qwen2.5-VL-3B-Instruct,attn_implementation=flash_attention_2 \
+    --model_args pretrained=sensenova/SenseNova-SI-1.1-Qwen2.5-VL-3B,attn_implementation=flash_attention_2 \
     --tasks site_bench_image \
     --batch_size 1 \
     --log_samples \
