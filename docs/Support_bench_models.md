@@ -64,24 +64,9 @@ This page summarizes all **Spatial Intelligence models** and **benchmarks** curr
 | [**VSI-SUPER-Recall**](https://huggingface.co/datasets/nyu-visionx/VSI-SUPER-Recall) | video | `{VsiSuperRecall}_`<br>`{10mins,30mins,60mins,120mins,240mins}_`<br>`{128frame,64frame,32frame,16frame,2fps,1fps}` | - | Nov 2025 |
 | [**VSI-SUPER-Count**](https://huggingface.co/datasets/nyu-visionx/VSI-SUPER-Count) | video | `{VsiSuperCount}_`<br>`{10mins,30mins,60mins,120mins}_`<br>`{128frame,64frame,32frame,16frame,2fps,1fps}` | - | Nov 2025 |
 | [**STI-Bench**](https://huggingface.co/datasets/MINT-SJTU/STI-Bench) | video | `{STI-Bench}_`<br>`{64frame,32frame,30frame,1fps}` | - | Apr 2025 |
-
-## 📦 Upstream VLMEvalKit Benchmarks (non-EASI)
-
-EASI is built on VLMEvalKit. Besides the benchmarks listed above (maintained/added by EASI),
-you may also evaluate any benchmark natively supported by upstream VLMEvalKit by passing its
-official dataset name to `--data`.
-
-Here, we only list **Spatial Intelligence–related** benchmarks that are supported by upstream VLMEvalKit.
-For other benchmarks, please refer to the official VLMEvalKit documentation:
-[VLMEvalKit Supported Benchmarks](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY).
-
-- Dataset names are defined in VLMEvalKit `vlmeval/dataset/__init__.py` (and video configs).
-
-| Benchmark | Type | Data | Release Date |
-| :--- | :--- | :--- | :--- |
-| [**BLINK**](https://huggingface.co/datasets/BLINK-Benchmark/BLINK) | image | `BLINK`, `BLINK_circular` | Apr 2024 |
-| [**CV-Bench**](https://huggingface.co/datasets/nyu-visionx/CV-Bench) | image | `CV-Bench-2D`, `CV-Bench-3D` | Jun 2024 |
-| [**3DSRBench**](https://huggingface.co/datasets/ccvl/3DSRBench) | image | `3DSRBench` | Dec 2024 |
-| [**LEGO-Puzzles**](https://huggingface.co/datasets/KexianTang/LEGO-Puzzles) | image | `LEGO`, `LEGO_circular` | Mar 2025 |
-| [**Spatial457**](https://huggingface.co/datasets/RyanWW/Spatial457) | image | `Spatial457` | Feb 2025 |
+| [**BLINK**](https://huggingface.co/datasets/BLINK-Benchmark/BLINK) | image | `BLINK`, `BLINK_circular` | `blink` | Apr 2024 |
+| [**CV-Bench**](https://huggingface.co/datasets/nyu-visionx/CV-Bench) | image | `CV-Bench-2D`, `CV-Bench-3D` | `cv_bench`,<br>`cv_bench_2d`, `cv_bench_3d` | Jun 2024 |
+| [**3DSRBench**](https://huggingface.co/datasets/ccvl/3DSRBench) | image | `3DSRBench` | - | Dec 2024 |
+| [**LEGO-Puzzles**](https://huggingface.co/datasets/KexianTang/LEGO-Puzzles) | image | `LEGO`, `LEGO_circular` | - | Mar 2025 |
+| [**Spatial457**](https://huggingface.co/datasets/RyanWW/Spatial457) | image | `Spatial457` | - | Feb 2025 |
 
