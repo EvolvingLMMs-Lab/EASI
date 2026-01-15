@@ -21,7 +21,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
     --log_samples \
     --output_path ./logs/
 
-# Qwen/Qwen2.5-VL-3B-Instruct
+# Qwen/Qwen3-VL-8B-Instruct
 CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
     --num_processes=4 \
     --num_machines=1 \
