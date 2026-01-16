@@ -69,5 +69,5 @@ This page summarizes all **Spatial Intelligence models** and **benchmarks** curr
 | [**3DSRBench**](https://huggingface.co/datasets/ccvl/3DSRBench) | image | `3DSRBench` | - | Dec 2024 |
 | [**LEGO-Puzzles**](https://huggingface.co/datasets/KexianTang/LEGO-Puzzles) | image | `LEGO`, `LEGO_circular` | - | Mar 2025 |
 | [**Spatial457**](https://huggingface.co/datasets/RyanWW/Spatial457) | image | `Spatial457` | - | Feb 2025 |
-| [**DSR-Bench**](https://huggingface.co/datasets/TencentARC/DSR_Suite-Data) | video | `{DSR-Bench}_`<br>`{64frame,32frame,30frame,1fps}` | - | Dec 2025 |
+| [**DSR-Bench**](https://huggingface.co/datasets/TencentARC/DSR_Suite-Data) | video | `{DSRBench}_`<br>`{64frame,32frame,30frame,1fps}` | - | Dec 2025 |
 
