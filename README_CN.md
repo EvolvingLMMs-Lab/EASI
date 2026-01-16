@@ -20,17 +20,18 @@
 - EASI 支持**两种评测后端**：[VLMEvalKit](https://github.com/open-compass/VLMEvalKit) 和 [lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval)。
 - 完成安装后，可以用下面的命令快速跑一个示例：
 
-**使用 VLMEvalKit 后端：**
+**使用 EASI (VLMEvalkit 后端)：**
 ```bash
+cd VLMEvalKit/
 python run.py --data MindCubeBench_tiny_raw_qa \
               --model SenseNova-SI-1.3-InternVL3-8B \
               --verbose --reuse --judge extract_matching
 ```
 
-**使用 lmms-eval 后端：**
+**使用 EASI (LMMs-Eval 后端)：**
 ```bash
 lmms-eval --model qwen2_5_vl \
-          --model_args pretrained=Qwen/Qwen2.5-VL-3B-Instruct \
+          --model_args pretrained=sensenova/SenseNova-SI-1.1-Qwen2.5-VL-3B \
           --tasks site_bench_image \
           --batch_size 1 \
           --log_samples \
@@ -187,21 +188,14 @@ lmms-eval --tasks list
 
 ### 配置
 
-#### VLMEvalKit 配置
+#### EASI (VLMEvalkit 后端) 配置
 
 **VLM 配置**：所有 VLM 都在 `vlmeval/config.py` 中配置。在评测时，你应当使用该文件中 supported_VLM 指定的模型名称来选择 VLM。开始评测前，请先通过如下命令确认该 VLM 可以成功推理：`vlmutil check {MODEL_NAME}`。
 
 **基准（Benchmark）配置**：完整的已支持基准列表见 VLMEvalKit 官方文档 [VLMEvalKit Supported Benchmarks](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY)。对于 [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard)，所有 EASI 基准测试及其对应的 --data 名称汇总在 [支持的模型和基准测试](docs/Support_bench_models.md) 中。
 
-以下是 EASI Benchmark 设置的一个最小示例：
 
-| Benchmark   | Evaluation settings          |
-|-------------|------------------------------|
-| [VSI-Bench](https://huggingface.co/datasets/nyu-visionx/VSI-Bench) | [VSI-Bench_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/VSI-Bench.tsv)  |
-|             |  [VSI-Bench-Debiased_32frame](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/VSI-Bench-Debiased.tsv)             |
-| [MindCube](https://huggingface.co/datasets/MLL-Lab/MindCube)    | [MindCubeBench_tiny_raw_qa](https://huggingface.co/datasets/lmms-lab-si/EASI-Leaderboard-Data/resolve/main/MindCubeBench_tiny_raw_qa.tsv)    |
-
-#### lmms-eval 配置
+#### EASI (lmms-eval 后端) 配置
 
 **模型配置**：lmms-eval 支持多种模型类型，包括 `qwen2_5_vl`、`llava`、`internvl2` 等。使用 `--model_args` 指定模型参数，如 `pretrained`、`attn_implementation` 等。
 

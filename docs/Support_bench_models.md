@@ -4,11 +4,11 @@ This page summarizes all **Spatial Intelligence models** and **benchmarks** curr
 
 ## 🧠 Supported Models
 
-> **VLMEvalKit**: Use `--model <Model Name>` (e.g., `--model Qwen2.5-VL-3B-Instruct`)
+> **EASI (backend=VLMEvalKit)**: Use `--model <Model Name>` (e.g., `--model Qwen2.5-VL-3B-Instruct`)
 >
-> **LMMs-Eval**: Use `--model <Base Model> --model_args pretrained=<Link>` (e.g., `--model qwen2_5_vl --model_args pretrained=Qwen/Qwen2.5-VL-3B-Instruct`)
+> **EASI (backend=lmms-eval)**: Use `--model <Base Model> --model_args pretrained=<Link>` (e.g., `--model qwen2_5_vl --model_args pretrained=Qwen/Qwen2.5-VL-3B-Instruct`)
 
-| Family | Type | Base Model | Model Name | Link | VLMEvalKit | LMMs-Eval |
+| Family | Type | Base Model | Model Name | Link | EASI (backend=VLMEvalKit) | EASI (backend=lmms-eval) |
 | :--- | :--- | :--- | :--- | :--- | :---: | :---: |
 | **SenseNova-SI 1.0** | SI | `internvl3` | `SenseNova-SI-InternVL3-2B` | [sensenova/SenseNova-SI-InternVL3-2B](https://huggingface.co/sensenova/SenseNova-SI-InternVL3-2B) | ✅ | ✅ |
 | | | `internvl3` | `SenseNova-SI-InternVL3-8B` | [sensenova/SenseNova-SI-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-InternVL3-8B) | ✅ | ✅ |
@@ -39,11 +39,11 @@ This page summarizes all **Spatial Intelligence models** and **benchmarks** curr
 
 ## 📊 Supported Benchmarks
 
-> **VLMEvalKit**: Use `--data <VLMEvalKit Data>` (e.g., `--data VSI-Bench_32frame`)
+> **EASI (backend=VLMEvalKit)**: Use `--data <VLMEvalKit Data>` (e.g., `--data VSI-Bench_32frame`)
 >
-> **LMMs-Eval**: Use `--tasks <LMMs-Eval Task>` (e.g., `--tasks vsibench`)
+> **EASI (backend=lmms-eval)**: Use `--tasks <lmms-eval Task>` (e.g., `--tasks vsibench`)
 
-| Benchmark | Type | VLMEvalKit Data | LMMs-Eval Task | Release Date |
+| Benchmark | Type | VLMEvalKit Data | lmms-eval Task | Release Date |
 | :--- | :--- | :--- | :--- | :--- |
 | [**MindCube**](https://huggingface.co/datasets/MLL-Lab/MindCube) | image | `MindCubeBench_tiny_raw_qa`,<br>`MindCubeBench_raw_qa` | `mindcube_tiny`,<br>`mindcube_full` | Jun 2025 |
 | [**ViewSpatial**](https://huggingface.co/datasets/lidingm/ViewSpatial-Bench) | image | `ViewSpatialBench` | `viewspatial` | May 2025 |
