@@ -39,6 +39,7 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 17. [VSI-SUPER-Recall](#17-vsi-super-recall)
 18. [VSI-SUPER-Count](#18-vsi-super-count)
 19. [STI-Bench](#19-sti-bench)
+20. [DSR-Bench](#20-dsr-bench)
 
 ---
 
@@ -258,3 +259,11 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 | Qwen2.5-VL-72B-Instruct  | `STI-Bench_30frame` | 40.7 | - | 42.1 | +1.4 | ✅ |
 
 
+### 20. DSR-Bench
+* **Metric:** Accuracy
+
+| Model | Benchmark | Paper | Offical Code | EASI (backend=VLMEvalKit) | Δ | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| Qwen2.5-VL-7B-Instruct  | `DSRBench_1fps` | 23.5 | - |24.7 | +1.2 | ✅ |
+| Qwen3-VL-8B-Instruct  | `DSRBench_1fps` | 28.7 | - | 30.6 | +1.9 | ✅ |
+| InternVL3_5-8B  | `DSRBench_1fps` | 25.4 | - | 26.6 | +1.2 | ✅ |
