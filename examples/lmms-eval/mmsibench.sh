@@ -6,7 +6,7 @@
 # uv pip install ./lmms-eval spacy
 # uv pip install flash-attn --no-build-isolation
 
-# sensenova/SenseNova-SI-1.2-InternVL3-8B
+# sensenova/SenseNova-SI-1.3-InternVL3-8B
 CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
     --num_processes=4 \
     --num_machines=1 \
@@ -15,7 +15,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
     --main_process_port=12346 \
     -m lmms_eval \
     --model internvl3 \
-    --model_args=pretrained=sensenova/SenseNova-SI-1.2-InternVL3-8B \
+    --model_args=pretrained=sensenova/SenseNova-SI-1.3-InternVL3-8B \
     --tasks mmsi_bench \
     --batch_size 1 \
     --log_samples \
