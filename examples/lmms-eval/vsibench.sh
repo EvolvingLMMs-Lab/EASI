@@ -6,6 +6,22 @@
 # uv pip install ./lmms-eval spacy
 # uv pip install flash-attn --no-build-isolation
 
+# sensenova/SenseNova-SI-1.3-InternVL3-8B for VSiBench
+NUM_FRAMES=32
+CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
+    --num_processes=4 \
+    --num_machines=1 \
+    --mixed_precision=no \
+    --dynamo_backend=no \
+    --main_process_port=12346 \
+    -m lmms_eval \
+    --model internvl3 \
+    --model_args=pretrained=sensenova/SenseNova-SI-1.3-InternVL3-8B,num_frame=${NUM_FRAMES},modality="video" \
+    --tasks vsibench \
+    --batch_size 1 \
+    --log_samples \
+    --output_path ./logs/
+    
 # InternVL3.5-8B for VSiBench
 NUM_FRAMES=128
 CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
@@ -77,7 +93,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
 
 # SenseNova/SenseNova-SI-1.1-Qwen2.5-VL-3B for VSiBench with multi-image input
 # This command uses multi-image input (video frames as images) instead of native video input
-# The number of frames is controlled by num_frames in the task YAML (default: 32
+# The number of frames is controlled by num_frames in the task YAML (default: 32)
 CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
     --num_processes=4 \
     --num_machines=1 \
@@ -93,18 +109,3 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
     --log_samples \
     --output_path ./logs/
 
-# SenseNova/SenseNova-SI-1.2-InternVL3-8B for VSiBench
-NUM_FRAMES=32
-CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
-    --num_processes=4 \
-    --num_machines=1 \
-    --mixed_precision=no \
-    --dynamo_backend=no \
-    --main_process_port=12346 \
-    -m lmms_eval \
-    --model internvl3 \
-    --model_args=pretrained=sensenova/SenseNova-SI-1.2-InternVL3-8B,num_frame=${NUM_FRAMES},modality="video" \
-    --tasks vsibench \
-    --batch_size 1 \
-    --log_samples \
-    --output_path ./logs/
