@@ -42,7 +42,7 @@ lmms-eval --model qwen2_5_vl \
 
 EASI is a unified evaluation suite for Spatial Intelligence. It benchmarks state-of-the-art proprietary and open-source multimodal LLMs across a growing set of spatial benchmarks.
 
-- Extensive Coverage ([v0.2.0](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.0)): Currently supports **23 Spatial Intelligence models** and **25 spatial benchmarks**.
+- **Comprehensive Support**: Currently EASI([v0.2.0](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.0)) supports **23 Spatial Intelligence models** and **25 spatial benchmarks**.
 - Dual Backends:
   - **VLMEvalKit**: Rich model zoo with built-in judging capabilities.
   - **lmms-eval**: Lightweight, accelerate-based distributed evaluation.

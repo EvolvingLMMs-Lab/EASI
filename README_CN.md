@@ -42,7 +42,7 @@ lmms-eval --model qwen2_5_vl \
 
 EASI 是一个面向空间智能的统一评测套件，用于在不断扩展的空间基准上评估最先进的闭源和开源多模态大模型。
 
-- **广泛覆盖** ([v0.2.0](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.0))：目前支持 **23 个空间智能模型**和 **25 个空间基准测试**。
+- **广泛支持**：目前 EASI([v0.2.0](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.0))支持 **23 个空间智能模型**和 **25 个空间基准测试**。
 - **双后端支持**：
   - **VLMEvalKit**：丰富的模型库，内置评判功能。
   - **lmms-eval**：轻量级、基于 accelerate 的分布式评测，支持大量任务。
