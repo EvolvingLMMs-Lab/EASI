@@ -42,23 +42,19 @@ lmms-eval --model qwen2_5_vl \
 
 EASI is a unified evaluation suite for Spatial Intelligence. It benchmarks state-of-the-art proprietary and open-source multimodal LLMs across a growing set of spatial benchmarks.
 
-Key features include:
-
-- Supports the evaluation of **state-of-the-art Spatial Intelligence models**.
-- Systematically collects and integrates **evolving Spatial Intelligence benchmarks**.
-- Provides **two evaluation backends** for flexibility:
+- **Comprehensive Support**: Currently EASI([v0.2.0](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.0)) supports **23 Spatial Intelligence models** and **25 spatial benchmarks**.
+- **Dual Backends**:
   - **VLMEvalKit**: Rich model zoo with built-in judging capabilities.
-  - **lmms-eval**: Lightweight, accelerate-based distributed evaluation with extensive task support.
+  - **lmms-eval**: Lightweight, accelerate-based distributed evaluation.
 
-As of [v0.1.5](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.5), EASI supports **23 Spatial Intelligence models** and **24 spatial benchmarks**, and the list is continuously expanding. Full details are available at 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**. EASI also provides transparent 👉 **[Benchmark Verification](docs/Benchmark_Verification.md)** against official scores.
+Full details are available at 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**. EASI also provides transparent 👉 **[Benchmark Verification](docs/Benchmark_Verification.md)** against official scores.
 
 
 ## 🗓️ News
 
-🌟 **[2026-01-09]** [EASI v0.1.5](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.5) is released. Major updates include:
-- **Expanded benchmark support**: Added STI-Bench.  
-- **Expanded model support**: Added SenseNova-SI-1.1-BAGEL-7B-MoT, SenseNova-SI-1.3-InternVL3-8B.  
-- **[Benchmark Verification](docs/Benchmark_Verification.md)** now includes verification details for each newly added benchmark.
+🌟 **[2026-01-16]** [EASI v0.2.0](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.0) is released. Major updates include:
+- **New Backend Support**: Integrated lmms-eval alongside VLMEvalKit, offering flexible evaluation options.
+- **Expanded benchmark support**: Added DSR-Bench. 
 
 
 For the full release history and detailed changelog, please see 👉 **[Changelog](docs/CHANGELOG.md)**.
@@ -186,30 +182,26 @@ For more details on lmms-eval usage, refer to the documentation in [lmms-eval/do
 
 ### Configuration
 
-#### EASI (backend=VLMEvalKit) Configuration
+**EASI (backend=VLMEvalKit)**
+- **Models**: Defined in `vlmeval/config.py`. Verify inference with `vlmutil check {MODEL_NAME}`.
+- **Benchmarks**: Full list of supported Benchmarks at [VLMEvalKit Supported Benchmarks](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY). 
+- **EASI Specifics**: For [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard), related benchmarks are summarized in [Supported Models & Benchmarks](docs/Support_bench_models.md). 
 
-**VLM Configuration**: During evaluation, all supported VLMs are configured in `vlmeval/config.py`. Make sure you can successfully infer with the VLM before starting the evaluation with the following command `vlmutil check {MODEL_NAME}`. 
+**EASI (backend=lmms-eval)**
+- **Models**: lmms-eval supports various model types including `qwen2_5_vl`, `llava`, `internvl2`, and more. Use `--model_args` to specify model parameters like `pretrained`, `attn_implementation`, etc.
 
-**Benchmark Configuration**: The full list of supported Benchmarks can be found in the official VLMEvalKit documentation [VLMEvalKit Supported Benchmarks](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY). 
+- **Tasks**: Tasks are defined in `lmms-eval/lmms_eval/tasks/`. To list all available tasks:
+  ```bash
+  lmms-eval --tasks list
+  ```
 
-For the [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard), all EASI benchmarks are summarized in [Supported Models & Benchmarks](docs/Support_bench_models.md). 
+  Example tasks for spatial intelligence evaluation:
+  | Task Name | Description |
+  |-----------|-------------|
+  | `site_bench_image` | SITE-Bench image evaluation |
+  | `site_bench_video` | SITE-Bench video evaluation |
 
-#### EASI (backend=lmms-eval) Configuration
-
-**Model Configuration**: lmms-eval supports various model types including `qwen2_5_vl`, `llava`, `internvl2`, and more. Use `--model_args` to specify model parameters like `pretrained`, `attn_implementation`, etc.
-
-**Task Configuration**: Tasks are defined in `lmms-eval/lmms_eval/tasks/`. To list all available tasks:
-```bash
-lmms-eval --tasks list
-```
-
-Example tasks for spatial intelligence evaluation:
-| Task Name | Description |
-|-----------|-------------|
-| `site_bench_image` | SITE-Bench image evaluation |
-| `site_bench_video` | SITE-Bench video evaluation |
-
-For more details on lmms-eval usage, refer to the [lmms-eval documentation](lmms-eval/README.md).
+  For more details on lmms-eval usage, refer to the [lmms-eval documentation](lmms-eval/README.md).
 
 
 ### Submision

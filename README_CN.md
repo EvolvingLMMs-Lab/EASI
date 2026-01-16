@@ -42,23 +42,18 @@ lmms-eval --model qwen2_5_vl \
 
 EASI 是一个面向空间智能的统一评测套件，用于在不断扩展的空间基准上评估最先进的闭源和开源多模态大模型。
 
-主要特点包括：
-
-- 支持评估**最先进的空间智能模型**。
-- 系统性地收集和整合**不断演进的空间智能基准测试**。
-- 提供**两种评测后端**，灵活选择：
+- **广泛支持**：目前 EASI([v0.2.0](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.0))支持 **23 个空间智能模型**和 **25 个空间基准测试**。
+- **双后端支持**：
   - **VLMEvalKit**：丰富的模型库，内置评判功能。
   - **lmms-eval**：轻量级、基于 accelerate 的分布式评测，支持大量任务。
 
-在 [v0.1.5](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.5) 版本中，EASI 已支持 **23 个空间智能模型** 和 **24 个空间基准测试**，并将持续扩展。完整的支持模型与基准列表见 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**。此外，EASI 还提供透明的 👉 **[Benchmark Verification](docs/Benchmark_Verification.md)**，方便与官方评分进行对比。
+更多详情请参阅 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**。EASI 同时提供透明的 👉 **[Benchmark Verification](docs/Benchmark_Verification.md)** 以供与官方分数对比。
 
 ## 🗓️ 最新动态
 
-🌟 **[2026-01-09]** [EASI v0.1.5](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.1.5) 发布。主要更新包括：
-- **基准测试支持扩展**: 新增 STI-Bench。
-- **模型支持扩展**：新增 SenseNova-SI-1.1-BAGEL-7B-MoT, SenseNova-SI-1.3-InternVL3-8B。
-- 增加详细的基准测试数值对齐信息 **[Benchmark Verification](docs/Benchmark_Verification.md)**
-
+🌟 **[2026-01-16]** [EASI v0.2.0](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.0) 发布。主要更新包括：
+- **新增后端支持**：集成了 lmms-eval 与 VLMEvalKit，提供灵活的评测选择。
+- **基准支持扩展**：新增 DSR-Bench。
 
 完整发版历史和详细更新日志，请参见 👉 **[Changelog](docs/CHANGELOG.md)**。
 
@@ -188,29 +183,25 @@ lmms-eval --tasks list
 
 ### 配置
 
-#### EASI (VLMEvalkit 后端) 配置
+**EASI (后端=VLMEvalKit)**
+- **模型**：定义在 `vlmeval/config.py` 中。请使用 `vlmutil check {MODEL_NAME}` 验证推理是否可用。
+- **基准**：完整支持列表请见 [VLMEvalKit Supported Benchmarks](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY)。
+- **EASI 特有**：针对 [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard)，相关基准测试汇总于 [支持的模型与基准](docs/Support_bench_models.md)。
 
-**VLM 配置**：所有 VLM 都在 `vlmeval/config.py` 中配置。在评测时，你应当使用该文件中 supported_VLM 指定的模型名称来选择 VLM。开始评测前，请先通过如下命令确认该 VLM 可以成功推理：`vlmutil check {MODEL_NAME}`。
+**EASI (后端=lmms-eval)**
+- **模型**：lmms-eval 支持多种模型类型（如 `qwen2_5_vl`, `llava`, `internvl2` 等）。使用 `--model_args` 指定模型参数（如 `pretrained`, `attn_implementation` 等）。
+- **任务**：任务定义在 `lmms-eval/lmms_eval/tasks/`。列出所有可用任务：
+  ```bash
+  lmms-eval --tasks list
+  ```
 
-**基准（Benchmark）配置**：完整的已支持基准列表见 VLMEvalKit 官方文档 [VLMEvalKit Supported Benchmarks](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY)。对于 [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard)，所有 EASI 基准测试及其对应的 --data 名称汇总在 [支持的模型和基准测试](docs/Support_bench_models.md) 中。
+  空间智能评测的示例任务：
+  | 任务名称 | 描述 |
+  |-----------|-------------|
+  | `site_bench_image` | SITE-Bench 图像评测 |
+  | `site_bench_video` | SITE-Bench 视频评测 |
 
-
-#### EASI (lmms-eval 后端) 配置
-
-**模型配置**：lmms-eval 支持多种模型类型，包括 `qwen2_5_vl`、`llava`、`internvl2` 等。使用 `--model_args` 指定模型参数，如 `pretrained`、`attn_implementation` 等。
-
-**任务配置**：任务定义在 `lmms-eval/lmms_eval/tasks/` 目录下。列出所有可用任务：
-```bash
-lmms-eval --tasks list
-```
-
-空间智能评测的示例任务：
-| 任务名称 | 描述 |
-|-----------|-------------|
-| `site_bench_image` | SITE-Bench 图像评测 |
-| `site_bench_video` | SITE-Bench 视频评测 |
-
-更多 lmms-eval 使用详情，请参阅 [lmms-eval 文档](lmms-eval/README.md)。
+  更多 lmms-eval 使用详情，请参阅 [lmms-eval 文档](lmms-eval/README.md)。
 
 ### 提交
 

@@ -1,6 +1,14 @@
 # Changelog
 
-All notable changes to **EASI** are documented in this file.  
+All notable changes to **EASI** are documented in this file. 
+
+---
+
+## [v0.2.0] – 2026-01-16
+
+- **New Backend Support**: Integrated lmms-eval alongside VLMEvalKit, offering flexible evaluation options.
+- **Expanded benchmark support**: Added DSR-Bench. 
+
 
 ---
 
