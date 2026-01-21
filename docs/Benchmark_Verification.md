@@ -118,8 +118,8 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 
 | Model | Benchmark | Paper | Official Code | EASI (backend=VLMEvalKit) | Δ | Status | EASI (backend=lmms-eval) | Δ | Status |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| Qwen2.5-VL-3B-Instruct | `SiteBenchImage`<br>`SiteBenchVideo_32frame` | 29.50 | - | 33.10 | +3.60 | ☑️ | 29.14 | -0.36 | ✅ |
-<!-- | Qwen2.5-VL-7B-Instruct  | `SiteBenchImage`<br>`SiteBenchVideo_32frame` | 31.4 | 32.3 | 37.6 | +5.3 | ❌ | -->
+| Qwen2.5-VL-3B-Instruct | `SiteBenchImage`<br>`SiteBenchVideo_32frame` | 29.50 | - | 33.10 | +3.60 | ☑️ | 32.37 | +2.87 | ☑️ |
+| Qwen2.5-VL-7B-Instruct  | `SiteBenchImage`<br>`SiteBenchVideo_32frame` | 31.40 | - | 37.6 | +5.3 | ❌ | 37.91 | +6.51 | ❌ |
 
 ### 8. SPAR-Bench
 * **Metric:** Accuracy && MRA
