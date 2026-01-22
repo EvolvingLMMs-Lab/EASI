@@ -97,7 +97,7 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 | Cambrian-S-7B | `VSI-Bench_32frame` | - | 63.61 | 62.93 | -0.68 | ✅ | 63.48 | -0.13 | ✅ |
 | SenseNova-SI-1.1-Qwen3-VL-8B | `VSI-Bench_32frame` | 62.90 | - | 62.90 | +0.00 | ✅ | 64.25 | +1.35 | ✅ |
 | SenseNova-SI-1.2-InternVL3-8B | `VSI-Bench_32frame` | 68.70 | - | 68.70 | +0.00 | ✅ | 68.35 | -0.35 | ✅ |
-| SenseNova-SI-1.1-BAGEL-7B-MoT | `VSI-Bench_32frame` | 41.60 | - | 41.60 | +0.00 | ✅ | - | - | - |
+| SenseNova-SI-1.1-BAGEL-7B-MoT | `VSI-Bench_32frame` | 41.60 | - | 41.60 | +0.00 | ✅ | 42.53 | +0.93 | ✅ |
 
 *(For the SenseNova-SI-Qwen series models, VSI-Bench should be evaluated using multiple image pathway)*
 
@@ -118,18 +118,18 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 
 | Model | Benchmark | Paper | Official Code | EASI (backend=VLMEvalKit) | Δ | Status | EASI (backend=lmms-eval) | Δ | Status |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| Qwen2.5-VL-3B-Instruct | `SiteBenchImage`<br>`SiteBenchVideo_32frame` | 29.50 | - | 33.10 | +3.60 | ☑️ | 29.14 | -0.36 | ✅ |
-<!-- | Qwen2.5-VL-7B-Instruct  | `SiteBenchImage`<br>`SiteBenchVideo_32frame` | 31.4 | 32.3 | 37.6 | +5.3 | ❌ | -->
+| Qwen2.5-VL-3B-Instruct | `SiteBenchImage`<br>`SiteBenchVideo_32frame` | 29.50 | - | 33.10 | +3.60 | ☑️ | 32.37 | +2.87 | ☑️ |
+| Qwen2.5-VL-7B-Instruct  | `SiteBenchImage`<br>`SiteBenchVideo_32frame` | 31.40 | - | 37.6 | +5.3 | ❌ | 37.91 | +6.51 | ❌ |
 
 ### 8. SPAR-Bench
 * **Metric:** Accuracy && MRA
 
-| Model | Benchmark | Paper | Official Code | EASI (backend=VLMEvalKit) | Δ | Status |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| Qwen2.5-VL-72B-Instruct  | `SparBench_tiny` | 39.40 | - | 39.84 | +0.44 | ✅ |
-| Qwen2.5-VL-7B-Instruct  | `SparBench` | 33.07 | - | 33.78 | +0.71 | ✅ |
-| Qwen2.5-VL-72B-Instruct  | `SparBench` | 37.01 | - | 38.94 | +1.93 | ✅ |
-| SpaceR-SFT-7B  | `SparBench` | 37.55 | - | 34.12 | -3.43 | ☑️ |
+| Model | Benchmark | Paper | Official Code | EASI (backend=VLMEvalKit) | Δ | Status | EASI (backend=lmms-eval) | Δ | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Qwen2.5-VL-72B-Instruct  | `SparBench_tiny` | 39.40 | - | 39.84 | +0.44 | ✅ | 38.91 | -0.49 | ✅ |
+| Qwen2.5-VL-7B-Instruct  | `SparBench` | 33.07 | - | 33.78 | +0.71 | ✅ | 33.99 | +0.92 | ✅ |
+| Qwen2.5-VL-72B-Instruct  | `SparBench` | 37.01 | - | 38.94 | +1.93 | ✅ | 38.34 | +1.33 | ✅ |
+| SpaceR-SFT-7B  | `SparBench` | 37.55 | - | 34.12 | -3.43 | ☑️ | 36.50 | -1.05 | ✅ |
 
 
 ### 9. STARE-Bench
