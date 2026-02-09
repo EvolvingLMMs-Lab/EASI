@@ -45,7 +45,7 @@ lmms-eval --model qwen2_5_vl \
 
 EASI 是一个面向空间智能的统一评测套件，用于在不断扩展的空间基准上评估最先进的闭源和开源多模态大模型。
 
-- **广泛支持**：目前 EASI([v0.2.0](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.0))支持 **23 个空间智能模型**和 **25 个空间基准测试**。
+- **广泛支持**：目前 EASI([v0.2.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.1))支持 **23 个空间智能模型**和 **27 个空间基准测试**。
 - **双后端支持**：
   - **VLMEvalKit**：丰富的模型库，内置评判功能。
   - **lmms-eval**：轻量级、基于 accelerate 的分布式评测，支持大量任务。
@@ -53,6 +53,11 @@ EASI 是一个面向空间智能的统一评测套件，用于在不断扩展的
 更多详情请参阅 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**。EASI 同时提供透明的 👉 **[Benchmark Verification](docs/Benchmark_Verification.md)** 以供与官方分数对比。
 
 ## 🗓️ 最新动态
+
+🌟 **[2026-02-09]** [EASI v0.2.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.1) 发布。主要更新包括：
+- **新增基准支持**：新增 ERIQ 和 OSI-Bench。
+- **Bug 修复**：修复 VLMEvalKit 在 MuirBench 上的评测问题。
+- **基准验证**：补充了更多 lmms-eval 的基准验证信息。
 
 🌟 **[2026-01-16]** [EASI v0.2.0](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.0) 发布。主要更新包括：
 - **新增后端支持**：集成了 lmms-eval 与 VLMEvalKit，提供灵活的评测选择。

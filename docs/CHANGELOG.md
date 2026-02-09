@@ -4,6 +4,19 @@ All notable changes to **EASI** are documented in this file.
 
 ---
 
+## [v0.2.1] – 2026-02-09
+
+### Added
+- 2 new benchmarks:
+  - ERIQ
+  - OSI-Bench
+- More lmms-eval benchmark verification entries.
+
+### Fixed
+- VLMEvalKit evaluation issues on MuirBench.
+
+---
+
 ## [v0.2.0] – 2026-01-16
 
 - **New Backend Support**: Integrated lmms-eval alongside VLMEvalKit, offering flexible evaluation options.
@@ -94,4 +107,3 @@ All notable changes to **EASI** are documented in this file.
 - Unified VLMEvalKit-based evaluation pipeline  
 
 ---
-
