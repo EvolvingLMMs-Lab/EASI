@@ -141,22 +141,22 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 ### 9. STARE-Bench
 * **Metric:** Accuracy && F1 score
 
-| Model | Benchmark | Paper | Official Code | EASI (backend=VLMEvalKit) | Δ | Status |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| Qwen2.5-VL-3B-Instruct  | `StareBench_CoT` | 32.3 | - | 33.7 | +1.4 | ✅ |
-| Qwen2.5-VL-7B-Instruct  | `StareBench_CoT` | 36.7 | - | 37.6 | +0.9 | ✅ |
+| Model | Benchmark | Paper | Official Code | EASI (backend=VLMEvalKit) | Δ | Status | EASI (backend=lmms-eval) | Δ | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Qwen2.5-VL-3B-Instruct  | `StareBench_CoT` | 32.3 | - | 33.7 | +1.4 | ✅ | 31.29 | -1.01 | ✅ |
+| Qwen2.5-VL-7B-Instruct  | `StareBench_CoT` | 36.7 | - | 37.6 | +0.9 | ✅ | 38.53 | +1.83 | ✅ |
 
 
 ### 10. Spatial-Visualization-Benchmark
 * **Metric:** Accuracy
 
-| Model | Benchmark | Paper | Official Code | EASI (backend=VLMEvalKit) | Δ | Status |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| Qwen2.5-VL-3B-Instruct  | `SpatialVizBench` | 26.10 | 25.00 | 23.98 | -1.02 | ✅ |
-| Qwen2.5-VL-7B-Instruct  | `SpatialVizBench` | 30.76 | - | 31.02 | +0.26 | ✅ |
-| InternVL3-8B  | `SpatialVizBench` | 30.25 | - | 31.86 | +1.61 | ✅ |
-| Qwen2.5-VL-7B-Instruct  | `SpatialVizBench_CoT` | 27.97 | - | 27.54 | -0.43 | ✅ |
-| InternVL3-8B  | `SpatialVizBench_CoT` | 30.08 | - | 30.00 | -0.08 | ✅ |
+| Model | Benchmark | Paper | Official Code | EASI (backend=VLMEvalKit) | Δ | Status | EASI (backend=lmms-eval) | Δ | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Qwen2.5-VL-3B-Instruct  | `SpatialVizBench` | 26.10 | 25.00 | 23.98 | -1.02 | ✅ | 27.71 | +2.71 | ☑️ |
+| Qwen2.5-VL-7B-Instruct  | `SpatialVizBench` | 30.76 | - | 31.02 | +0.26 | ✅ | 31.86 | +1.10 | ✅ |
+| InternVL3-8B  | `SpatialVizBench` | 30.25 | - | 31.86 | +1.61 | ✅ | 31.69 | +1.44 | ✅ |
+| Qwen2.5-VL-7B-Instruct  | `SpatialVizBench_CoT` | 27.97 | - | 27.54 | -0.43 | ✅ | 25.50 | -2.47 | ✅ |
+| InternVL3-8B  | `SpatialVizBench_CoT` | 30.08 | - | 30.00 | -0.08 | ✅ | 28.30 | -1.78 | ✅ |
 
 
 ### 11. OmniSpatial
@@ -210,13 +210,13 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 
 **Main table:**
 
-| Model | Benchmark | Paper | Official Code | EASI (backend=VLMEvalKit) | Δ | Status |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| Qwen2.5-VL-7B-Instruct  | `MMSIVideoBench_50frame` | 29.7 | - | 26.9 | -2.8 | ☑️ |
-| Qwen3-VL-8B-Instruct  | `MMSIVideoBench_50frame` | 27.6 | - | 28.3 | +0.7 | ✅ |
-| InternVL3-8B  | `MMSIVideoBench_50frame` | 30.4 | - | 30.2 | -0.2 | ✅ |
-| InternVL3-78B  | `MMSIVideoBench_50frame` | 32.7 | - | 32.6 | -0.1 | ✅ |
-| Gemini-3-pro-preview  | `MMSIVideoBench_50frame` | 38.0 | - | 40.4 | +2.4 | ✅ |
+| Model | Benchmark | Paper | Official Code | EASI (backend=VLMEvalKit) | Δ | Status | EASI (backend=lmms-eval) | Δ | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Qwen2.5-VL-7B-Instruct  | `MMSIVideoBench_50frame` | 29.7 | - | 26.9 | -2.8 | ☑️ | 28.30 | -1.40 | ✅ |
+| Qwen3-VL-8B-Instruct  | `MMSIVideoBench_50frame` | 27.6 | - | 28.3 | +0.7 | ✅ | 30.47 | +2.87 | ☑️ |
+| InternVL3-8B  | `MMSIVideoBench_50frame` | 30.4 | - | 30.2 | -0.2 | ✅ | 30.20 | -0.20 | ✅ |
+| InternVL3-78B  | `MMSIVideoBench_50frame` | 32.7 | - | 32.6 | -0.1 | ✅ | 32.82 | +0.12 | ✅ |
+| Gemini-3-pro-preview  | `MMSIVideoBench_50frame` | 38.0 | - | 40.4 | +2.4 | ✅ | - | - | - |
 
 <!-- **Sub bench table:**
 
@@ -292,10 +292,10 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 
 | Model | Benchmark | Paper | Official Code | EASI (backend=VLMEvalKit) | Δ | Status | EASI (backend=lmms-eval) | Δ | Status |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| Qwen3-VL-2B-Instruct | `OSI-Bench_32frame` | 18.4 | - | 17.1 | -1.3 | ✅ | - | - | ☑️ |
-| Qwen3-VL-8B-Instruct | `OSI-Bench_32frame` | 31.2 | - | 31.1 | -0.1 | ✅ | - | - | ❌ |
-| InternVL3_5-8B | `OSI-Bench_32frame` | 28.5 | - | 28.0 | -0.5 | ✅ | - | - | ✅ |
+| Qwen3-VL-2B-Instruct | `OSI-Bench_32frame` | 18.4 | - | 17.1 | -1.3 | ✅ | 15.14 | -3.26 | ☑️ |
+| Qwen3-VL-8B-Instruct | `OSI-Bench_32frame` | 31.2 | - | 31.1 | -0.1 | ✅ | 31.88 | +0.68 | ✅ |
+| InternVL3_5-8B | `OSI-Bench_32frame` | 28.5 | - | 28.0 | -0.5 | ✅ | - | - | - |
 |  | |  |  |  |  |  |  |  |  |
-| Qwen3-VL-2B-Instruct | `OSI-Bench_visual_first_32frame` | - | - | 20.7 | - | - | - | - | ☑️ |
-| Qwen3-VL-8B-Instruct | `OSI-Bench_visual_first_32frame` | - | - | 33.5 | - | - | - | - | ❌ |
-| InternVL3_5-8B | `OSI-Bench_visual_first_32frame` | - | - | 28.4 | - | - | - | - | ✅ |
+| Qwen3-VL-2B-Instruct | `OSI-Bench_visual_first_32frame` | - | - | 20.7 | - | - | - | - | - |
+| Qwen3-VL-8B-Instruct | `OSI-Bench_visual_first_32frame` | - | - | 33.5 | - | - | - | - | - |
+| InternVL3_5-8B | `OSI-Bench_visual_first_32frame` | - | - | 28.4 | - | - | 27.94 | -0.56 | ✅ |
