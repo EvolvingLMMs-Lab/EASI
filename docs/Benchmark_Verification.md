@@ -40,6 +40,9 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 18. [VSI-SUPER-Count](#18-vsi-super-count)
 19. [STI-Bench](#19-sti-bench)
 20. [DSR-Bench](#20-dsr-bench)
+21. [ERIQ](#21-eriq)
+22. [OSI-Bench](#22-osi-bench)
+
 
 ---
 
@@ -115,11 +118,14 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 
 ### 7. SITE-Bench
 * **Metric:** CAA
+> **Note:** SiteBench scores here are generally not aligned with the original report. We found issues in the official repo's native interleaved evaluation and fixed them in EASI.
 
 | Model | Benchmark | Paper | Official Code | EASI (backend=VLMEvalKit) | Δ | Status | EASI (backend=lmms-eval) | Δ | Status |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | Qwen2.5-VL-3B-Instruct | `SiteBenchImage`<br>`SiteBenchVideo_32frame` | 29.50 | - | 33.10 | +3.60 | ☑️ | 32.37 | +2.87 | ☑️ |
 | Qwen2.5-VL-7B-Instruct  | `SiteBenchImage`<br>`SiteBenchVideo_32frame` | 31.40 | - | 37.6 | +5.3 | ❌ | 37.91 | +6.51 | ❌ |
+
+
 
 ### 8. SPAR-Bench
 * **Metric:** Accuracy && MRA
@@ -267,3 +273,29 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 | Qwen2.5-VL-7B-Instruct  | `DSRBench_1fps` | 23.5 | - |24.7 | +1.2 | ✅ |
 | Qwen3-VL-8B-Instruct  | `DSRBench_1fps` | 28.7 | - | 30.6 | +1.9 | ✅ |
 | InternVL3_5-8B  | `DSRBench_1fps` | 25.4 | - | 26.6 | +1.2 | ✅ |
+
+
+### 21. ERIQ
+* **Metric:** Accuracy
+
+| Model | Benchmark | Paper | Offical Code | EASI (backend=VLMEvalKit) | Δ | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| Qwen2.5-VL-3B-Instruct  | `ERIQ` | 58.64 | - | 60.18 | +1.54 | ✅ |
+| Qwen2.5-VL-7B-Instruct  | `ERIQ` | 66.79 | - | 67.25 | +0.56 | ✅ |
+| Qwen3-VL-8B-Instruct  | `ERIQ` | 75.53 | - | 77.18 | +1.65 | ✅ |
+| InternVL3_5-8B  | `ERIQ` | 66.72 | - | 68.34 | +1.62 | ✅ |
+
+
+### 22. OSI-Bench
+* **Metric:** Accuracy && MRA
+> **Note:** We also provide `OSI-Bench_visual_first` results because the official implementation places video frames after the text prompt. This variant puts visual information before text for reference.
+
+| Model | Benchmark | Paper | Official Code | EASI (backend=VLMEvalKit) | Δ | Status | EASI (backend=lmms-eval) | Δ | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Qwen3-VL-2B-Instruct | `OSI-Bench_32frame` | 18.4 | - | 17.1 | -1.3 | ✅ | - | - | ☑️ |
+| Qwen3-VL-8B-Instruct | `OSI-Bench_32frame` | 31.2 | - | 31.1 | -0.1 | ✅ | - | - | ❌ |
+| InternVL3_5-8B | `OSI-Bench_32frame` | 28.5 | - | 28.0 | -0.5 | ✅ | - | - | ✅ |
+|  | |  |  |  |  |  |  |  |  |
+| Qwen3-VL-2B-Instruct | `OSI-Bench_visual_first_32frame` | - | - | 20.7 | - | - | - | - | ☑️ |
+| Qwen3-VL-8B-Instruct | `OSI-Bench_visual_first_32frame` | - | - | 33.5 | - | - | - | - | ❌ |
+| InternVL3_5-8B | `OSI-Bench_visual_first_32frame` | - | - | 28.4 | - | - | - | - | ✅ |
