@@ -53,7 +53,7 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 
 | Model | Benchmark | Paper | Official Code | EASI (backend=VLMEvalKit) | Δ | Status | EASI (backend=lmms-eval) | Δ | Status |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | 
-| Qwen2.5-VL-3B-Instruct | `MindCubeBench_tiny_raw_qa` | 37.81 | - | 37.88 | +0.07 | ✅ | 34.08 | +3.73 | ☑️
+| Qwen2.5-VL-3B-Instruct | `MindCubeBench_tiny_raw_qa` | 37.81 | - | 37.88 | +0.07 | ✅ | 36.86 | -0.95 | ✅
 | Qwen2.5-VL-3B-Instruct | `MindCubeBench_raw_qa` | 33.21 | 36.08 | 35.65 | -0.43 | ✅ | 34.97 | -1.11 | ✅
 | Qwen2.5-VL-7B-Instruct | `MindCubeBench_raw_qa` | 29.26 | 31.12 | 31.48 | +0.36 | ✅ | 30.60 | -0.52 | ✅
 
@@ -122,8 +122,8 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 
 | Model | Benchmark | Paper | Official Code | EASI (backend=VLMEvalKit) | Δ | Status | EASI (backend=lmms-eval) | Δ | Status |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| Qwen2.5-VL-3B-Instruct | `SiteBenchImage`<br>`SiteBenchVideo_32frame` | 29.50 | - | 33.10 | +3.60 | ☑️ | 32.37 | +2.87 | ☑️ |
-| Qwen2.5-VL-7B-Instruct  | `SiteBenchImage`<br>`SiteBenchVideo_32frame` | 31.40 | - | 37.6 | +5.3 | ❌ | 37.91 | +6.51 | ❌ |
+| Qwen2.5-VL-3B-Instruct | `SiteBenchImage`<br>`SiteBenchVideo_32frame` | 29.50 | - | 33.10 | +3.60 | ☑️ | 32.32 | +2.82 | ☑️ |
+| Qwen2.5-VL-7B-Instruct  | `SiteBenchImage`<br>`SiteBenchVideo_32frame` | 31.40 | - | 37.6 | +5.3 | ❌ | 37.98 | +6.58 | ❌ |
 
 
 
