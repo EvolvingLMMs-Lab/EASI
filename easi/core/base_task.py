@@ -76,6 +76,19 @@ class BaseTask(ABC):
 
     # --- Shared implementation ---
 
+    def get_bridge_script_path(self) -> Path | None:
+        """Return task-specific bridge script path, or None for simulator default.
+
+        Override in subclasses to provide a task-specific bridge that extends
+        the generic simulator bridge (e.g., EBAlfredBridge extends AI2ThorBridge).
+        """
+        return None
+
+    @property
+    def simulator_kwargs(self) -> dict:
+        """Simulator configuration from task YAML (passed to bridge via CLI args)."""
+        return self._config.get("simulator_kwargs", {})
+
     def get_instruction(self, episode: dict) -> str:
         """Return human-readable task instruction for this episode.
 

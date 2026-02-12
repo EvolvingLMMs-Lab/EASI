@@ -89,7 +89,7 @@ class EvaluationRunner:
         agent = self._create_agent(task.action_space, task._config)
 
         # 3. Start simulator
-        sim, runner = self._create_simulator(task.simulator_key)
+        sim, runner = self._create_simulator(task.simulator_key, task=task)
 
         all_results = []
         try:
@@ -244,7 +244,9 @@ class EvaluationRunner:
         else:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 
-    def _create_simulator(self, simulator_key: str):
+    def _create_simulator(self, simulator_key: str, task=None):
+        import json as _json
+
         from easi.simulators.registry import (
             load_env_manager_class,
             load_simulator_class,
@@ -257,12 +259,22 @@ class EvaluationRunner:
         env_manager = EnvManagerClass()
         sim = SimClass()
 
+        # Task-specific bridge overrides simulator default
+        bridge_path = (
+            (task.get_bridge_script_path() if task else None)
+            or sim._get_bridge_script_path()
+        )
+
+        extra_args = ["--data-dir", str(self.data_dir)]
+        if task and task.simulator_kwargs:
+            extra_args.extend(["--simulator-kwargs", _json.dumps(task.simulator_kwargs)])
+
         runner = SubprocessRunner(
             python_executable=env_manager.get_python_executable(),
-            bridge_script_path=sim._get_bridge_script_path(),
+            bridge_script_path=bridge_path,
             needs_display=env_manager.needs_display,
             xvfb_screen_config=env_manager.xvfb_screen_config,
-            extra_args=["--data-dir", str(self.data_dir)],
+            extra_args=extra_args,
         )
         runner.launch()
         sim.set_runner(runner)

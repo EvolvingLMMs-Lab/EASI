@@ -32,6 +32,10 @@ class EBAlfredTask(BaseTask):
         # Decision #4: No task.yaml — use ebalfred_base.yaml as default fallback
         return Path(__file__).parent / "ebalfred_base.yaml"
 
+    def get_bridge_script_path(self) -> Path:
+        """Return path to the EB-Alfred-specific bridge script."""
+        return Path(__file__).parent / "bridge.py"
+
     def get_instruction(self, episode: dict) -> str:
         """Decision #2: EB-Alfred uses 'instruction' field from HF row."""
         return episode.get("instruction", self.name)

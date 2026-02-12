@@ -12,5 +12,9 @@ dataset:
   split: "long_horizon"
   zip_files:
     - "tasks.zip"
+simulator_kwargs:
+  quality: "MediumCloseFitShadows"
+  screen_height: 500
+  screen_width: 500
 agent:
   prompt_builder: "easi.tasks.ebalfred.prompts.EBAlfredPromptBuilder"
