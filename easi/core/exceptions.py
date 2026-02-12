@@ -1,5 +1,7 @@
 """Custom exception hierarchy for EASI."""
 
+from __future__ import annotations
+
 
 class EASIError(Exception):
     """Base exception for all EASI errors."""

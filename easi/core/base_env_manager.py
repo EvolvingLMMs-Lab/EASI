@@ -7,22 +7,22 @@ Each simulator version provides a concrete subclass that declares:
 - validation import to confirm the env works
 
 The shared install() logic handles the full sequence:
-    check_system_deps → conda create → pip install uv → uv pip install → validate
+    check_system_deps -> conda create -> pip install uv -> uv pip install -> validate
 """
 
 from __future__ import annotations
 
-import logging
 import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
 
 from easi.core.exceptions import EnvironmentSetupError
 from easi.utils.locking import file_lock
+from easi.utils.logging import get_logger
 from easi.utils.paths import get_locks_dir
 from easi.utils.system_deps import SystemDependencyChecker
 
-logger = logging.getLogger("easi.core.base_env_manager")
+logger = get_logger(__name__)
 
 
 class BaseEnvironmentManager(ABC):
@@ -125,7 +125,7 @@ class BaseEnvironmentManager(ABC):
     def _do_install(self) -> None:
         """Execute the full install sequence (called under lock)."""
         env_name = self.get_env_name()
-        logger.info("Installing environment: %s", env_name)
+        logger.info("[Env Installation] %s", env_name)
 
         # Step 1: Check system deps
         self._dep_checker.assert_all(self.get_system_deps())
@@ -135,7 +135,7 @@ class BaseEnvironmentManager(ABC):
         if conda_yaml.exists():
             self._run_conda_create(env_name, conda_yaml)
         else:
-            logger.warning("No conda_env.yaml found at %s, skipping conda setup", conda_yaml)
+            logger.warning("[Env Installation] No conda_env.yaml found at %s, skipping conda setup", conda_yaml)
 
         # Step 3: Install uv in the conda env
         python_exec = self.get_python_executable()
@@ -149,21 +149,15 @@ class BaseEnvironmentManager(ABC):
                 "uv pip install",
             )
         else:
-            logger.warning("No requirements.txt found at %s, skipping uv install", requirements)
+            logger.warning("[Env Installation] No requirements.txt found at %s, skipping uv install", requirements)
 
-        # Step 5: Validate
-        result = subprocess.run(
+        # Step 5: Validate (stream output like other commands)
+        self._run_command(
             [python_exec, "-c", self.get_validation_import()],
-            capture_output=True,
-            text=True,
-            timeout=30,
+            "environment validation",
         )
-        if result.returncode != 0:
-            raise EnvironmentSetupError(
-                f"Environment validation failed for {env_name}:\n{result.stderr}"
-            )
 
-        logger.info("Environment %s installed and validated successfully", env_name)
+        logger.info("[Env Installation] Environment %s installed and validated successfully", env_name)
 
     def _run_conda_create(self, env_name: str, yaml_path: Path) -> None:
         """Create or update a conda environment from a YAML file."""
@@ -179,12 +173,25 @@ class BaseEnvironmentManager(ABC):
         self._run_command(cmd, desc)
 
     def _run_command(self, cmd: list[str], description: str) -> None:
-        """Run a subprocess command, raising on failure."""
-        logger.debug("Running %s: %s", description, " ".join(cmd))
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-        if result.returncode != 0:
+        """Run a subprocess command, streaming output through the logger."""
+        logger.info("[Env Installation] %s", " ".join(cmd))
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        output_lines = []
+        for line in process.stdout:
+            line = line.rstrip()
+            output_lines.append(line)
+            logger.debug("  %s", line)
+        process.wait()
+        if process.returncode != 0:
             raise EnvironmentSetupError(
-                f"{description} failed (exit code {result.returncode}):\n{result.stderr}"
+                f"{description} failed (exit {process.returncode}):\n"
+                + "\n".join(output_lines[-20:])
             )
 
     @staticmethod

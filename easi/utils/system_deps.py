@@ -6,12 +6,12 @@ installed before attempting environment setup.
 
 from __future__ import annotations
 
-import logging
 import subprocess
 
 from easi.core.exceptions import EnvironmentSetupError
+from easi.utils.logging import get_logger
 
-logger = logging.getLogger("easi.utils.system_deps")
+logger = get_logger(__name__)
 
 
 # Known system dependencies and how to check/install them

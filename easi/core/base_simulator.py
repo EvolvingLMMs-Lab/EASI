@@ -12,14 +12,14 @@ via the filesystem IPC layer.
 
 from __future__ import annotations
 
-import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
 
 from easi.communication import filesystem, schemas
 from easi.core.episode import Action, Observation, StepResult
+from easi.utils.logging import get_logger
 
-logger = logging.getLogger("easi.core.base_simulator")
+logger = get_logger(__name__)
 
 
 class BaseSimulator(ABC):
@@ -54,16 +54,27 @@ class BaseSimulator(ABC):
         """Format an Action into the command dict. Override for custom formatting."""
         return schemas.make_step_command(action)
 
-    def reset(self, episode_id: str, reset_config: dict | None = None) -> Observation:
+    def reset(
+        self,
+        episode_id: str,
+        reset_config: dict | None = None,
+        episode_output_dir: str | None = None,
+    ) -> Observation:
         """Reset the simulator for a new episode.
 
         Sends a reset command to the bridge subprocess and waits for the
         observation response.
+
+        Args:
+            episode_id: Unique identifier for this episode.
+            reset_config: Task-specific configuration for the episode.
+            episode_output_dir: Directory where the bridge should save
+                observation images. If None, the bridge uses its IPC workspace.
         """
         if self._runner is None:
             raise RuntimeError("Simulator not started. Call start() first.")
 
-        command = schemas.make_reset_command(episode_id, reset_config)
+        command = schemas.make_reset_command(episode_id, reset_config, episode_output_dir)
         response = self._runner.send_command(command)
 
         if response.get("status") == "error":

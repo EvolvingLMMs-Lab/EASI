@@ -67,9 +67,56 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch --num_processes=4 \
 
 List available tasks: `lmms-eval --tasks list`
 
+## EASI Library (`easi/`)
+
+The `easi` package is a Python library for embodied agent evaluation with subprocess-isolated simulators. Install: `pip install -e .`
+
+### Architecture
+
+```
+easi/
+├── core/           # Base classes: BaseTask, BaseSimulator, BaseAgent, Episode/Action/StepResult
+├── agents/         # DummyAgent, ReActAgent (with multi-action buffering + PromptBuilder)
+├── communication/  # Filesystem IPC: atomic JSON read/write, command/response schemas
+├── evaluation/     # EvaluationRunner (sequential orchestrator), metrics aggregation
+├── llm/            # LLMApiClient (OpenAI-compatible), DummyLLMServer
+├── simulators/     # Simulator implementations (subprocess bridges)
+│   ├── dummy/v1/   # In-memory dummy bridge for testing
+│   └── ai2thor/v2_1_0/  # Real AI2-THOR 2.1.0 bridge for EB-Alfred
+├── tasks/          # Task definitions (per-split YAML configs)
+│   ├── dummy/      # dummy_task (3 test episodes)
+│   └── ebalfred/   # EB-Alfred (6 splits: base, long_horizon, common_sense, etc.)
+└── utils/          # import_class(), logging setup
+```
+
+### Key Patterns
+
+- **Subprocess isolation**: Each simulator runs in its own conda env (e.g., Python 3.8 for ai2thor). The bridge script communicates via filesystem IPC (JSON files in a temp workspace).
+- **Multi-split tasks**: Each task folder has one or more `*.yaml` config files. The registry discovers all YAMLs, each registering as a separate task (e.g., `ebalfred_base`, `ebalfred_spatial`).
+- **EB-Alfred skills**: Actions are high-level skill text (e.g., `"find a Cabinet"`, `"pick up the Mug"`), NOT raw THOR API calls. The bridge translates these to THOR API sequences.
+- **ReAct agent**: Uses a PromptBuilder protocol for task-specific prompts. Supports multi-action buffering (LLM returns a plan, agent executes one action per step, clears buffer on failure).
+- **State tracking**: The AI2-THOR bridge tracks `cleaned_objects`, `cooled_objects`, `heated_objects` for EB-Alfred goal condition evaluation.
+
+### CLI
+
+```bash
+easi env list|install|check <simulator>    # Manage simulator environments
+easi task list|info|download <task>        # Manage tasks
+easi sim test <simulator>                  # Smoke test a simulator
+easi run <task> --agent dummy|react        # Run evaluation
+easi llm-server [--port PORT]              # Start dummy LLM server
+```
+
+### Testing
+
+```bash
+pip install -e ".[dev]"
+python -m pytest tests/ -v --timeout=60    # 103 tests, ~60s
+```
+
 ## Key References
 
-- There is no test suite, linter, or build system in the root project — those live in the submodules.
-- Evaluation logs go to `./logs/` (gitignored).
+- Test suite: `tests/` with pytest (103 tests covering all components)
+- Evaluation logs go to `./results/` (configurable via `--output-dir`)
 - Supported models (23) and benchmarks (25) are documented in `docs/Support_bench_models.md`.
 - Benchmark verification against official scores is in `docs/Benchmark_Verification.md`.

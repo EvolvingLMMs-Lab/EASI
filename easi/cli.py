@@ -10,53 +10,76 @@ Usage:
 import argparse
 import sys
 
+from easi.utils.logging import get_logger, setup_logging
+
+logger = get_logger(__name__)
+
 
 def build_parser() -> argparse.ArgumentParser:
+    # Shared parent so --verbosity works at any position in the command
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument(
+        "--verbosity", type=str, default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        help="Set logging verbosity (default: INFO)",
+    )
+
     parser = argparse.ArgumentParser(
         prog="easi",
         description="EASI - Embodied Reasoning Evaluation for Spatial Intelligence",
+        parents=[common],
     )
-    parser.add_argument(
-        "--verbose", "-v", action="store_true", help="Enable INFO logging"
-    )
-    parser.add_argument("--debug", action="store_true", help="Enable DEBUG logging")
 
     subparsers = parser.add_subparsers(dest="command")
 
     # --- env command group ---
-    env_parser = subparsers.add_parser("env", help="Manage simulator environments")
+    env_parser = subparsers.add_parser("env", help="Manage simulator environments", parents=[common])
     env_sub = env_parser.add_subparsers(dest="env_action")
 
-    env_sub.add_parser("list", help="List available simulators and versions")
+    env_sub.add_parser("list", help="List available simulators and versions", parents=[common])
 
-    env_install = env_sub.add_parser("install", help="Install a simulator environment")
+    env_install = env_sub.add_parser("install", help="Install a simulator environment", parents=[common])
     env_install.add_argument("simulator", type=str, help="e.g., 'dummy' or 'ai2thor:v2_1_0'")
 
-    env_check = env_sub.add_parser("check", help="Check if environment is ready")
+    env_check = env_sub.add_parser("check", help="Check if environment is ready", parents=[common])
     env_check.add_argument("simulator", type=str)
 
     # --- task command group ---
-    task_parser = subparsers.add_parser("task", help="Manage tasks (benchmarks)")
+    task_parser = subparsers.add_parser("task", help="Manage tasks (benchmarks)", parents=[common])
     task_sub = task_parser.add_subparsers(dest="task_action")
 
-    task_sub.add_parser("list", help="List available tasks")
+    task_sub.add_parser("list", help="List available tasks", parents=[common])
 
-    task_info = task_sub.add_parser("info", help="Show task details")
+    task_info = task_sub.add_parser("info", help="Show task details", parents=[common])
     task_info.add_argument("task", type=str, help="e.g., 'dummy_task'")
 
-    task_download = task_sub.add_parser("download", help="Download task dataset")
+    task_download = task_sub.add_parser("download", help="Download task dataset", parents=[common])
     task_download.add_argument("task", type=str)
 
     # --- sim command group ---
-    sim_parser = subparsers.add_parser("sim", help="Control simulators")
+    sim_parser = subparsers.add_parser("sim", help="Control simulators", parents=[common])
     sim_sub = sim_parser.add_subparsers(dest="sim_action")
 
-    sim_test = sim_sub.add_parser("test", help="Run a smoke test (reset + N steps)")
+    sim_test = sim_sub.add_parser("test", help="Run a smoke test (reset + N steps)", parents=[common])
     sim_test.add_argument("simulator", type=str, help="e.g., 'dummy' or 'ai2thor:v5_0_0'")
     sim_test.add_argument("--steps", type=int, default=5, help="Number of steps")
+    sim_test.add_argument("--timeout", type=float, default=30.0,
+                          help="Bridge startup timeout in seconds (default: 30)")
+
+    # --- run command ---
+    run_parser = subparsers.add_parser("run", help="Run a full evaluation", parents=[common])
+    run_parser.add_argument("task", type=str, help="Task name (e.g., 'dummy_task', 'ebalfred_base')")
+    run_parser.add_argument("--agent", type=str, default="dummy", choices=["dummy", "react"])
+    run_parser.add_argument("--output-dir", type=str, default="./logs",
+                            help="Base output directory (creates <dir>/<task>/<run_id>/)")
+    run_parser.add_argument("--data-dir", type=str, default="./datasets",
+                            help="Directory for downloading/caching datasets (default: ./datasets)")
+    run_parser.add_argument("--max-episodes", type=int, default=None)
+    run_parser.add_argument("--llm-url", type=str, default=None, help="LLM server URL")
+    run_parser.add_argument("--seed", type=int, default=None)
 
     # --- llm-server command ---
-    llm_parser = subparsers.add_parser("llm-server", help="Start dummy LLM server")
+    llm_parser = subparsers.add_parser("llm-server", help="Start dummy LLM server", parents=[common])
     llm_parser.add_argument("--port", type=int, default=8000)
     llm_parser.add_argument("--host", type=str, default="127.0.0.1")
     llm_parser.add_argument("--mode", choices=["fixed", "random"], default="random")
@@ -75,7 +98,7 @@ def cmd_env_list() -> None:
 
     sims = list_simulators()
     if not sims:
-        print("No simulators found.")
+        logger.info("No simulators found.")
         return
 
     # Deduplicate: show each name:version pair once
@@ -87,7 +110,7 @@ def cmd_env_list() -> None:
             continue
         seen.add(pair)
         default_marker = " (default)" if key == entry.name else ""
-        print(f"  {pair}{default_marker}  — {entry.description}")
+        logger.info("  %s%s  -- %s", pair, default_marker, entry.description)
 
 
 def cmd_env_install(simulator: str) -> None:
@@ -95,9 +118,9 @@ def cmd_env_install(simulator: str) -> None:
 
     EnvManagerClass = load_env_manager_class(simulator)
     env_manager = EnvManagerClass()
-    print(f"Installing environment: {env_manager.get_env_name()}")
+    logger.info("Installing environment: %s", env_manager.get_env_name())
     env_manager.install()
-    print("Done.")
+    logger.info("Done.")
 
 
 def cmd_env_check(simulator: str) -> None:
@@ -108,14 +131,14 @@ def cmd_env_check(simulator: str) -> None:
 
     missing = env_manager.check_system_deps()
     if missing:
-        print(f"Missing system deps: {missing}")
+        logger.info("Missing system deps: %s", missing)
 
     if env_manager.env_is_ready():
-        print(f"Environment {env_manager.get_env_name()} is ready.")
-        print(f"Python: {env_manager.get_python_executable()}")
+        logger.info("Environment %s is ready.", env_manager.get_env_name())
+        logger.info("Python: %s", env_manager.get_python_executable())
     else:
-        print(f"Environment {env_manager.get_env_name()} is NOT ready.")
-        print("Run: easi env install " + simulator)
+        logger.info("Environment %s is NOT ready.", env_manager.get_env_name())
+        logger.info("Run: easi env install %s", simulator)
 
 
 def cmd_task_list() -> None:
@@ -123,24 +146,24 @@ def cmd_task_list() -> None:
 
     tasks = list_tasks()
     if not tasks:
-        print("No tasks found.")
+        logger.info("No tasks found.")
         return
 
     for name in tasks:
         entry = get_task_entry(name)
-        print(f"  {name}  — {entry.display_name} (simulator: {entry.simulator_key})")
+        logger.info("  %s  -- %s (simulator: %s)", name, entry.display_name, entry.simulator_key)
 
 
 def cmd_task_info(task_name: str) -> None:
     from easi.tasks.registry import get_task_entry
 
     entry = get_task_entry(task_name)
-    print(f"Task: {entry.display_name}")
-    print(f"  Name:        {entry.name}")
-    print(f"  Description: {entry.description}")
-    print(f"  Simulator:   {entry.simulator_key}")
-    print(f"  Actions:     {', '.join(entry.action_space)}")
-    print(f"  Max steps:   {entry.max_steps}")
+    logger.info("Task: %s", entry.display_name)
+    logger.info("  Name:        %s", entry.name)
+    logger.info("  Description: %s", entry.description)
+    logger.info("  Simulator:   %s", entry.simulator_key)
+    logger.info("  Actions:     %s", ", ".join(entry.action_space))
+    logger.info("  Max steps:   %s", entry.max_steps)
 
 
 def cmd_task_download(task_name: str) -> None:
@@ -150,12 +173,12 @@ def cmd_task_download(task_name: str) -> None:
     task = TaskClass()
     path = task.download_dataset()
     if path and str(path):
-        print(f"Dataset ready at: {path}")
+        logger.info("Dataset ready at: %s", path)
     else:
-        print("Task uses built-in episodes (no download needed).")
+        logger.info("Task uses built-in episodes (no download needed).")
 
 
-def cmd_sim_test(simulator: str, steps: int) -> None:
+def cmd_sim_test(simulator: str, steps: int, timeout: float) -> None:
     from easi.core.episode import Action
     from easi.simulators.registry import load_env_manager_class, load_simulator_class
     from easi.simulators.subprocess_runner import SubprocessRunner
@@ -166,40 +189,66 @@ def cmd_sim_test(simulator: str, steps: int) -> None:
     env_manager = EnvManagerClass()
     sim = SimClass()
 
-    print(f"Testing {simulator}...")
-    print(f"  Python: {env_manager.get_python_executable()}")
+    logger.info("Testing %s...", simulator)
+    logger.info("  Python: %s", env_manager.get_python_executable())
 
     runner = SubprocessRunner(
         python_executable=env_manager.get_python_executable(),
         bridge_script_path=sim._get_bridge_script_path(),
         needs_display=env_manager.needs_display,
         xvfb_screen_config=env_manager.xvfb_screen_config,
+        startup_timeout=timeout,
     )
 
     try:
         runner.launch()
         sim.set_runner(runner)
 
-        print("  Reset... ", end="", flush=True)
+        logger.info("  Reset...")
         obs = sim.reset("smoke_test_001")
-        print(f"OK (rgb: {obs.rgb_path})")
+        logger.info("  Reset OK (rgb: %s)", obs.rgb_path)
 
         for i in range(steps):
             action = Action(action_name="MoveAhead")
             result = sim.step(action)
-            print(f"  Step {i+1}: done={result.done}, reward={result.reward}")
+            logger.info("  Step %d: done=%s, reward=%s", i + 1, result.done, result.reward)
             if result.done:
                 break
 
-        print("  Closing... ", end="", flush=True)
+        logger.info("  Closing...")
         sim.close()
-        print("OK")
-        print("Smoke test passed!")
+        logger.info("  Close OK")
+        logger.info("Smoke test passed!")
 
+    except KeyboardInterrupt:
+        logger.info("Interrupted, shutting down bridge...")
+        sim.close()
+        logger.info("Bridge process terminated.")
+        sys.exit(130)
     except Exception as e:
-        print(f"\nSmoke test FAILED: {e}")
+        logger.error("Smoke test FAILED: %s", e)
         sim.close()
         sys.exit(1)
+
+
+def cmd_run(task_name, agent_type, output_dir, data_dir, max_episodes, llm_url, seed):
+    from easi.evaluation.runner import EvaluationRunner
+
+    runner = EvaluationRunner(
+        task_name=task_name,
+        agent_type=agent_type,
+        output_dir=output_dir,
+        data_dir=data_dir,
+        llm_base_url=llm_url,
+        agent_seed=seed,
+    )
+    results = runner.run(max_episodes=max_episodes)
+    logger.info("Completed %d episodes.", len(results))
+    from easi.evaluation.metrics import aggregate_metrics
+
+    summary = aggregate_metrics(results)
+    for key, value in summary.items():
+        logger.info("  %s: %s", key, value)
 
 
 def cmd_llm_server(host: str, port: int, mode: str, action_space: list[str]) -> None:
@@ -214,13 +263,7 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
-    # Set up logging
-    if args.debug:
-        from easi.utils.logging import setup_logging
-        setup_logging("DEBUG")
-    elif args.verbose:
-        from easi.utils.logging import setup_logging
-        setup_logging("INFO")
+    setup_logging(args.verbosity)
 
     if args.command is None:
         parser.print_help()
@@ -249,9 +292,13 @@ def main() -> None:
 
     elif args.command == "sim":
         if args.sim_action == "test":
-            cmd_sim_test(args.simulator, args.steps)
+            cmd_sim_test(args.simulator, args.steps, args.timeout)
         else:
             parser.parse_args(["sim", "--help"])
+
+    elif args.command == "run":
+        cmd_run(args.task, args.agent, args.output_dir, args.data_dir,
+                args.max_episodes, args.llm_url, args.seed)
 
     elif args.command == "llm-server":
         cmd_llm_server(args.host, args.port, args.mode, args.action_space)

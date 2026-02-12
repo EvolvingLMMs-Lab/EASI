@@ -112,6 +112,33 @@ class TestSchemas:
         assert parsed.params["angle"] == 90.0
 
 
+    def test_step_command_with_skill_text(self):
+        """action_name carries full skill text for EB-Alfred (e.g., 'find a Cabinet').
+
+        The IPC protocol supports this natively — no schema changes needed.
+        """
+        action = Action(action_name="find a Cabinet", params={})
+        cmd = make_step_command(action)
+        assert cmd["action"]["action_name"] == "find a Cabinet"
+
+        # Round-trip: serialize and parse back
+        parsed = parse_action_from_command(cmd)
+        assert parsed.action_name == "find a Cabinet"
+
+    def test_observation_response_with_task_metrics(self):
+        """info field carries task_success and task_progress for EB-Alfred."""
+        resp = make_observation_response(
+            rgb_path="/tmp/rgb.png",
+            reward=0.5,
+            done=False,
+            info={"task_success": 0.0, "task_progress": 0.33, "last_action_success": 1.0},
+        )
+        result = parse_step_result(resp)
+        assert result.info["task_success"] == 0.0
+        assert result.info["task_progress"] == 0.33
+        assert result.info["last_action_success"] == 1.0
+
+
 class TestWriteCommand:
     def test_clears_old_response(self, tmp_path):
         # Write a response file

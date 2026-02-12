@@ -11,13 +11,14 @@ Usage:
 from __future__ import annotations
 
 import importlib
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
-logger = logging.getLogger("easi.tasks.registry")
+from easi.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -38,31 +39,46 @@ class TaskEntry:
 _registry: dict[str, TaskEntry] | None = None
 
 
-def _discover_tasks() -> dict[str, TaskEntry]:
-    """Scan task directories for task.yaml files."""
-    tasks_dir = Path(__file__).parent
+def _discover_tasks(tasks_dir: Path | None = None) -> dict[str, TaskEntry]:
+    """Scan task directories for .yaml config files.
+
+    Discovers all *.yaml files in immediate subdirectories of tasks_dir.
+    Each .yaml file registers as its own task (enabling multi-split tasks).
+    """
+    if tasks_dir is None:
+        tasks_dir = Path(__file__).parent
     entries: dict[str, TaskEntry] = {}
 
-    for task_yaml_path in sorted(tasks_dir.glob("*/task.yaml")):
-        try:
-            config = yaml.safe_load(task_yaml_path.read_text())
-        except Exception as e:
-            logger.warning("Failed to load %s: %s", task_yaml_path, e)
+    for subdir in sorted(tasks_dir.iterdir()):
+        if not subdir.is_dir() or subdir.name.startswith("_"):
             continue
 
-        name = config["name"]
-        entries[name] = TaskEntry(
-            name=name,
-            display_name=config.get("display_name", name),
-            description=config.get("description", ""),
-            simulator_key=config["simulator"],
-            task_class=config["task_class"],
-            action_space=config.get("action_space", []),
-            max_steps=config.get("max_steps", 500),
-            config_path=task_yaml_path,
-        )
+        # Find all .yaml files in this task folder
+        yaml_files = sorted(subdir.glob("*.yaml"))
 
-        logger.debug("Discovered task: %s (simulator: %s)", name, config["simulator"])
+        for task_yaml_path in yaml_files:
+            try:
+                config = yaml.safe_load(task_yaml_path.read_text())
+            except Exception as e:
+                logger.warning("Failed to load %s: %s", task_yaml_path, e)
+                continue
+
+            if not isinstance(config, dict) or "name" not in config:
+                continue
+
+            name = config["name"]
+            entries[name] = TaskEntry(
+                name=name,
+                display_name=config.get("display_name", name),
+                description=config.get("description", ""),
+                simulator_key=config["simulator"],
+                task_class=config["task_class"],
+                action_space=config.get("action_space", []),
+                max_steps=config.get("max_steps", 500),
+                config_path=task_yaml_path,
+            )
+
+            logger.debug("Discovered task: %s from %s", name, task_yaml_path.name)
 
     return entries
 

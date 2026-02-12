@@ -11,14 +11,14 @@ _build_system_prompt, _build_step_prompt, _parse_action.
 
 from __future__ import annotations
 
-import logging
 from abc import ABC, abstractmethod
 
 from easi.core.episode import Action, Observation
 from easi.core.exceptions import ActionParseError
 from easi.core.protocols import LLMClientProtocol
+from easi.utils.logging import get_logger
 
-logger = logging.getLogger("easi.core.base_agent")
+logger = get_logger(__name__)
 
 
 class BaseAgent(ABC):
@@ -49,6 +49,13 @@ class BaseAgent(ABC):
         """
         ...
 
+    def add_feedback(self, action_name: str, feedback: str) -> None:
+        """Record action feedback from the environment.
+
+        Default: no-op. Subclasses (e.g., ReActAgent) override to track
+        action history and clear action buffer on failure.
+        """
+
     def reset(self) -> None:
         """Clear chat history for a new episode."""
         self._chat_history = []
@@ -77,22 +84,13 @@ class BaseAgent(ABC):
         self._step_count += 1
         step_prompt = self._build_step_prompt(observation)
 
-        # Collect images
-        images = []
-        if observation.rgb_path:
-            images.append(observation.rgb_path)
-
         # Add user message to history
-        user_message = {"role": "user", "content": step_prompt}
-        if images:
-            user_message["images"] = images
-        self._chat_history.append(user_message)
+        self._chat_history.append({"role": "user", "content": step_prompt})
 
         # Call LLM
         if self.llm_client is not None:
             llm_response = self.llm_client.generate(
                 messages=self._chat_history,
-                images=images if images else None,
             )
         else:
             llm_response = ""

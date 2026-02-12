@@ -10,15 +10,15 @@ The parent deletes response.json before writing a new command.json to avoid stal
 from __future__ import annotations
 
 import json
-import logging
 import os
 import tempfile
 import time
 from pathlib import Path
 
 from easi.core.exceptions import SimulatorTimeoutError
+from easi.utils.logging import get_logger
 
-logger = logging.getLogger("easi.communication")
+logger = get_logger(__name__)
 
 # Default filenames used in the IPC workspace
 COMMAND_FILE = "command.json"

@@ -6,12 +6,13 @@ any server that implements the /v1/chat/completions endpoint.
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 import requests
 
-logger = logging.getLogger("easi.llm.api_client")
+from easi.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class LLMApiClient:
@@ -33,15 +34,13 @@ class LLMApiClient:
 
     def generate(
         self,
-        messages: list[dict[str, str]],
-        images: list[str] | None = None,
+        messages: list[dict],
     ) -> str:
         """Send a chat completion request and return the assistant's response text.
 
         Args:
-            messages: Chat history in OpenAI format.
-            images: Optional list of image paths (currently passed as metadata;
-                    real multimodal support depends on the server implementation).
+            messages: Chat history in OpenAI format. Images are embedded as
+                content parts with type "image_url" (Decision #10).
 
         Returns:
             The assistant's response text.
@@ -52,9 +51,6 @@ class LLMApiClient:
             "max_tokens": self.max_tokens,
             "temperature": self.temperature,
         }
-
-        if images:
-            payload["images"] = images
 
         url = f"{self.base_url}/v1/chat/completions"
         logger.debug("POST %s (messages: %d)", url, len(messages))

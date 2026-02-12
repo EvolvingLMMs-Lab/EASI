@@ -8,12 +8,13 @@ Used to prevent race conditions when multiple EASI processes try to:
 from __future__ import annotations
 
 import fcntl
-import logging
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
 
-logger = logging.getLogger("easi.utils.locking")
+from easi.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @contextmanager

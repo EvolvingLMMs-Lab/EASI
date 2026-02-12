@@ -1,0 +1,16 @@
+name: ebalfred_visual_appearance
+display_name: "EB-Alfred Visual Appearance Split"
+description: "Visual appearance evaluation split testing visual grounding"
+simulator: "ai2thor:v2_1_0"
+task_class: "easi.tasks.ebalfred.task.EBAlfredTask"
+action_space: []
+max_steps: 50
+dataset:
+  source: huggingface
+  repo_id: "oscarqjh/EB-Alfred_easi"
+  subset: null
+  split: "visual_appearance"
+  zip_files:
+    - "tasks.zip"
+agent:
+  prompt_builder: "easi.tasks.ebalfred.prompts.EBAlfredPromptBuilder"

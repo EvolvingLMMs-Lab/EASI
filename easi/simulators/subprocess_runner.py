@@ -5,17 +5,18 @@ Manages the full lifecycle of a simulator bridge subprocess:
 - Health check: Polls status.json with configurable timeout
 - Send command: Writes command.json, polls response.json
 - Crash recovery: Detects subprocess exit during polling
-- Cleanup: SIGTERM → wait → SIGKILL the entire process group; removes temp workspace
+- Cleanup: SIGTERM -> wait -> SIGKILL the entire process group; removes temp workspace
 
 Supports xvfb-run wrapping for simulators that need a display.
 """
 
 from __future__ import annotations
 
-import logging
 import os
 import signal
 import subprocess
+import threading
+from collections import deque
 from pathlib import Path
 
 from easi.communication.filesystem import (
@@ -26,8 +27,9 @@ from easi.communication.filesystem import (
     write_command,
 )
 from easi.core.exceptions import SimulatorError, SimulatorTimeoutError
+from easi.utils.logging import get_logger
 
-logger = logging.getLogger("easi.simulators.subprocess_runner")
+logger = get_logger(__name__)
 
 
 class SubprocessRunner:
@@ -42,6 +44,7 @@ class SubprocessRunner:
         startup_timeout: float = 30.0,
         command_timeout: float = 60.0,
         poll_interval: float = 0.1,
+        extra_args: list[str] | None = None,
     ):
         self.python_executable = python_executable
         self.bridge_script_path = bridge_script_path
@@ -50,9 +53,12 @@ class SubprocessRunner:
         self.startup_timeout = startup_timeout
         self.command_timeout = command_timeout
         self.poll_interval = poll_interval
+        self.extra_args = extra_args or []
 
         self._process: subprocess.Popen | None = None
         self._workspace: Path | None = None
+        self._output_lines: deque[str] = deque(maxlen=200)
+        self._reader_thread: threading.Thread | None = None
 
     @property
     def workspace(self) -> Path | None:
@@ -65,6 +71,7 @@ class SubprocessRunner:
             raise RuntimeError("Subprocess already running")
 
         self._workspace = create_workspace()
+        self._output_lines.clear()
         cmd = self._build_launch_command()
 
         logger.info(
@@ -78,8 +85,17 @@ class SubprocessRunner:
             cmd,
             preexec_fn=os.setsid,  # new session = new process group
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,  # merge stderr into stdout
+            text=True,
+            bufsize=1,
         )
+
+        # Stream bridge output through logger in a background thread
+        self._reader_thread = threading.Thread(
+            target=self._stream_output,
+            daemon=True,
+        )
+        self._reader_thread.start()
 
         # Wait for the bridge to signal readiness
         try:
@@ -90,13 +106,17 @@ class SubprocessRunner:
                 process=self._process,
             )
             if not status.get("ready", False):
-                stderr = self._read_stderr()
+                output = self._get_recent_output()
                 raise SimulatorError(
-                    f"Bridge reported not ready. stderr:\n{stderr}"
+                    f"Bridge reported not ready. Output:\n{output}"
                 )
             logger.info("Bridge subprocess ready (PID: %d)", self._process.pid)
-        except (SimulatorError, SimulatorTimeoutError):
+        except (SimulatorError, SimulatorTimeoutError) as exc:
+            # Collect output before shutdown destroys the process
+            output = self._get_recent_output()
             self.shutdown()
+            if output:
+                raise SimulatorError(f"{exc}\n\nBridge output:\n{output}") from exc
             raise
 
     def send_command(self, command: dict, timeout: float | None = None) -> dict:
@@ -134,7 +154,11 @@ class SubprocessRunner:
         Unity binaries) to prevent zombie processes.
         """
         self._terminate_process_tree()
+        # Wait for the reader thread to drain any final output from the bridge
+        if self._reader_thread is not None:
+            self._reader_thread.join(timeout=2)
         self._process = None
+        self._reader_thread = None
 
         if self._workspace is not None:
             cleanup_workspace(self._workspace)
@@ -148,6 +172,7 @@ class SubprocessRunner:
             "--workspace",
             str(self._workspace),
         ]
+        cmd.extend(self.extra_args)
 
         if self.needs_display and not self._has_display():
             # Wrap with xvfb-run for headless environments
@@ -163,37 +188,52 @@ class SubprocessRunner:
         display = os.environ.get("DISPLAY", "")
         return bool(display) and not display.startswith(":")
 
+    def _stream_output(self) -> None:
+        """Read bridge stdout line-by-line and log at DEBUG level.
+
+        Runs in a daemon thread for the lifetime of the subprocess.
+        """
+        proc = self._process
+        if proc is None or proc.stdout is None:
+            return
+        try:
+            for line in proc.stdout:
+                line = line.rstrip()
+                self._output_lines.append(line)
+                logger.debug("[bridge] %s", line)
+        except (ValueError, OSError):
+            pass  # pipe closed
+
+    def _get_recent_output(self) -> str:
+        """Return the last N lines of captured bridge output."""
+        return "\n".join(self._output_lines)
+
     def _terminate_process_tree(self) -> None:
         """Kill the bridge and ALL its child processes."""
         if self._process is None:
             return
 
+        pid = self._process.pid
         try:
-            pgid = os.getpgid(self._process.pid)
+            pgid = os.getpgid(pid)
         except ProcessLookupError:
-            return  # already dead
+            logger.info("Bridge process (PID %d) already exited", pid)
+            return
 
         try:
             # SIGTERM the entire group first (graceful)
+            logger.info("Sending SIGTERM to bridge process group (PID %d)", pid)
             os.killpg(pgid, signal.SIGTERM)
             self._process.wait(timeout=10)
+            logger.info("Bridge process (PID %d) exited after SIGTERM", pid)
         except subprocess.TimeoutExpired:
             # SIGKILL the entire group (force)
+            logger.warning("Bridge did not exit after SIGTERM, sending SIGKILL")
             try:
                 os.killpg(pgid, signal.SIGKILL)
                 self._process.wait(timeout=5)
+                logger.info("Bridge process (PID %d) killed", pid)
             except (ProcessLookupError, subprocess.TimeoutExpired):
                 pass
         except ProcessLookupError:
-            pass  # already dead
-
-        logger.debug("Process tree terminated")
-
-    def _read_stderr(self) -> str:
-        """Read stderr from the subprocess (non-blocking)."""
-        if self._process is None or self._process.stderr is None:
-            return ""
-        try:
-            return self._process.stderr.read().decode("utf-8", errors="replace")
-        except Exception:
-            return "<could not read stderr>"
+            logger.info("Bridge process (PID %d) already exited", pid)

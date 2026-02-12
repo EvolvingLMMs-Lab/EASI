@@ -9,15 +9,20 @@ from __future__ import annotations
 import logging
 
 
-def get_logger(name: str) -> logging.Logger:
+def get_logger(name: str = __name__) -> logging.Logger:
     """Get a namespaced easi logger.
+
+    Accepts ``__name__`` directly — the ``easi.`` prefix is handled
+    automatically so callers never double-prefix.
 
     Usage::
 
         from easi.utils.logging import get_logger
-        logger = get_logger("simulators.subprocess_runner")
+        logger = get_logger(__name__)  # recommended — auto-discovers module path
         logger.info("Launching bridge: %s", bridge_path)
     """
+    if name.startswith("easi."):
+        return logging.getLogger(name)
     return logging.getLogger(f"easi.{name}")
 
 
@@ -37,7 +42,7 @@ def setup_logging(level: str = "WARNING") -> None:
         handler = logging.StreamHandler()
         handler.setFormatter(
             logging.Formatter(
-                "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+                "%(asctime)s [%(levelname)s] %(name)s - %(message)s",
                 datefmt="%H:%M:%S",
             )
         )

@@ -1,0 +1,16 @@
+name: ebalfred_long_horizon
+display_name: "EB-Alfred Long Horizon Split"
+description: "Long-horizon evaluation split requiring multi-step planning"
+simulator: "ai2thor:v2_1_0"
+task_class: "easi.tasks.ebalfred.task.EBAlfredTask"
+action_space: []
+max_steps: 50
+dataset:
+  source: huggingface
+  repo_id: "oscarqjh/EB-Alfred_easi"
+  subset: null
+  split: "long_horizon"
+  zip_files:
+    - "tasks.zip"
+agent:
+  prompt_builder: "easi.tasks.ebalfred.prompts.EBAlfredPromptBuilder"

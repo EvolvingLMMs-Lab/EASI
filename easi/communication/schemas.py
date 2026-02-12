@@ -12,12 +12,19 @@ from easi.core.episode import Action, Observation, StepResult
 
 # --- Command schemas (parent → child) ---
 
-def make_reset_command(episode_id: str, reset_config: dict | None = None) -> dict:
-    return {
+def make_reset_command(
+    episode_id: str,
+    reset_config: dict | None = None,
+    episode_output_dir: str | None = None,
+) -> dict:
+    cmd = {
         "type": "reset",
         "episode_id": episode_id,
         "reset_config": reset_config or {},
     }
+    if episode_output_dir is not None:
+        cmd["episode_output_dir"] = episode_output_dir
+    return cmd
 
 
 def make_step_command(action: Action) -> dict:

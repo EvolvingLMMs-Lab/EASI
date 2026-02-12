@@ -1,0 +1,16 @@
+name: ebalfred_complex_instruction
+display_name: "EB-Alfred Complex Instruction Split"
+description: "Complex instruction evaluation split with nuanced language"
+simulator: "ai2thor:v2_1_0"
+task_class: "easi.tasks.ebalfred.task.EBAlfredTask"
+action_space: []
+max_steps: 50
+dataset:
+  source: huggingface
+  repo_id: "oscarqjh/EB-Alfred_easi"
+  subset: null
+  split: "complex_instruction"
+  zip_files:
+    - "tasks.zip"
+agent:
+  prompt_builder: "easi.tasks.ebalfred.prompts.EBAlfredPromptBuilder"

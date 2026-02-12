@@ -38,13 +38,19 @@ from easi.communication.schemas import (
 logger = logging.getLogger("easi.bridge.dummy")
 
 
-def _generate_dummy_image(workspace: Path, step: int) -> str:
+def _generate_dummy_image(workspace: Path, step: int, output_dir: Path | None = None) -> str:
     """Generate a small placeholder PNG image.
 
     Creates a minimal valid PNG file (1x1 pixel, red) to simulate
     an observation image without requiring Pillow.
+
+    Args:
+        workspace: IPC workspace directory (fallback for image saving).
+        step: Current step number (used for filename and color).
+        output_dir: If provided, save image here instead of workspace.
     """
-    rgb_path = workspace / f"rgb_{step:04d}.png"
+    save_dir = output_dir if output_dir is not None else workspace
+    rgb_path = save_dir / f"rgb_{step:04d}.png"
 
     # Minimal valid 1x1 red PNG (67 bytes)
     # This avoids requiring Pillow in the dummy simulator
@@ -88,6 +94,7 @@ def run_bridge(workspace: Path, step_delay: float = 0.0) -> None:
     write_status(workspace, ready=True)
 
     step_count = 0
+    episode_output_dir = None  # Set per-episode from reset command
 
     while True:
         try:
@@ -102,11 +109,19 @@ def run_bridge(workspace: Path, step_delay: float = 0.0) -> None:
             episode_id = command.get("episode_id", "unknown")
             logger.info("Reset: episode_id=%s", episode_id)
 
+            # Read episode output directory (None for smoke tests)
+            raw_output_dir = command.get("episode_output_dir")
+            if raw_output_dir:
+                episode_output_dir = Path(raw_output_dir)
+                episode_output_dir.mkdir(parents=True, exist_ok=True)
+            else:
+                episode_output_dir = None
+
             if step_delay > 0:
                 time.sleep(step_delay)
 
             step_count = 0
-            rgb_path = _generate_dummy_image(workspace, step_count)
+            rgb_path = _generate_dummy_image(workspace, step_count, episode_output_dir)
 
             response = make_observation_response(
                 rgb_path=rgb_path,
@@ -123,7 +138,7 @@ def run_bridge(workspace: Path, step_delay: float = 0.0) -> None:
             if step_delay > 0:
                 time.sleep(step_delay)
 
-            rgb_path = _generate_dummy_image(workspace, step_count)
+            rgb_path = _generate_dummy_image(workspace, step_count, episode_output_dir)
 
             # Dummy: done after 10 steps or on Stop action
             done = step_count >= 10 or action.action_name == "Stop"
@@ -151,7 +166,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Dummy simulator bridge")
     parser.add_argument("--workspace", type=Path, required=True, help="IPC workspace directory")
     parser.add_argument("--step-delay", type=float, default=0.0, help="Delay per step in seconds")
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
 
     logging.basicConfig(
         level=logging.DEBUG,

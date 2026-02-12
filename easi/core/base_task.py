@@ -16,7 +16,6 @@ Concrete tasks subclass this and implement:
 from __future__ import annotations
 
 import json
-import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -24,14 +23,30 @@ import yaml
 
 from easi.core.episode import StepResult
 from easi.core.exceptions import DatasetError
+from easi.utils.logging import get_logger
 
-logger = logging.getLogger("easi.core.base_task")
+logger = get_logger(__name__)
+
+
+def hf_row_to_episode(row: dict) -> dict:
+    """Convert a HuggingFace dataset row to an episode dict.
+
+    HF dataset rows contain all information for a single episode.
+    For EB-Alfred_easi: {id, task, repeat_idx, instruction, task_type, trial_id}
+    This is a passthrough — the row IS the episode.
+    """
+    return dict(row)
 
 
 class BaseTask(ABC):
     """Abstract base for all tasks (benchmarks)."""
 
-    def __init__(self, data_dir: Path | None = None):
+    def __init__(
+        self,
+        data_dir: Path | None = None,
+        split_yaml_path: Path | None = None,
+    ):
+        self._split_yaml_path = split_yaml_path
         self._config = self._load_config()
         self._episodes: list[dict] | None = None
         self._data_dir = data_dir
@@ -60,6 +75,14 @@ class BaseTask(ABC):
         ...
 
     # --- Shared implementation ---
+
+    def get_instruction(self, episode: dict) -> str:
+        """Return human-readable task instruction for this episode.
+
+        Default tries common field names. Override in subclasses
+        for benchmarks that use different keys.
+        """
+        return episode.get("instruction", episode.get("task_description", self.name))
 
     @property
     def name(self) -> str:
@@ -124,21 +147,28 @@ class BaseTask(ABC):
         return len(self.load_episodes())
 
     def _load_config(self) -> dict:
-        """Load task.yaml."""
-        yaml_path = self.get_task_yaml_path()
+        """Load task config from split yaml (if provided) or default task.yaml."""
+        yaml_path = self._split_yaml_path or self.get_task_yaml_path()
         if not yaml_path.exists():
             raise DatasetError(f"Task config not found: {yaml_path}")
         return yaml.safe_load(yaml_path.read_text())
 
     def _load_episodes_from_config(self) -> list[dict]:
-        """Load episodes from the dataset directory.
+        """Load episodes from the dataset.
 
-        Subclasses can override this for custom episode loading logic.
-        Default implementation looks for episodes.json in the data directory.
+        For HuggingFace datasets: downloads the repo, then loads the split
+        using the datasets library. Each row = one episode.
+        For local datasets: looks for episodes.json.
         """
-        data_dir = self._data_dir or self.download_dataset()
+        dataset_config = self._config.get("dataset", {})
+        source = dataset_config.get("source", "local")
+
+        if source == "huggingface":
+            return self._load_episodes_from_hf(dataset_config)
+
+        # Local source — existing behavior
+        data_dir = self.download_dataset()
         if not data_dir or data_dir == Path():
-            # No data dir — subclass should provide built-in episodes
             return self._get_builtin_episodes()
 
         episodes_file = data_dir / "episodes.json"
@@ -150,6 +180,73 @@ class BaseTask(ABC):
             f"Override _load_episodes_from_config() for custom loading."
         )
 
+    def _load_episodes_from_hf(self, dataset_config: dict) -> list[dict]:
+        """Load episodes from a HuggingFace dataset (subset + split).
+
+        Each row in the dataset = one episode dict.
+        Downloads all files via snapshot_download, then loads locally.
+        """
+        data_dir = self.download_dataset()
+
+        subset = dataset_config.get("subset")
+        split_name = dataset_config.get("split")
+
+        try:
+            from datasets import (
+                get_dataset_config_names,
+                get_dataset_split_names,
+                load_dataset,
+            )
+        except ImportError:
+            raise DatasetError(
+                "The 'datasets' library is required for HF episode loading. "
+                "Install with: pip install datasets"
+            )
+
+        local_path = str(data_dir)
+
+        # Auto-detect subset if not specified
+        if subset is None:
+            configs = get_dataset_config_names(local_path)
+            if len(configs) == 1:
+                subset = configs[0]
+                logger.info("Auto-detected single subset: %s", subset)
+            elif "default" in configs:
+                subset = "default"
+            else:
+                raise DatasetError(
+                    f"Dataset at {local_path} has multiple subsets {configs} — "
+                    f"please specify 'subset' in task yaml."
+                )
+
+        # Auto-detect split if not specified
+        if split_name is None:
+            splits = get_dataset_split_names(local_path, subset)
+            if len(splits) == 1:
+                split_name = splits[0]
+                logger.info("Auto-detected single split: %s", split_name)
+            else:
+                raise DatasetError(
+                    f"Dataset at {local_path} subset={subset} has "
+                    f"multiple splits {splits} — "
+                    f"please specify 'split' in task yaml."
+                )
+
+        logger.info(
+            "Loading episodes from local HF dataset %s subset=%s split=%s",
+            local_path, subset, split_name,
+        )
+
+        ds = load_dataset(local_path, subset, split=split_name)
+        episodes = [hf_row_to_episode(row) for row in ds]
+
+        for ep in episodes:
+            ep["_data_dir"] = str(data_dir)
+
+        logger.info("Loaded %d episodes from %s/%s/%s",
+                     len(episodes), local_path, subset, split_name)
+        return episodes
+
     def _get_builtin_episodes(self) -> list[dict]:
         """Return built-in episodes when no dataset download is needed.
 
@@ -158,33 +255,78 @@ class BaseTask(ABC):
         return []
 
     def _download_huggingface(self, config: dict) -> Path:
-        """Download a dataset from HuggingFace Hub with file-based locking."""
+        """Download a dataset from HuggingFace Hub with file-based locking.
+
+        Uses snapshot_download to get the full repo (including .zip files),
+        then extracts any listed zip_files.
+        """
         from easi.utils.locking import file_lock
-        from easi.utils.paths import get_datasets_dir, get_locks_dir
+        from easi.utils.paths import get_locks_dir
 
         repo_id = config["repo_id"]
         lock_path = get_locks_dir() / f"dataset_{repo_id.replace('/', '_')}.lock"
 
+        # Use data_dir if set, otherwise default datasets dir
+        if self._data_dir:
+            base_dir = self._data_dir
+        else:
+            from easi.utils.paths import get_datasets_dir
+            base_dir = get_datasets_dir()
+
         with file_lock(lock_path):
-            target = get_datasets_dir() / repo_id.replace("/", "_")
-            if target.exists():
-                logger.info("Dataset %s already cached at %s", repo_id, target)
-                return target
+            target = base_dir / repo_id.replace("/", "_")
+            if not target.exists():
+                try:
+                    from huggingface_hub import snapshot_download
+                except ImportError:
+                    raise DatasetError(
+                        "huggingface_hub is required for HuggingFace downloads. "
+                        "Install with: pip install huggingface_hub"
+                    )
 
-            try:
-                from huggingface_hub import snapshot_download
+                logger.info("Downloading dataset %s from HuggingFace...", repo_id)
+                try:
+                    snapshot_download(
+                        repo_id=repo_id,
+                        local_dir=str(target),
+                        repo_type="dataset",
+                    )
+                except Exception as e:
+                    if target.exists():
+                        import shutil
+                        shutil.rmtree(target, ignore_errors=True)
+                    raise DatasetError(f"Failed to download {repo_id}: {e}")
 
-                snapshot_download(
-                    repo_id=repo_id,
-                    local_dir=str(target),
-                    repo_type="dataset",
-                )
                 logger.info("Downloaded dataset %s to %s", repo_id, target)
-                return target
-            except ImportError:
-                raise DatasetError(
-                    "huggingface_hub is required for HuggingFace downloads. "
-                    "Install with: pip install huggingface_hub"
-                )
-            except Exception as e:
-                raise DatasetError(f"Failed to download {repo_id}: {e}")
+            else:
+                logger.info("Dataset %s already cached at %s", repo_id, target)
+
+            # Extract any .zip files listed in config
+            zip_files = config.get("zip_files", [])
+            if zip_files:
+                self._extract_zip_files(target, zip_files)
+
+            return target
+
+    @staticmethod
+    def _extract_zip_files(dataset_dir: Path, zip_filenames: list[str]) -> None:
+        """Extract listed .zip files within a downloaded dataset directory."""
+        import zipfile as zf
+
+        for zip_name in zip_filenames:
+            zip_path = dataset_dir / zip_name
+            if not zip_path.exists():
+                logger.warning("Zip file not found: %s", zip_path)
+                continue
+
+            marker = dataset_dir / f".{zip_name}.extracted"
+            if marker.exists():
+                logger.debug("Already extracted: %s", zip_name)
+                continue
+
+            logger.info("Extracting %s...", zip_path)
+            with zf.ZipFile(zip_path, "r") as z:
+                z.extractall(dataset_dir)
+
+            marker.write_text("extracted")
+            logger.info("Extracted %s to %s", zip_name, dataset_dir)

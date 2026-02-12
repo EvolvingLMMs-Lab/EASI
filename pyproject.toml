@@ -11,12 +11,11 @@ dependencies = [
     "Pillow>=10.0",
     "requests>=2.28",
     "pyyaml>=6.0",
+    "datasets>=2.0.0",
+    "huggingface_hub>=0.19.0",
 ]
 
 [project.optional-dependencies]
-hf = [
-    "huggingface_hub>=0.20",
-]
 dev = [
     "pytest>=7.0",
     "pytest-timeout>=2.0",
@@ -34,5 +33,5 @@ exclude = ["VLMEvalKit*", "lmms-eval*"]
     "simulators/*/manifest.yaml",
     "simulators/*/*/conda_env.yaml",
     "simulators/*/*/requirements.txt",
-    "tasks/*/task.yaml",
+    "tasks/*/*.yaml",
 ]

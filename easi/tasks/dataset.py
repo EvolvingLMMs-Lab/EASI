@@ -5,14 +5,14 @@ Used by BaseTask.download_dataset() but also available standalone.
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 from easi.core.exceptions import DatasetError
 from easi.utils.locking import file_lock
+from easi.utils.logging import get_logger
 from easi.utils.paths import get_datasets_dir, get_locks_dir
 
-logger = logging.getLogger("easi.tasks.dataset")
+logger = get_logger(__name__)
 
 
 class DatasetDownloader:

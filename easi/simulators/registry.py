@@ -12,13 +12,14 @@ Lookup semantics:
 from __future__ import annotations
 
 import importlib
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
-logger = logging.getLogger("easi.simulators.registry")
+from easi.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass

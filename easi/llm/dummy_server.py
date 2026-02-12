@@ -13,11 +13,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 import random
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-logger = logging.getLogger("easi.llm.dummy_server")
+from easi.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 DEFAULT_ACTION_SPACE = ["MoveAhead", "TurnLeft", "TurnRight", "Stop"]
 
@@ -115,16 +116,14 @@ def run_server(
     handler_class = create_handler(mode, action_space)
 
     server = HTTPServer((host, port), handler_class)
-    logger.info("Dummy LLM server starting on %s:%d (mode=%s)", host, port, mode)
-    logger.info("Action space: %s", action_space)
-    print(f"Dummy LLM server running on http://{host}:{port}")
-    print(f"Mode: {mode}, Actions: {action_space}")
-    print("Press Ctrl+C to stop")
+    logger.info("Dummy LLM server running on http://%s:%d", host, port)
+    logger.info("Mode: %s, Actions: %s", mode, action_space)
+    logger.info("Press Ctrl+C to stop")
 
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nShutting down...")
+        logger.info("Shutting down...")
     finally:
         server.server_close()
 
@@ -142,7 +141,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO)
+    from easi.utils.logging import setup_logging
+    setup_logging("INFO")
     run_server(
         host=args.host,
         port=args.port,
