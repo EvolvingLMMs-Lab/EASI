@@ -39,9 +39,14 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 17. [VSI-SUPER-Recall](#17-vsi-super-recall)
 18. [VSI-SUPER-Count](#18-vsi-super-count)
 19. [STI-Bench](#19-sti-bench)
-20. [DSR-Bench](#20-dsr-bench)
-21. [ERIQ](#21-eriq)
-22. [OSI-Bench](#22-osi-bench)
+20. [BLINK](#20-blink)
+21. [CV-Bench](#21-cv-bench)
+22. [3DSRBench](#22-3dsrbench)
+23. [LEGO-Puzzles](#23-lego-puzzles)
+24. [Spatial457](#24-spatial457)
+25. [DSR-Bench](#25-dsr-bench)
+26. [ERIQ](#26-eriq)
+27. [OSI-Bench](#27-osi-bench)
 
 
 ---
@@ -265,7 +270,41 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 | Qwen2.5-VL-72B-Instruct  | `STI-Bench_30frame` | 40.7 | - | 42.1 | +1.4 | ✅ |
 
 
-### 20. DSR-Bench
+### 20. BLINK
+* **Metric:** Accuracy
+> **Note:** Qwen3-VL paper scores are from the [Qwen3-VL Technical Report](https://arxiv.org/abs/2511.21631); InternVL3.5 paper scores are from the [InternVL3.5 Tech Report](https://arxiv.org/abs/2508.18265).
+
+| Model | Benchmark | Paper | Official Code | EASI (backend=VLMEvalKit) | Δ | Status | EASI (backend=lmms-eval) | Δ | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Qwen3-VL-2B-Instruct  | `BLINK` | 53.8 | - | 53.2 | -0.6 | ✅ | 52.5 | -1.3 | ✅ |
+| Qwen3-VL-8B-Instruct  | `BLINK` | 69.1 | - | 66.7 | -2.4 | ✅ | 64.9 | -4.2 | ☑️ |
+| InternVL3_5-2B  | `BLINK` | 51.3 | - | 50.2 | -1.1 | ✅ | 48.5 | -2.8 | ☑️ |
+| InternVL3_5-8B  | `BLINK` | 59.5 | - | 58.2 | -1.3 | ✅ | 55.3 | -4.2 | ☑️ |
+
+### 21. CV-Bench
+> **TBD:** Verification results pending.
+
+
+### 22. 3DSRBench
+* **Metric:** Circular-Eval Accuracy (CE-Acc). Use Original Accuracy (Acc) only when CE-Acc is not reported.
+> **Note:** Qwen2.5-VL values are CE-Acc from [SpatialThinker](https://arxiv.org/abs/2511.07403); Cambrian-S uses Acc from the [Cambrian-S](https://arxiv.org/abs/2511.04670) paper.
+
+| Model | Benchmark | Paper (Metric) | Official Code | EASI (backend=VLMEvalKit) | Δ | Status | EASI (backend=lmms-eval) | Δ | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Qwen2.5-VL-3B-Instruct | `3DSRBench` | 43.9 (CE-Acc) | - | 43.45 | -0.45 | ✅ | - | - | - |
+| Qwen2.5-VL-7B-Instruct | `3DSRBench` | 48.4 (CE-Acc) | - | 47.51 | -0.89 | ✅ | 47.64 | -0.76 | ✅ |
+| Cambrian-S-7B | `3DSRBench` | 54.8 (Acc) | - | 51.94 | -2.86 | ☑️ | 51.63 | -3.17 | ☑️ |
+
+### 23. LEGO-Puzzles
+* **Metric:** TBD
+> **TBD:** Verification results pending.
+
+### 24. Spatial457
+* **Metric:** TBD
+> **TBD:** Verification results pending.
+
+
+### 25. DSR-Bench
 * **Metric:** Accuracy
 
 | Model | Benchmark | Paper | Offical Code | EASI (backend=VLMEvalKit) | Δ | Status |
@@ -275,7 +314,7 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 | InternVL3_5-8B  | `DSRBench_1fps` | 25.4 | - | 26.6 | +1.2 | ✅ |
 
 
-### 21. ERIQ
+### 26. ERIQ
 * **Metric:** Accuracy
 
 | Model | Benchmark | Paper | Offical Code | EASI (backend=VLMEvalKit) | Δ | Status |
@@ -286,7 +325,7 @@ The status is based on the absolute difference $\lvert\Delta\rvert$.
 | InternVL3_5-8B  | `ERIQ` | 66.72 | - | 68.34 | +1.62 | ✅ |
 
 
-### 22. OSI-Bench
+### 27. OSI-Bench
 * **Metric:** Accuracy && MRA
 > **Note:** We also provide `OSI-Bench_visual_first` results because the official implementation places video frames after the text prompt. This variant puts visual information before text for reference.
 
