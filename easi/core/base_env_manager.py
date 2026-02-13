@@ -110,6 +110,19 @@ class BaseEnvironmentManager(ABC):
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False
 
+    def remove(self) -> None:
+        """Remove the conda environment entirely (for --reinstall)."""
+        env_name = self.get_env_name()
+        env_path = self.conda_prefix / "envs" / env_name
+        if not env_path.exists():
+            logger.info("Environment %s does not exist, nothing to remove", env_name)
+            return
+        self._run_command(
+            ["conda", "env", "remove", "-n", env_name, "-y"],
+            f"conda env remove {env_name}",
+        )
+        logger.info("Environment %s removed", env_name)
+
     def install(self) -> None:
         """Install the conda+uv environment with file-based locking.
 
@@ -125,7 +138,7 @@ class BaseEnvironmentManager(ABC):
     def _do_install(self) -> None:
         """Execute the full install sequence (called under lock)."""
         env_name = self.get_env_name()
-        logger.info("[Env Installation] %s", env_name)
+        logger.info("[EASI] %s", env_name)
 
         # Step 1: Check system deps
         self._dep_checker.assert_all(self.get_system_deps())
@@ -135,7 +148,7 @@ class BaseEnvironmentManager(ABC):
         if conda_yaml.exists():
             self._run_conda_create(env_name, conda_yaml)
         else:
-            logger.warning("[Env Installation] No conda_env.yaml found at %s, skipping conda setup", conda_yaml)
+            logger.warning("[EASI] No conda_env.yaml found at %s, skipping conda setup", conda_yaml)
 
         # Step 3: Install uv in the conda env
         python_exec = self.get_python_executable()
@@ -149,7 +162,7 @@ class BaseEnvironmentManager(ABC):
                 "uv pip install",
             )
         else:
-            logger.warning("[Env Installation] No requirements.txt found at %s, skipping uv install", requirements)
+            logger.warning("[EASI] No requirements.txt found at %s, skipping uv install", requirements)
 
         # Step 5: Validate (stream output like other commands)
         self._run_command(
@@ -157,7 +170,7 @@ class BaseEnvironmentManager(ABC):
             "environment validation",
         )
 
-        logger.info("[Env Installation] Environment %s installed and validated successfully", env_name)
+        logger.info("[EASI] Environment %s installed and validated successfully", env_name)
 
     def _run_conda_create(self, env_name: str, yaml_path: Path) -> None:
         """Create or update a conda environment from a YAML file."""
@@ -174,7 +187,7 @@ class BaseEnvironmentManager(ABC):
 
     def _run_command(self, cmd: list[str], description: str) -> None:
         """Run a subprocess command, streaming output through the logger."""
-        logger.info("[Env Installation] %s", " ".join(cmd))
+        logger.info("[EASI] %s", " ".join(cmd))
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,

@@ -98,10 +98,14 @@ class AI2ThorBridge:
         screen_h = self.simulator_kwargs.get("screen_height", SCREEN_HEIGHT)
         screen_w = self.simulator_kwargs.get("screen_width", SCREEN_WIDTH)
 
-        logger.info("Starting AI2-THOR controller...")
+        # ai2thor Controller.start() prepends ':' to x_display, so we must
+        # strip any leading ':' from DISPLAY to avoid "::99" double-colon bug.
+        x_display = os.environ.get("DISPLAY", ":0").lstrip(":")
+
+        logger.info("Starting AI2-THOR controller (display=%s)...", x_display)
         self.controller = Controller(quality=quality)
         self.controller.start(
-            x_display=os.environ.get("DISPLAY", "0"),
+            x_display=x_display,
             player_screen_height=screen_h,
             player_screen_width=screen_w,
         )

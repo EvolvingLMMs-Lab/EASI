@@ -40,6 +40,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     env_install = env_sub.add_parser("install", help="Install a simulator environment", parents=[common])
     env_install.add_argument("simulator", type=str, help="e.g., 'dummy' or 'ai2thor:v2_1_0'")
+    env_install.add_argument("--reinstall", action="store_true",
+                             help="Remove existing env and install from scratch")
 
     env_check = env_sub.add_parser("check", help="Check if environment is ready", parents=[common])
     env_check.add_argument("simulator", type=str)
@@ -113,11 +115,16 @@ def cmd_env_list() -> None:
         logger.info("  %s%s  -- %s", pair, default_marker, entry.description)
 
 
-def cmd_env_install(simulator: str) -> None:
+def cmd_env_install(simulator: str, reinstall: bool = False) -> None:
     from easi.simulators.registry import load_env_manager_class
 
     EnvManagerClass = load_env_manager_class(simulator)
     env_manager = EnvManagerClass()
+
+    if reinstall:
+        logger.info("Removing existing environment: %s", env_manager.get_env_name())
+        env_manager.remove()
+
     logger.info("Installing environment: %s", env_manager.get_env_name())
     env_manager.install()
     logger.info("Done.")
@@ -198,6 +205,7 @@ def cmd_sim_test(simulator: str, steps: int, timeout: float) -> None:
         needs_display=env_manager.needs_display,
         xvfb_screen_config=env_manager.xvfb_screen_config,
         startup_timeout=timeout,
+        command_timeout=timeout,
     )
 
     try:
@@ -274,7 +282,7 @@ def main() -> None:
         if args.env_action == "list":
             cmd_env_list()
         elif args.env_action == "install":
-            cmd_env_install(args.simulator)
+            cmd_env_install(args.simulator, reinstall=args.reinstall)
         elif args.env_action == "check":
             cmd_env_check(args.simulator)
         else:
