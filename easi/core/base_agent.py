@@ -104,7 +104,7 @@ class BaseAgent(ABC):
             "content": llm_response,
         })
 
-        logger.debug(
+        logger.trace(
             "Step %d: action=%s params=%s",
             self._step_count,
             action.action_name,

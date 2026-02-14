@@ -78,7 +78,7 @@ def _discover_tasks(tasks_dir: Path | None = None) -> dict[str, TaskEntry]:
                 config_path=task_yaml_path,
             )
 
-            logger.debug("Discovered task: %s from %s", name, task_yaml_path.name)
+            logger.trace("Discovered task: %s from %s", name, task_yaml_path.name)
 
     return entries
 

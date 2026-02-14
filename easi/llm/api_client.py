@@ -53,7 +53,7 @@ class LLMApiClient:
         }
 
         url = f"{self.base_url}/v1/chat/completions"
-        logger.debug("POST %s (messages: %d)", url, len(messages))
+        logger.trace("POST %s (messages: %d)", url, len(messages))
 
         try:
             response = requests.post(url, json=payload, timeout=self.timeout)
@@ -76,5 +76,5 @@ class LLMApiClient:
             raise RuntimeError(f"LLM server returned no choices: {data}")
 
         content = choices[0].get("message", {}).get("content", "")
-        logger.debug("Response: %s", content[:100])
+        logger.trace("Response: %s", content[:100])
         return content

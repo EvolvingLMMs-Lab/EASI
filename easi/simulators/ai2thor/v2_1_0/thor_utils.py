@@ -4,20 +4,17 @@ Constants and object query utilities shared across any benchmark
 that uses AI2-THOR 2.1.0. Task-specific logic (goal evaluation,
 dataset loading) lives in the task layer (e.g., easi/tasks/ebalfred/).
 
-Ported from EmbodiedBench:
-- envs/eb_alfred/gen/constants.py (THOR constants)
-- envs/eb_alfred/utils.py (object name mapping)
-
 This file runs inside the ai2thor conda env (Python 3.8).
 """
 from __future__ import annotations
 
-import logging
 import string
 
-logger = logging.getLogger("easi.bridge.thor_utils")
+from easi.utils.logging import get_logger
 
-# --- Constants (from EmbodiedBench gen/constants.py) ---
+logger = get_logger(__name__)
+
+# --- Constants ---
 
 SCREEN_WIDTH = 500
 SCREEN_HEIGHT = 500

@@ -31,13 +31,13 @@ def file_lock(lock_path: Path) -> Generator[None, None, None]:
             install_conda_env()
     """
     lock_path.parent.mkdir(parents=True, exist_ok=True)
-    logger.debug("Acquiring lock: %s", lock_path)
+    logger.trace("Acquiring lock: %s", lock_path)
 
     with open(lock_path, "w") as f:
         fcntl.flock(f, fcntl.LOCK_EX)
         try:
-            logger.debug("Lock acquired: %s", lock_path)
+            logger.trace("Lock acquired: %s", lock_path)
             yield
         finally:
             fcntl.flock(f, fcntl.LOCK_UN)
-            logger.debug("Lock released: %s", lock_path)
+            logger.trace("Lock released: %s", lock_path)

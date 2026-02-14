@@ -18,7 +18,7 @@ Output directory structure:
             000_<episode_id>/
                 result.json
                 trajectory.jsonl
-                rgb_0000.png, rgb_0001.png, ...
+                step_0000.png, step_0001.png, ...
 """
 
 from __future__ import annotations

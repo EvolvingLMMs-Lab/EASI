@@ -65,15 +65,12 @@ class TestEBAlfredTask:
             "instruction": "Put a mug on the shelf.",
             "task_type": "pick_and_place_simple",
             "trial_id": "trial_T20190001",
-            "_data_dir": "/datasets/oscarqjh_EB-Alfred_easi",
         }
         config = task.format_reset_config(episode)
-        assert config["task_path"] == "pick_and_place_simple-Mug-None-Shelf-1/trial_T20190001"
+        assert config["episode_id"] == 0
+        assert config["task"] == episode["task"]
         assert config["repeat_idx"] == 0
         assert config["instruction"] == "Put a mug on the shelf."
-        assert config["episode_id"] == 0
-        assert config["task_type"] == "pick_and_place_simple"
-        assert config["data_dir"] == "/datasets/oscarqjh_EB-Alfred_easi"
 
     def test_evaluate_episode(self, task):
         """Test metric computation from trajectory."""

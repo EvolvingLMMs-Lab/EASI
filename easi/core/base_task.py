@@ -250,7 +250,10 @@ class BaseTask(ABC):
             local_path, subset, split_name,
         )
 
-        ds = load_dataset(local_path, subset, split=split_name)
+        import tempfile
+        hf_cache = Path(tempfile.gettempdir()) / "easi_hf_cache"
+        ds = load_dataset(local_path, subset, split=split_name,
+                          cache_dir=str(hf_cache))
         episodes = [hf_row_to_episode(row) for row in ds]
 
         for ep in episodes:
@@ -334,7 +337,7 @@ class BaseTask(ABC):
 
             marker = dataset_dir / f".{zip_name}.extracted"
             if marker.exists():
-                logger.debug("Already extracted: %s", zip_name)
+                logger.trace("Already extracted: %s", zip_name)
                 continue
 
             logger.info("Extracting %s...", zip_path)

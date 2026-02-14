@@ -79,7 +79,7 @@ class SubprocessRunner:
             self.bridge_script_path.name,
             self._workspace,
         )
-        logger.debug("Full command: %s", " ".join(cmd))
+        logger.trace("Full command: %s", " ".join(cmd))
 
         self._process = subprocess.Popen(
             cmd,
@@ -200,7 +200,7 @@ class SubprocessRunner:
             for line in proc.stdout:
                 line = line.rstrip()
                 self._output_lines.append(line)
-                logger.debug("[bridge] %s", line)
+                logger.trace("[bridge] %s", line)
         except (ValueError, OSError):
             pass  # pipe closed
 

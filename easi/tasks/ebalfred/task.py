@@ -1,13 +1,15 @@
 """EB-Alfred task for EASI.
 
 Adapts the EmbodiedBench EB-Alfred track to EASI's task interface.
-Supports multiple splits via per-split .yaml configs (Task 4 infra).
+Supports multiple splits via per-split .yaml configs.
 
-When loaded via a split yaml (e.g., ebalfred_base), episodes come from
-HuggingFace dataset rows. When loaded via get_task_yaml_path(), uses
-ebalfred_base.yaml as the default fallback.
+The vendor/ directory contains EBAlfEnv (Gym env) copied from EmbodiedBench.
+The bridge wraps EBAlfEnv via BaseBridge, delegating all skill execution,
+scene restoration, and goal evaluation to the vendor code.
 
-Reference: EmbodiedBench/embodiedbench/envs/eb_alfred/EBAlfEnv.py
+Episode data flows from HF dataset → task.format_reset_config() → bridge
+reset_config → EBAlfEnv.reset(episode). Each episode dict must have 'task',
+'repeat_idx', and 'instruction' keys.
 """
 from __future__ import annotations
 
@@ -29,7 +31,6 @@ class EBAlfredTask(BaseTask):
         self._config["action_space"] = get_global_action_space()
 
     def get_task_yaml_path(self) -> Path:
-        # Decision #4: No task.yaml — use ebalfred_base.yaml as default fallback
         return Path(__file__).parent / "ebalfred_base.yaml"
 
     def get_bridge_script_path(self) -> Path:
@@ -37,25 +38,23 @@ class EBAlfredTask(BaseTask):
         return Path(__file__).parent / "bridge.py"
 
     def get_instruction(self, episode: dict) -> str:
-        """Decision #2: EB-Alfred uses 'instruction' field from HF row."""
+        """EB-Alfred uses 'instruction' field from HF row."""
         return episode.get("instruction", self.name)
 
     def format_reset_config(self, episode: dict) -> dict:
-        """Map EB-Alfred episode (HF row) to AI2-THOR bridge reset config.
+        """Map EB-Alfred episode to bridge reset config.
 
-        HF row columns: id, task, repeat_idx, instruction, task_type, trial_id
-        The bridge uses task_path to find annotation files inside the extracted tasks.zip:
-          <data_dir>/oscarqjh_EB-Alfred_easi/tasks/<task_path>/pp/ann_<repeat_idx>.json
+        Passes the episode data directly so EBAlfEnv.reset() can load the
+        task JSON and restore the scene. data_dir points to the HF dataset's
+        tasks/ subdirectory containing the task JSON files.
         """
         data_dir = episode.get("_data_dir", "")
         return {
-            "task_path": episode["task"],
-            "repeat_idx": episode.get("repeat_idx", 0),
-            "instruction": episode.get("instruction", ""),
-            "episode_id": episode.get("id", ""),
-            "task_type": episode.get("task_type", ""),
-            "trial_id": episode.get("trial_id", ""),
-            "data_dir": data_dir,
+            "episode_id": episode.get("id", "unknown"),
+            "task": episode["task"],
+            "repeat_idx": episode["repeat_idx"],
+            "instruction": episode["instruction"],
+            "data_dir": str(Path(data_dir) / "tasks") if data_dir else "",
         }
 
     def evaluate_episode(
@@ -64,14 +63,13 @@ class EBAlfredTask(BaseTask):
         """Extract metrics from the trajectory.
 
         The bridge reports task_success and task_progress in StepResult.info,
-        computed by EB-Alfred's goal_conditions_met() running inside the bridge.
+        computed by EBAlfEnv's goal_conditions_met() running inside the bridge.
         """
         if not trajectory:
             return {
                 "task_success": 0.0,
                 "task_progress": 0.0,
                 "num_steps": 0.0,
-                "total_reward": 0.0,
             }
 
         last_step = trajectory[-1]
@@ -79,15 +77,10 @@ class EBAlfredTask(BaseTask):
             "task_success": last_step.info.get("task_success", 0.0),
             "task_progress": last_step.info.get("task_progress", 0.0),
             "num_steps": float(len(trajectory)),
-            "total_reward": sum(s.reward for s in trajectory),
         }
 
     def _get_builtin_episodes(self) -> list[dict]:
-        """Return minimal built-in episodes for testing without dataset.
-
-        Matches EB-Alfred_easi column structure: id, task, repeat_idx,
-        instruction, task_type, trial_id.
-        """
+        """Return minimal built-in episodes for testing without dataset."""
         return [
             {
                 "id": 0,

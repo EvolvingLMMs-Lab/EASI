@@ -71,7 +71,7 @@ def _discover_simulators() -> dict[str, SimulatorEntry]:
             if ver_key == default_ver:
                 entries[sim_name] = entry
 
-        logger.debug(
+        logger.trace(
             "Discovered simulator %s with versions: %s (default: %s)",
             sim_name,
             list(manifest.get("versions", {}).keys()),

@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 import math
 import os
 import sys
@@ -62,8 +61,9 @@ from easi.simulators.ai2thor.v2_1_0.thor_utils import (
     SCREEN_WIDTH,
     VISIBILITY_DISTANCE,
 )
+from easi.utils.logging import get_logger, setup_logging
 
-logger = logging.getLogger("easi.bridge.ai2thor_v2_1_0")
+logger = get_logger(__name__)
 
 
 class AI2ThorBridge:
@@ -212,7 +212,7 @@ class AI2ThorBridge:
             elif cmd_type == "step":
                 action_data = command.get("action", {})
                 action_text = action_data.get("action_name", "")
-                logger.debug("Step %d: action=%s", self.step_count + 1, action_text)
+                logger.trace("Step %d: action=%s", self.step_count + 1, action_text)
 
                 try:
                     response = self.step(action_text)
@@ -305,10 +305,7 @@ def main():
                         help="JSON string of simulator configuration")
     args, _ = parser.parse_known_args()
 
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    )
+    setup_logging("DEBUG")
 
     simulator_kwargs = json.loads(args.simulator_kwargs) if args.simulator_kwargs else {}
     bridge = AI2ThorBridge(

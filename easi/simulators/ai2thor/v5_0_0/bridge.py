@@ -12,7 +12,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import logging
 import sys
 from pathlib import Path
 
@@ -30,8 +29,9 @@ from easi.communication.schemas import (
     make_observation_response,
     parse_action_from_command,
 )
+from easi.utils.logging import get_logger, setup_logging
 
-logger = logging.getLogger("easi.bridge.ai2thor_v5_0_0")
+logger = get_logger(__name__)
 
 
 def run_bridge(workspace: Path) -> None:
@@ -80,7 +80,7 @@ def run_bridge(workspace: Path) -> None:
         elif cmd_type == "step":
             step_count += 1
             action = parse_action_from_command(command)
-            logger.debug("Step %d: action=%s", step_count, action.action_name)
+            logger.trace("Step %d: action=%s", step_count, action.action_name)
 
             # Stub: event = controller.step(action=action_name, **params)
             # v5 API returns event with frame, depth, metadata
@@ -114,7 +114,7 @@ def main() -> None:
     parser.add_argument("--workspace", type=Path, required=True)
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    setup_logging("DEBUG")
     run_bridge(workspace=args.workspace)
 
 

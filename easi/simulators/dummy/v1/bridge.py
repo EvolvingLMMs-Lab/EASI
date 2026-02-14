@@ -13,7 +13,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import logging
 import sys
 import time
 from pathlib import Path
@@ -34,8 +33,9 @@ from easi.communication.schemas import (
     make_observation_response,
     parse_action_from_command,
 )
+from easi.utils.logging import get_logger, setup_logging
 
-logger = logging.getLogger("easi.bridge.dummy")
+logger = get_logger(__name__)
 
 
 def _generate_dummy_image(workspace: Path, step: int, output_dir: Path | None = None) -> str:
@@ -133,7 +133,7 @@ def run_bridge(workspace: Path, step_delay: float = 0.0) -> None:
         elif cmd_type == "step":
             step_count += 1
             action = parse_action_from_command(command)
-            logger.debug("Step %d: action=%s", step_count, action.action_name)
+            logger.trace("Step %d: action=%s", step_count, action.action_name)
 
             if step_delay > 0:
                 time.sleep(step_delay)
@@ -168,11 +168,7 @@ def main() -> None:
     parser.add_argument("--step-delay", type=float, default=0.0, help="Delay per step in seconds")
     args, _ = parser.parse_known_args()
 
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
-    )
+    setup_logging("DEBUG")
 
     run_bridge(workspace=args.workspace, step_delay=args.step_delay)
 

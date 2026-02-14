@@ -33,7 +33,7 @@ def create_workspace(prefix: str = "easi_") -> Path:
     never collide on file paths.
     """
     workspace = Path(tempfile.mkdtemp(prefix=prefix))
-    logger.debug("Created IPC workspace: %s", workspace)
+    logger.trace("Created IPC workspace: %s", workspace)
     return workspace
 
 
@@ -43,7 +43,7 @@ def cleanup_workspace(workspace: Path) -> None:
 
     if workspace.exists():
         shutil.rmtree(workspace, ignore_errors=True)
-        logger.debug("Cleaned up IPC workspace: %s", workspace)
+        logger.trace("Cleaned up IPC workspace: %s", workspace)
 
 
 def atomic_write_json(path: Path, data: dict) -> None:
@@ -85,7 +85,7 @@ def write_command(workspace: Path, command: dict) -> None:
 
     delete_file(response_path)
     atomic_write_json(command_path, command)
-    logger.debug("Wrote command: %s", command.get("type", "unknown"))
+    logger.trace("Wrote command: %s", command.get("type", "unknown"))
 
 
 def poll_for_response(
@@ -126,7 +126,7 @@ def poll_for_response(
 
         data = read_json(response_path)
         if data is not None:
-            logger.debug("Received response: status=%s", data.get("status", "unknown"))
+            logger.trace("Received response: status=%s", data.get("status", "unknown"))
             return data
 
         time.sleep(poll_interval)
@@ -162,7 +162,7 @@ def poll_for_status(
 
         data = read_json(status_path)
         if data is not None:
-            logger.debug("Received status: ready=%s", data.get("ready", False))
+            logger.trace("Received status: ready=%s", data.get("ready", False))
             return data
 
         time.sleep(poll_interval)
@@ -196,7 +196,7 @@ def poll_for_command(
         if data is not None:
             # Delete the command file after reading to signal we've consumed it
             delete_file(command_path)
-            logger.debug("Bridge received command: %s", data.get("type", "unknown"))
+            logger.trace("Bridge received command: %s", data.get("type", "unknown"))
             return data
 
         time.sleep(poll_interval)
@@ -211,11 +211,11 @@ def write_response(workspace: Path, response: dict) -> None:
     """Write a response for the parent process to read (bridge-side)."""
     response_path = workspace / RESPONSE_FILE
     atomic_write_json(response_path, response)
-    logger.debug("Bridge wrote response: status=%s", response.get("status", "unknown"))
+    logger.trace("Bridge wrote response: status=%s", response.get("status", "unknown"))
 
 
 def write_status(workspace: Path, ready: bool) -> None:
     """Write a status file to signal bridge readiness (bridge-side)."""
     status_path = workspace / STATUS_FILE
     atomic_write_json(status_path, {"ready": ready})
-    logger.debug("Bridge wrote status: ready=%s", ready)
+    logger.trace("Bridge wrote status: ready=%s", ready)

@@ -20,6 +20,7 @@ from easi.core.exceptions import EnvironmentSetupError
 from easi.utils.locking import file_lock
 from easi.utils.logging import get_logger
 from easi.utils.paths import get_locks_dir
+from easi.utils.spinner import spinner
 from easi.utils.system_deps import SystemDependencyChecker
 
 logger = get_logger(__name__)
@@ -117,10 +118,11 @@ class BaseEnvironmentManager(ABC):
         if not env_path.exists():
             logger.info("Environment %s does not exist, nothing to remove", env_name)
             return
-        self._run_command(
-            ["conda", "env", "remove", "-n", env_name, "-y"],
-            f"conda env remove {env_name}",
-        )
+        with spinner(f"Removing environment {env_name}"):
+            self._run_command(
+                ["conda", "env", "remove", "-n", env_name, "-y"],
+                f"conda env remove {env_name}",
+            )
         logger.info("Environment %s removed", env_name)
 
     def install(self) -> None:
@@ -138,7 +140,7 @@ class BaseEnvironmentManager(ABC):
     def _do_install(self) -> None:
         """Execute the full install sequence (called under lock)."""
         env_name = self.get_env_name()
-        logger.info("[EASI] %s", env_name)
+        logger.info("Installing environment %s for %s %s", env_name, self.simulator_name, self.version)
 
         # Step 1: Check system deps
         self._dep_checker.assert_all(self.get_system_deps())
@@ -146,31 +148,35 @@ class BaseEnvironmentManager(ABC):
         # Step 2: Create/update conda env
         conda_yaml = self.get_conda_env_yaml_path()
         if conda_yaml.exists():
-            self._run_conda_create(env_name, conda_yaml)
+            with spinner(f"Creating conda environment {env_name}"):
+                self._run_conda_create(env_name, conda_yaml)
         else:
-            logger.warning("[EASI] No conda_env.yaml found at %s, skipping conda setup", conda_yaml)
+            logger.warning("No conda_env.yaml found at %s, skipping conda setup", conda_yaml)
 
         # Step 3: Install uv in the conda env
         python_exec = self.get_python_executable()
-        self._run_command([python_exec, "-m", "pip", "install", "uv"], "pip install uv")
+        with spinner("Installing uv"):
+            self._run_command([python_exec, "-m", "pip", "install", "uv"], "pip install uv")
 
         # Step 4: Install Python deps via uv
         requirements = self.get_requirements_txt_path()
         if requirements.exists():
-            self._run_command(
-                [python_exec, "-m", "uv", "pip", "install", "-r", str(requirements)],
-                "uv pip install",
-            )
+            with spinner("Installing Python dependencies"):
+                self._run_command(
+                    [python_exec, "-m", "uv", "pip", "install", "-r", str(requirements)],
+                    "uv pip install",
+                )
         else:
-            logger.warning("[EASI] No requirements.txt found at %s, skipping uv install", requirements)
+            logger.warning("No requirements.txt found at %s, skipping uv install", requirements)
 
-        # Step 5: Validate (stream output like other commands)
-        self._run_command(
-            [python_exec, "-c", self.get_validation_import()],
-            "environment validation",
-        )
+        # Step 5: Validate
+        with spinner("Validating environment"):
+            self._run_command(
+                [python_exec, "-c", self.get_validation_import()],
+                "environment validation",
+            )
 
-        logger.info("[EASI] Environment %s installed and validated successfully", env_name)
+        logger.info("Environment %s installed and validated successfully", env_name)
 
     def _run_conda_create(self, env_name: str, yaml_path: Path) -> None:
         """Create or update a conda environment from a YAML file."""
@@ -187,7 +193,7 @@ class BaseEnvironmentManager(ABC):
 
     def _run_command(self, cmd: list[str], description: str) -> None:
         """Run a subprocess command, streaming output through the logger."""
-        logger.info("[EASI] %s", " ".join(cmd))
+        logger.trace("%s", " ".join(cmd))
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -199,7 +205,7 @@ class BaseEnvironmentManager(ABC):
         for line in process.stdout:
             line = line.rstrip()
             output_lines.append(line)
-            logger.debug("  %s", line)
+            logger.trace("  %s", line)
         process.wait()
         if process.returncode != 0:
             raise EnvironmentSetupError(

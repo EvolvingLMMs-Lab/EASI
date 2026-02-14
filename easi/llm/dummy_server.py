@@ -91,7 +91,7 @@ class DummyLLMHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def log_message(self, format: str, *args) -> None:
-        logger.debug(format, *args)
+        logger.trace(format, *args)
 
 
 def create_handler(mode: str, action_space: list[str]) -> type:

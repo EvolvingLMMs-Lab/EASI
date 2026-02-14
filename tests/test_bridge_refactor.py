@@ -1,12 +1,11 @@
 """Tests for the bridge architecture refactor.
 
 Verifies:
-- AI2ThorBridge is importable and has generic interface
-- EBAlfredBridge subclasses AI2ThorBridge with task-specific methods
+- AI2ThorBridge is importable and has generic interface (unchanged)
+- EBAlfredBridge subclasses BaseBridge (not AI2ThorBridge)
+- Vendor code is importable
 - get_bridge_script_path() works on BaseTask and EBAlfredTask
-- simulator_kwargs property works on BaseTask
-- Generic thor_utils has no goal evaluators
-- EB-Alfred thor_utils has goal evaluators
+- simulator_kwargs property works
 """
 
 from __future__ import annotations
@@ -46,17 +45,6 @@ class TestAI2ThorBridgeImport:
         assert not hasattr(bridge_cls, "_execute_skill")
         assert not hasattr(bridge_cls, "_restore_scene")
         assert not hasattr(bridge_cls, "_update_states")
-        assert not hasattr(bridge_cls, "_nav_obj")
-        assert not hasattr(bridge_cls, "_pick")
-        assert not hasattr(bridge_cls, "_put")
-        assert not hasattr(bridge_cls, "_open")
-        assert not hasattr(bridge_cls, "_close")
-        assert not hasattr(bridge_cls, "_toggleon")
-        assert not hasattr(bridge_cls, "_toggleoff")
-        assert not hasattr(bridge_cls, "_slice")
-        assert not hasattr(bridge_cls, "_drop")
-        assert not hasattr(bridge_cls, "_get_obj_id_from_name")
-        assert not hasattr(bridge_cls, "_get_object_prop")
 
     def test_no_ebalfred_state(self):
         """Generic bridge __init__ should NOT have EB-Alfred state."""
@@ -68,12 +56,8 @@ class TestAI2ThorBridgeImport:
             assert not hasattr(bridge, "cleaned_objects")
             assert not hasattr(bridge, "cooled_objects")
             assert not hasattr(bridge, "heated_objects")
-            assert not hasattr(bridge, "cur_receptacle")
-            assert not hasattr(bridge, "put_count_dict")
-            assert not hasattr(bridge, "sliced")
 
     def test_accepts_simulator_kwargs(self):
-        """Generic bridge should accept simulator_kwargs."""
         from easi.simulators.ai2thor.v2_1_0.bridge import AI2ThorBridge
         import tempfile
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -92,82 +76,128 @@ class TestAI2ThorBridgeImport:
 # --- EBAlfredBridge tests ---
 
 class TestEBAlfredBridgeImport:
-    """Test that EBAlfredBridge properly extends AI2ThorBridge."""
+    """Test that EBAlfredBridge properly extends BaseBridge."""
 
     def test_importable(self):
         from easi.tasks.ebalfred.bridge import EBAlfredBridge
         assert EBAlfredBridge is not None
 
-    def test_subclasses_ai2thor_bridge(self):
+    def test_subclasses_base_bridge(self):
+        """EBAlfredBridge should extend BaseBridge, not AI2ThorBridge."""
+        from easi.simulators.base_bridge import BaseBridge
+        from easi.tasks.ebalfred.bridge import EBAlfredBridge
+        assert issubclass(EBAlfredBridge, BaseBridge)
+
+    def test_not_subclass_of_ai2thor_bridge(self):
+        """EBAlfredBridge should NOT extend AI2ThorBridge anymore."""
         from easi.simulators.ai2thor.v2_1_0.bridge import AI2ThorBridge
         from easi.tasks.ebalfred.bridge import EBAlfredBridge
-        assert issubclass(EBAlfredBridge, AI2ThorBridge)
+        assert not issubclass(EBAlfredBridge, AI2ThorBridge)
 
-    def test_has_skill_methods(self):
-        """EB-Alfred bridge should have all skill execution methods."""
+    def test_has_base_bridge_overrides(self):
+        """EBAlfredBridge should override BaseBridge methods."""
         from easi.tasks.ebalfred.bridge import EBAlfredBridge
         bridge_cls = EBAlfredBridge
-        assert hasattr(bridge_cls, "_execute_skill")
-        assert hasattr(bridge_cls, "_restore_scene")
-        assert hasattr(bridge_cls, "_update_states")
-        assert hasattr(bridge_cls, "_nav_obj")
-        assert hasattr(bridge_cls, "_pick")
-        assert hasattr(bridge_cls, "_put")
-        assert hasattr(bridge_cls, "_open")
-        assert hasattr(bridge_cls, "_close")
-        assert hasattr(bridge_cls, "_toggleon")
-        assert hasattr(bridge_cls, "_toggleoff")
-        assert hasattr(bridge_cls, "_slice")
-        assert hasattr(bridge_cls, "_drop")
-        assert hasattr(bridge_cls, "_get_obj_id_from_name")
-        assert hasattr(bridge_cls, "_get_object_prop")
+        assert hasattr(bridge_cls, "_create_env")
+        assert hasattr(bridge_cls, "_on_reset")
+        assert hasattr(bridge_cls, "_on_step")
+        assert hasattr(bridge_cls, "_extract_image")
+        assert hasattr(bridge_cls, "_extract_info")
 
-    def test_has_ebalfred_state(self):
-        """EB-Alfred bridge should have task-specific state."""
+    def test_no_skill_methods_on_bridge(self):
+        """Skill methods now live in vendor's ThorConnector, not bridge."""
+        from easi.tasks.ebalfred.bridge import EBAlfredBridge
+        bridge_cls = EBAlfredBridge
+        assert not hasattr(bridge_cls, "_execute_skill")
+        assert not hasattr(bridge_cls, "_restore_scene")
+        assert not hasattr(bridge_cls, "_update_states")
+        assert not hasattr(bridge_cls, "_nav_obj")
+        assert not hasattr(bridge_cls, "_pick")
+        assert not hasattr(bridge_cls, "_put")
+
+    def test_instantiable(self):
+        """EBAlfredBridge can be instantiated with workspace."""
         from easi.tasks.ebalfred.bridge import EBAlfredBridge
         import tempfile
         with tempfile.TemporaryDirectory() as tmpdir:
-            bridge = EBAlfredBridge(workspace=tmpdir, data_dir=tmpdir)
-            assert hasattr(bridge, "traj_data")
-            assert hasattr(bridge, "cleaned_objects")
-            assert hasattr(bridge, "cooled_objects")
-            assert hasattr(bridge, "heated_objects")
-            assert hasattr(bridge, "cur_receptacle")
-            assert hasattr(bridge, "put_count_dict")
-            assert hasattr(bridge, "sliced")
+            bridge = EBAlfredBridge(workspace=tmpdir)
+            assert bridge.env is None
+            assert bridge.step_count == 0
 
-    def test_inherits_generic_methods(self):
-        """EB-Alfred bridge should inherit generic methods from AI2ThorBridge."""
+    def test_accepts_simulator_kwargs(self):
         from easi.tasks.ebalfred.bridge import EBAlfredBridge
-        bridge_cls = EBAlfredBridge
-        assert hasattr(bridge_cls, "start")
-        assert hasattr(bridge_cls, "stop")
-        assert hasattr(bridge_cls, "run")
-        assert hasattr(bridge_cls, "_step")
-        assert hasattr(bridge_cls, "_cache_reachable_positions")
-        assert hasattr(bridge_cls, "_make_observation_response")
-        assert hasattr(bridge_cls, "_find_close_reachable_position")
-        assert hasattr(bridge_cls, "_angle_diff")
-
-    def test_overrides_reset_and_step(self):
-        """EB-Alfred bridge should override reset and step."""
-        from easi.simulators.ai2thor.v2_1_0.bridge import AI2ThorBridge
-        from easi.tasks.ebalfred.bridge import EBAlfredBridge
-        # The methods should be overridden (different from parent)
-        assert EBAlfredBridge.reset is not AI2ThorBridge.reset
-        assert EBAlfredBridge.step is not AI2ThorBridge.step
-
-    def test_run_is_inherited(self):
-        """EB-Alfred bridge should inherit run() from AI2ThorBridge (not override)."""
-        from easi.simulators.ai2thor.v2_1_0.bridge import AI2ThorBridge
-        from easi.tasks.ebalfred.bridge import EBAlfredBridge
-        assert EBAlfredBridge.run is AI2ThorBridge.run
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            kwargs = {"screen_height": 500}
+            bridge = EBAlfredBridge(workspace=tmpdir, simulator_kwargs=kwargs)
+            assert bridge.simulator_kwargs == kwargs
 
 
-# --- Thor utils separation tests ---
+# --- Vendor import tests ---
 
-class TestThorUtilsSeparation:
-    """Test that thor_utils is properly split between generic and EB-Alfred."""
+class TestVendorImports:
+    """Test that vendor files are properly importable."""
+
+    def test_vendor_package_importable(self):
+        import easi.tasks.ebalfred.vendor
+        assert easi.tasks.ebalfred.vendor is not None
+
+    def test_vendor_utils_importable(self):
+        from easi.tasks.ebalfred.vendor.utils import (
+            alfred_objs,
+            alfred_pick_obj,
+            alfred_open_obj,
+            alfred_slice_obj,
+            alfred_toggle_obj,
+            alfred_recep,
+            load_task_json,
+            natural_word_to_ithor_name,
+            dotdict,
+        )
+        assert len(alfred_objs) > 0
+        assert callable(load_task_json)
+        assert callable(natural_word_to_ithor_name)
+
+    def test_vendor_constants_importable(self):
+        from easi.tasks.ebalfred.vendor.gen import constants
+        assert hasattr(constants, "AGENT_STEP_SIZE")
+        assert hasattr(constants, "CAMERA_HEIGHT_OFFSET")
+        assert hasattr(constants, "VISIBILITY_DISTANCE")
+        assert hasattr(constants, "GOALS")
+
+    def test_vendor_no_embodiedbench_imports(self):
+        """No vendor file should import from embodiedbench."""
+        import ast
+        from pathlib import Path
+        vendor_dir = Path("easi/tasks/ebalfred/vendor")
+        for py_file in vendor_dir.rglob("*.py"):
+            source = py_file.read_text()
+            assert "embodiedbench" not in source, (
+                f"{py_file} still contains 'embodiedbench' import"
+            )
+
+    def test_vendor_no_splits_json(self):
+        """splits.json should be removed — episode data comes from HF dataset."""
+        from pathlib import Path
+        splits_path = Path("easi/tasks/ebalfred/vendor/data/splits/splits.json")
+        assert not splits_path.exists()
+
+    def test_vendor_rewards_json_exists(self):
+        from pathlib import Path
+        rewards_path = Path("easi/tasks/ebalfred/vendor/models/config/rewards.json")
+        assert rewards_path.exists()
+
+    def test_vendor_layouts_exist(self):
+        from pathlib import Path
+        layouts_dir = Path("easi/tasks/ebalfred/vendor/gen/layouts")
+        npy_files = list(layouts_dir.glob("*.npy"))
+        assert len(npy_files) > 0, "No layout .npy files found"
+
+
+# --- Generic thor_utils tests (unchanged) ---
+
+class TestGenericThorUtils:
+    """Test that generic thor_utils in simulators/ is still intact."""
 
     def test_generic_has_constants(self):
         from easi.simulators.ai2thor.v2_1_0 import thor_utils
@@ -185,41 +215,10 @@ class TestThorUtilsSeparation:
         assert hasattr(thor_utils, "get_obj_of_type_closest_to_obj")
 
     def test_generic_has_no_goal_evaluators(self):
-        """Generic thor_utils should NOT have goal evaluation functions."""
         from easi.simulators.ai2thor.v2_1_0 import thor_utils
         assert not hasattr(thor_utils, "GOALS")
         assert not hasattr(thor_utils, "GOAL_EVALUATORS")
         assert not hasattr(thor_utils, "evaluate_goal_conditions")
-        assert not hasattr(thor_utils, "get_targets_from_traj")
-        assert not hasattr(thor_utils, "load_task_json")
-        assert not hasattr(thor_utils, "load_task_json_with_repeat")
-
-    def test_ebalfred_has_goal_evaluators(self):
-        from easi.tasks.ebalfred import thor_utils
-        assert hasattr(thor_utils, "GOALS")
-        assert hasattr(thor_utils, "GOAL_EVALUATORS")
-        assert hasattr(thor_utils, "evaluate_goal_conditions")
-        assert hasattr(thor_utils, "get_targets_from_traj")
-        assert hasattr(thor_utils, "load_task_json")
-        assert hasattr(thor_utils, "load_task_json_with_repeat")
-
-    def test_ebalfred_goals_list(self):
-        from easi.tasks.ebalfred.thor_utils import GOALS
-        assert len(GOALS) == 7
-        assert "pick_and_place_simple" in GOALS
-        assert "pick_two_obj_and_place" in GOALS
-
-    def test_ebalfred_evaluators_dict(self):
-        from easi.tasks.ebalfred.thor_utils import GOAL_EVALUATORS
-        assert len(GOAL_EVALUATORS) == 7
-        assert "pick_and_place_simple" in GOAL_EVALUATORS
-        assert "pick_heat_then_place_in_recep" in GOAL_EVALUATORS
-
-    def test_ebalfred_imports_from_generic(self):
-        """EB-Alfred thor_utils should import from generic thor_utils."""
-        from easi.tasks.ebalfred.thor_utils import evaluate_goal_conditions
-        # The function should be callable
-        assert callable(evaluate_goal_conditions)
 
 
 # --- get_bridge_script_path tests ---
@@ -278,6 +277,13 @@ class TestSimulatorKwargs:
         assert kwargs.get("screen_height") == 500
         assert kwargs.get("screen_width") == 500
 
+    def test_ebalfred_no_eval_set(self):
+        """eval_set removed — episode data comes from HF dataset directly."""
+        from easi.tasks.ebalfred.task import EBAlfredTask
+        task = EBAlfredTask()
+        kwargs = task.simulator_kwargs
+        assert "eval_set" not in kwargs
+
     def test_dummy_task_empty_simulator_kwargs(self):
         from easi.tasks.dummy_task.task import DummyTask
         task = DummyTask()
@@ -318,3 +324,60 @@ class TestTaskProtocol:
     def test_protocol_has_simulator_kwargs(self):
         from easi.core.protocols import TaskProtocol
         assert hasattr(TaskProtocol, "simulator_kwargs")
+
+
+# --- Task simplification tests ---
+
+class TestTaskSimplification:
+    """Test that EBAlfredTask is properly simplified."""
+
+    def test_format_reset_config_has_episode_data(self):
+        """reset_config should pass episode data directly to bridge."""
+        from easi.tasks.ebalfred.task import EBAlfredTask
+        task = EBAlfredTask()
+        episode = {
+            "id": 42,
+            "task": "pick_and_place_simple-Mug-None-Shelf-1/trial_T20190001",
+            "repeat_idx": 0,
+            "instruction": "Put a mug on the shelf.",
+        }
+        config = task.format_reset_config(episode)
+        assert config["episode_id"] == 42
+        assert config["task"] == episode["task"]
+        assert config["repeat_idx"] == 0
+        assert config["instruction"] == "Put a mug on the shelf."
+
+    def test_format_reset_config_no_episode_idx(self):
+        """No episode_idx needed — episode data is passed directly."""
+        from easi.tasks.ebalfred.task import EBAlfredTask
+        task = EBAlfredTask()
+        episode = {
+            "id": 0,
+            "task": "test/trial_T00000001",
+            "repeat_idx": 0,
+            "instruction": "test",
+        }
+        config = task.format_reset_config(episode)
+        assert "episode_idx" not in config
+        assert "task_path" not in config
+
+    def test_evaluate_episode_empty_trajectory(self):
+        from easi.tasks.ebalfred.task import EBAlfredTask
+        task = EBAlfredTask()
+        metrics = task.evaluate_episode({}, [])
+        assert metrics["task_success"] == 0.0
+        assert metrics["num_steps"] == 0.0
+
+    def test_builtin_episodes_have_required_fields(self):
+        from easi.tasks.ebalfred.task import EBAlfredTask
+        task = EBAlfredTask()
+        episodes = task._get_builtin_episodes()
+        for ep in episodes:
+            assert "task" in ep
+            assert "repeat_idx" in ep
+            assert "instruction" in ep
+
+    def test_no_thor_utils_in_ebalfred_tasks(self):
+        """thor_utils.py should be removed from easi/tasks/ebalfred/."""
+        thor_utils_path = Path("easi/tasks/ebalfred/thor_utils.py")
+        assert not thor_utils_path.exists(), "thor_utils.py should be deleted"

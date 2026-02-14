@@ -20,7 +20,7 @@ def build_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument(
         "--verbosity", type=str, default="INFO",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        choices=["TRACE", "DEBUG", "INFO", "WARNING", "ERROR"],
         help="Set logging verbosity (default: INFO)",
     )
 
@@ -57,6 +57,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     task_download = task_sub.add_parser("download", help="Download task dataset", parents=[common])
     task_download.add_argument("task", type=str)
+
+    task_scaffold = task_sub.add_parser("scaffold", help="Generate boilerplate for a new benchmark", parents=[common])
+    task_scaffold.add_argument("name", type=str, help="Task name in snake_case (e.g., 'my_benchmark')")
+    task_scaffold.add_argument("--simulator", type=str, default="dummy:v1",
+                               help="Simulator key (e.g., 'ai2thor:v2_1_0')")
+    task_scaffold.add_argument("--max-steps", type=int, default=50)
 
     # --- sim command group ---
     sim_parser = subparsers.add_parser("sim", help="Control simulators", parents=[common])
@@ -171,6 +177,23 @@ def cmd_task_info(task_name: str) -> None:
     logger.info("  Simulator:   %s", entry.simulator_key)
     logger.info("  Actions:     %s", ", ".join(entry.action_space))
     logger.info("  Max steps:   %s", entry.max_steps)
+
+
+def cmd_task_scaffold(name: str, simulator: str, max_steps: int) -> None:
+    from pathlib import Path
+
+    from easi.tasks.scaffold import scaffold_task
+
+    tasks_dir = Path(__file__).parent / "tasks"
+    tests_dir = Path(__file__).parent.parent / "tests"
+    task_dir = scaffold_task(name, simulator, output_dir=tasks_dir,
+                             max_steps=max_steps, tests_dir=tests_dir)
+    logger.info("Created task scaffold at: %s", task_dir)
+    logger.info("Next steps:")
+    logger.info("  1. Edit %s/bridge.py — implement _create_env() and _extract_image()", task_dir.name)
+    logger.info("  2. Edit %s/task.py — implement format_reset_config()", task_dir.name)
+    logger.info("  3. Edit %s/%s.yaml — configure dataset source", task_dir.name, name)
+    logger.info("  4. Run tests: pytest tests/test_%s.py -v", name)
 
 
 def cmd_task_download(task_name: str) -> None:
@@ -295,6 +318,8 @@ def main() -> None:
             cmd_task_info(args.task)
         elif args.task_action == "download":
             cmd_task_download(args.task)
+        elif args.task_action == "scaffold":
+            cmd_task_scaffold(args.name, args.simulator, args.max_steps)
         else:
             parser.parse_args(["task", "--help"])
 
