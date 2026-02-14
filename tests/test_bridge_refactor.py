@@ -5,7 +5,7 @@ Verifies:
 - EBAlfredBridge subclasses BaseBridge (not AI2ThorBridge)
 - Vendor code is importable
 - get_bridge_script_path() works on BaseTask and EBAlfredTask
-- simulator_kwargs property works
+- simulator_configs / additional_deps / simulator_kwargs properties work
 """
 
 from __future__ import annotations
@@ -263,36 +263,53 @@ class TestGetBridgeScriptPath:
         assert "simulators" in str(sim_bridge)
 
 
-# --- simulator_kwargs tests ---
+# --- simulator_configs tests ---
 
-class TestSimulatorKwargs:
-    """Test simulator_kwargs property on BaseTask."""
+class TestSimulatorConfigs:
+    """Test simulator_configs and additional_deps on BaseTask."""
 
-    def test_ebalfred_has_simulator_kwargs(self):
+    def test_ebalfred_has_simulator_configs(self):
+        from easi.tasks.ebalfred.task import EBAlfredTask
+        task = EBAlfredTask()
+        configs = task.simulator_configs
+        assert isinstance(configs, dict)
+        assert configs.get("quality") == "MediumCloseFitShadows"
+        assert configs.get("screen_height") == 500
+
+    def test_ebalfred_has_additional_deps(self):
+        from easi.tasks.ebalfred.task import EBAlfredTask
+        task = EBAlfredTask()
+        deps = task.additional_deps
+        assert isinstance(deps, list)
+        assert "gym" in deps
+        assert "networkx" in deps
+        assert "opencv-python" in deps
+
+    def test_ebalfred_simulator_kwargs_excludes_deps(self):
+        """simulator_kwargs should NOT contain additional_deps."""
         from easi.tasks.ebalfred.task import EBAlfredTask
         task = EBAlfredTask()
         kwargs = task.simulator_kwargs
-        assert isinstance(kwargs, dict)
+        assert "additional_deps" not in kwargs
         assert kwargs.get("quality") == "MediumCloseFitShadows"
         assert kwargs.get("screen_height") == 500
-        assert kwargs.get("screen_width") == 500
 
     def test_ebalfred_no_eval_set(self):
-        """eval_set removed — episode data comes from HF dataset directly."""
+        """eval_set removed -- episode data comes from HF dataset directly."""
         from easi.tasks.ebalfred.task import EBAlfredTask
         task = EBAlfredTask()
         kwargs = task.simulator_kwargs
         assert "eval_set" not in kwargs
 
-    def test_dummy_task_empty_simulator_kwargs(self):
+    def test_dummy_task_empty_simulator_configs(self):
         from easi.tasks.dummy_task.task import DummyTask
         task = DummyTask()
-        kwargs = task.simulator_kwargs
-        assert isinstance(kwargs, dict)
-        assert kwargs == {}
+        assert task.simulator_configs == {}
+        assert task.additional_deps == []
+        assert task.simulator_kwargs == {}
 
-    def test_all_ebalfred_splits_have_kwargs(self):
-        """All EB-Alfred split YAMLs should have simulator_kwargs."""
+    def test_all_ebalfred_splits_have_configs(self):
+        """All EB-Alfred split YAMLs should have simulator_configs."""
         from easi.tasks.registry import get_task_entry, load_task_class
 
         ebalfred_names = [
@@ -307,9 +324,10 @@ class TestSimulatorKwargs:
             entry = get_task_entry(name)
             TaskClass = load_task_class(name)
             task = TaskClass(split_yaml_path=entry.config_path)
-            kwargs = task.simulator_kwargs
-            assert isinstance(kwargs, dict), f"{name} simulator_kwargs is not a dict"
-            assert "quality" in kwargs, f"{name} missing quality in simulator_kwargs"
+            configs = task.simulator_configs
+            assert isinstance(configs, dict), f"{name} simulator_configs is not a dict"
+            assert "quality" in configs, f"{name} missing quality in simulator_configs"
+            assert "additional_deps" in configs, f"{name} missing additional_deps"
 
 
 # --- Protocol tests ---
@@ -324,6 +342,14 @@ class TestTaskProtocol:
     def test_protocol_has_simulator_kwargs(self):
         from easi.core.protocols import TaskProtocol
         assert hasattr(TaskProtocol, "simulator_kwargs")
+
+    def test_protocol_has_simulator_configs(self):
+        from easi.core.protocols import TaskProtocol
+        assert hasattr(TaskProtocol, "simulator_configs")
+
+    def test_protocol_has_additional_deps(self):
+        from easi.core.protocols import TaskProtocol
+        assert hasattr(TaskProtocol, "additional_deps")
 
 
 # --- Task simplification tests ---

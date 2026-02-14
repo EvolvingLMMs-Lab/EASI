@@ -41,17 +41,19 @@ class TestScaffold:
         config = yaml.safe_load((tasks_dir / "my_benchmark" / "my_benchmark.yaml").read_text())
         assert config["simulator"] == "dummy:v1"
 
-    def test_yaml_has_external_packages(self, tmp_path):
+    def test_yaml_has_simulator_configs(self, tmp_path):
         tasks_dir = tmp_path / "easi" / "tasks"
         scaffold_task("my_benchmark", "dummy:v1", output_dir=tasks_dir)
         config = yaml.safe_load((tasks_dir / "my_benchmark" / "my_benchmark.yaml").read_text())
-        assert "external_packages" in config
+        assert "simulator_configs" in config
+        assert "additional_deps" in config["simulator_configs"]
 
-    def test_yaml_has_simulator_kwargs(self, tmp_path):
+    def test_yaml_no_legacy_fields(self, tmp_path):
         tasks_dir = tmp_path / "easi" / "tasks"
         scaffold_task("my_benchmark", "dummy:v1", output_dir=tasks_dir)
         config = yaml.safe_load((tasks_dir / "my_benchmark" / "my_benchmark.yaml").read_text())
-        assert "simulator_kwargs" in config
+        assert "simulator_kwargs" not in config
+        assert "external_packages" not in config
 
     def test_task_py_has_class_name(self, tmp_path):
         tasks_dir = tmp_path / "easi" / "tasks"

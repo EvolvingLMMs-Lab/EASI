@@ -85,9 +85,21 @@ class BaseTask(ABC):
         return None
 
     @property
+    def simulator_configs(self) -> dict:
+        """Full simulator configuration from task YAML (includes additional_deps)."""
+        return self._config.get("simulator_configs", {})
+
+    @property
+    def additional_deps(self) -> list[str]:
+        """Extra pip packages to install in the simulator conda env."""
+        return self.simulator_configs.get("additional_deps", [])
+
+    @property
     def simulator_kwargs(self) -> dict:
-        """Simulator configuration from task YAML (passed to bridge via CLI args)."""
-        return self._config.get("simulator_kwargs", {})
+        """Bridge-facing kwargs (simulator_configs minus additional_deps)."""
+        cfg = dict(self.simulator_configs)
+        cfg.pop("additional_deps", None)
+        return cfg
 
     def get_instruction(self, episode: dict) -> str:
         """Return human-readable task instruction for this episode.

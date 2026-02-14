@@ -208,8 +208,8 @@ max_steps: {max_steps}
 dataset:
   source: local
   path: null
-simulator_kwargs: {{}}
-external_packages: []
+simulator_configs:
+  additional_deps: []
 '''
 
 _TEST_TEMPLATE = '''\

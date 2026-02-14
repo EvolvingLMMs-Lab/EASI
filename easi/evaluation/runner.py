@@ -259,6 +259,15 @@ class EvaluationRunner:
         env_manager = EnvManagerClass()
         sim = SimClass()
 
+        # Auto-install simulator env if not ready
+        if not env_manager.env_is_ready():
+            logger.info("Simulator environment not ready, auto-installing...")
+            env_manager.install()
+
+        # Install task-level additional deps
+        if task and task.additional_deps:
+            env_manager.install_additional_deps(task.additional_deps)
+
         # Task-specific bridge overrides simulator default
         bridge_path = (
             (task.get_bridge_script_path() if task else None)

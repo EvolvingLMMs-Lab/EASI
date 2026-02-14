@@ -14,6 +14,8 @@ Usage in a task-specific bridge.py:
 
     class MyBenchmarkBridge(BaseBridge):
         def _create_env(self, reset_config, simulator_kwargs):
+            # simulator_kwargs comes from task YAML's simulator_configs
+            # (with additional_deps stripped — bridge only gets runtime config)
             from external_package import MyEnv
             return MyEnv(**reset_config)
 

@@ -42,6 +42,8 @@ def build_parser() -> argparse.ArgumentParser:
     env_install.add_argument("simulator", type=str, help="e.g., 'dummy' or 'ai2thor:v2_1_0'")
     env_install.add_argument("--reinstall", action="store_true",
                              help="Remove existing env and install from scratch")
+    env_install.add_argument("--with-task-deps", type=str, default=None, metavar="TASK",
+                             help="Also install additional_deps from a task (e.g., 'ebalfred_base')")
 
     env_check = env_sub.add_parser("check", help="Check if environment is ready", parents=[common])
     env_check.add_argument("simulator", type=str)
@@ -121,7 +123,7 @@ def cmd_env_list() -> None:
         logger.info("  %s%s  -- %s", pair, default_marker, entry.description)
 
 
-def cmd_env_install(simulator: str, reinstall: bool = False) -> None:
+def cmd_env_install(simulator: str, reinstall: bool = False, with_task_deps: str | None = None) -> None:
     from easi.simulators.registry import load_env_manager_class
 
     EnvManagerClass = load_env_manager_class(simulator)
@@ -133,6 +135,18 @@ def cmd_env_install(simulator: str, reinstall: bool = False) -> None:
 
     logger.info("Installing environment: %s", env_manager.get_env_name())
     env_manager.install()
+
+    if with_task_deps:
+        from easi.tasks.registry import get_task_entry, load_task_class
+
+        entry = get_task_entry(with_task_deps)
+        TaskClass = load_task_class(with_task_deps)
+        task = TaskClass(split_yaml_path=entry.config_path)
+        if task.additional_deps:
+            env_manager.install_additional_deps(task.additional_deps)
+        else:
+            logger.info("Task %s has no additional_deps.", with_task_deps)
+
     logger.info("Done.")
 
 
@@ -305,7 +319,7 @@ def main() -> None:
         if args.env_action == "list":
             cmd_env_list()
         elif args.env_action == "install":
-            cmd_env_install(args.simulator, reinstall=args.reinstall)
+            cmd_env_install(args.simulator, reinstall=args.reinstall, with_task_deps=args.with_task_deps)
         elif args.env_action == "check":
             cmd_env_check(args.simulator)
         else:

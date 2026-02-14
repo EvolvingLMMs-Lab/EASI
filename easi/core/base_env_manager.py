@@ -137,6 +137,21 @@ class BaseEnvironmentManager(ABC):
                 return
             self._do_install()
 
+    def install_additional_deps(self, packages: list[str]) -> None:
+        """Install extra pip packages into this conda env via uv (idempotent).
+
+        Called by EvaluationRunner when a task declares additional_deps
+        in its YAML config.
+        """
+        if not packages:
+            return
+        python_exec = self.get_python_executable()
+        with spinner(f"Installing task dependencies: {', '.join(packages)}"):
+            self._run_command(
+                [python_exec, "-m", "uv", "pip", "install"] + packages,
+                "uv pip install (task deps)",
+            )
+
     def _do_install(self) -> None:
         """Execute the full install sequence (called under lock)."""
         env_name = self.get_env_name()
