@@ -103,6 +103,15 @@ class LLMClient:
             self.model, response_model.__name__,
         )
         result = client.chat.completions.create(**call_kwargs)
+
+        # Track usage from the raw response attached by instructor
+        raw = getattr(result, "_raw_response", None)
+        if raw is not None:
+            self._track_usage(raw)
+        else:
+            # Fallback: at minimum count the call
+            self._usage["num_calls"] += 1
+
         return result
 
     def get_usage(self) -> dict:

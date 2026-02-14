@@ -301,6 +301,8 @@ class EvaluationRunner:
         elif self.agent_type == "react":
             from easi.agents.react_agent import ReActAgent
 
+            agent_config = task_config.get("agent", {})
+
             # Create LLM client based on backend
             if backend and backend != "legacy":
                 from easi.llm.client import LLMClient
@@ -321,7 +323,6 @@ class EvaluationRunner:
                 )
 
                 # Wrap for structured output if configured
-                agent_config = task_config.get("agent", {})
                 schema_class_name = agent_config.get("response_schema")
                 if schema_class_name:
                     import json as _json
@@ -344,7 +345,6 @@ class EvaluationRunner:
 
             # Load task-specific prompt builder
             prompt_builder = None
-            agent_config = task_config.get("agent", {})
             builder_class_name = agent_config.get("prompt_builder")
             if builder_class_name:
                 BuilderClass = import_class(builder_class_name)

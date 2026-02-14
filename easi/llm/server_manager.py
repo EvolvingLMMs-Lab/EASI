@@ -39,6 +39,7 @@ class ServerManager:
         self.startup_timeout = startup_timeout
         self.log_dir = log_dir
         self._process: subprocess.Popen | None = None
+        self._log_file = None
 
     def start(self) -> str:
         """Start the server, wait for health, return base_url."""
@@ -47,17 +48,16 @@ class ServerManager:
         cmd = self._build_command()
         logger.info("Starting %s server: %s", self.backend, " ".join(cmd))
 
-        log_file = None
         if self.log_dir:
             self.log_dir.mkdir(parents=True, exist_ok=True)
             log_path = self.log_dir / f"{self.backend}_server.log"
-            log_file = open(log_path, "w")
+            self._log_file = open(log_path, "w")
             logger.info("Server logs: %s", log_path)
 
         self._process = subprocess.Popen(
             cmd,
-            stdout=log_file or subprocess.DEVNULL,
-            stderr=log_file or subprocess.DEVNULL,
+            stdout=self._log_file or subprocess.DEVNULL,
+            stderr=self._log_file or subprocess.DEVNULL,
         )
 
         base_url = f"http://localhost:{self.port}/v1"
@@ -77,6 +77,9 @@ class ServerManager:
                 self._process.kill()
                 self._process.wait(timeout=10)
             self._process = None
+        if self._log_file is not None:
+            self._log_file.close()
+            self._log_file = None
 
     def is_running(self) -> bool:
         """Check if server process is alive."""
