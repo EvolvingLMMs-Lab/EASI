@@ -20,6 +20,10 @@ dev = [
     "pytest>=7.0",
     "pytest-timeout>=2.0",
 ]
+llm = [
+    "litellm>=1.40",
+    "instructor>=1.0",
+]
 
 [project.scripts]
 easi = "easi.cli:main"
