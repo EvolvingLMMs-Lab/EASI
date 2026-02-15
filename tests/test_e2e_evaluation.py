@@ -352,6 +352,130 @@ class TestE2EEvaluation:
         assert len(results) == 3  # All episodes run from scratch
 
 
+class TestEpisodeRetry:
+    def test_retry_on_episode_failure(self, tmp_path):
+        """Episodes that crash are retried and succeed on subsequent attempt."""
+        from unittest.mock import patch
+
+        output_dir = tmp_path / "logs"
+        runner = EvaluationRunner(
+            task_name="dummy_task",
+            agent_type="dummy",
+            output_dir=output_dir,
+            max_retries=3,
+        )
+
+        call_count = {"n": 0}
+        original_run_episode = runner._run_episode
+
+        def failing_first_call(*args, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                raise RuntimeError("Simulated bridge crash")
+            return original_run_episode(*args, **kwargs)
+
+        with patch.object(runner, "_run_episode", side_effect=failing_first_call):
+            results = runner.run(max_episodes=1)
+
+        assert len(results) == 1
+        assert "error" not in results[0]
+        assert results[0]["success"] in (0.0, 1.0)
+
+    def test_retry_exhausted_records_failure(self, tmp_path):
+        """Episode recorded as failure after all retries exhausted."""
+        from unittest.mock import patch
+
+        output_dir = tmp_path / "logs"
+        runner = EvaluationRunner(
+            task_name="dummy_task",
+            agent_type="dummy",
+            output_dir=output_dir,
+            max_retries=2,
+        )
+
+        with patch.object(
+            runner, "_run_episode",
+            side_effect=RuntimeError("persistent crash"),
+        ):
+            results = runner.run(max_episodes=1)
+
+        assert len(results) == 1
+        assert results[0]["success"] == 0.0
+        assert "error" in results[0]
+        assert "persistent crash" in results[0]["error"]
+
+    def test_retry_clears_partial_files(self, tmp_path):
+        """Retry clears partial files from the failed attempt."""
+        from unittest.mock import patch
+
+        output_dir = tmp_path / "logs"
+        runner = EvaluationRunner(
+            task_name="dummy_task",
+            agent_type="dummy",
+            output_dir=output_dir,
+            max_retries=2,
+        )
+
+        original_run_episode = runner._run_episode
+
+        def write_then_crash(sim, agent, task, episode, index, episode_dir):
+            # Write a partial file then crash
+            (episode_dir / "partial.txt").write_text("partial data")
+            raise RuntimeError("crash mid-episode")
+
+        call_count = {"n": 0}
+
+        def crash_then_succeed(*args, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return write_then_crash(*args, **kwargs)
+            return original_run_episode(*args, **kwargs)
+
+        with patch.object(runner, "_run_episode", side_effect=crash_then_succeed):
+            results = runner.run(max_episodes=1)
+
+        assert len(results) == 1
+        # The partial file should have been cleaned up
+        run_dir = _find_run_dir(output_dir)
+        episode_dirs = sorted((run_dir / "episodes").iterdir())
+        assert not (episode_dirs[0] / "partial.txt").exists()
+        # But result.json from successful retry should exist
+        assert (episode_dirs[0] / "result.json").exists()
+
+    def test_retry_continues_to_next_episode(self, tmp_path):
+        """After exhausting retries on one episode, runner continues to the next."""
+        from unittest.mock import patch
+
+        output_dir = tmp_path / "logs"
+        runner = EvaluationRunner(
+            task_name="dummy_task",
+            agent_type="dummy",
+            output_dir=output_dir,
+            max_retries=1,
+        )
+
+        original_run_episode = runner._run_episode
+        call_count = {"n": 0}
+
+        def fail_first_episode(*args, **kwargs):
+            call_count["n"] += 1
+            # Fail only the first episode (call 1)
+            if call_count["n"] == 1:
+                raise RuntimeError("episode 0 crash")
+            return original_run_episode(*args, **kwargs)
+
+        with patch.object(runner, "_run_episode", side_effect=fail_first_episode):
+            results = runner.run(max_episodes=2)
+
+        # Both episodes should have results
+        assert len(results) == 2
+        # First episode failed
+        assert results[0]["success"] == 0.0
+        assert "error" in results[0]
+        # Second episode succeeded
+        assert "error" not in results[1]
+
+
 class TestResumeConfigLoading:
     def test_resume_loads_config_from_run_dir(self, tmp_path):
         """cmd_run with --resume loads task_name and options from config.json."""

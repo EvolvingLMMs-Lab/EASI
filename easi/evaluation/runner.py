@@ -176,9 +176,42 @@ class EvaluationRunner:
                 episode_dir = episodes_dir / f"{i:03d}_{_sanitize_dirname(episode_id)}"
                 episode_dir.mkdir(exist_ok=True)
 
-                result = self._run_episode(
-                    sim, agent, task, episode, i, episode_dir,
-                )
+                result = None
+                for attempt in range(1, self.max_retries + 1):
+                    try:
+                        result = self._run_episode(
+                            sim, agent, task, episode, i, episode_dir,
+                        )
+                        break
+                    except Exception as exc:
+                        logger.warning(
+                            "Episode %s attempt %d/%d failed: %s",
+                            episode_id, attempt, self.max_retries, exc,
+                        )
+                        self._clear_episode_dir(episode_dir)
+                        if attempt < self.max_retries:
+                            logger.info("Re-launching simulator for retry...")
+                            try:
+                                sim.close()
+                            except Exception:
+                                pass
+                            sim, sim_runner = self._create_simulator(
+                                task.simulator_key, task=task,
+                            )
+                        else:
+                            logger.error(
+                                "Episode %s failed after %d attempts, skipping",
+                                episode_id, self.max_retries,
+                            )
+                            result = {
+                                "episode_id": episode_id,
+                                "instruction": task.get_instruction(episode),
+                                "success": 0.0,
+                                "num_steps": 0,
+                                "elapsed_seconds": 0.0,
+                                "error": str(exc),
+                            }
+
                 all_results.append(result)
 
                 (episode_dir / "result.json").write_text(
@@ -315,6 +348,13 @@ class EvaluationRunner:
             agent.llm_client.reset_usage()
 
         return metrics
+
+    @staticmethod
+    def _clear_episode_dir(episode_dir: Path) -> None:
+        """Remove all files in an episode directory for a clean retry."""
+        for f in episode_dir.iterdir():
+            if f.is_file():
+                f.unlink()
 
     @staticmethod
     def _write_trajectory_entry(path: Path, entry: dict) -> None:

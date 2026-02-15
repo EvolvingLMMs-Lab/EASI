@@ -306,7 +306,7 @@ class TestSimulatorConfigs:
         task = DummyTask()
         assert task.simulator_configs == {}
         assert task.additional_deps == []
-        assert task.simulator_kwargs == {}
+        assert task.simulator_kwargs == {"max_steps": 100}
 
     def test_all_ebalfred_splits_have_configs(self):
         """All EB-Alfred split YAMLs should have simulator_configs."""

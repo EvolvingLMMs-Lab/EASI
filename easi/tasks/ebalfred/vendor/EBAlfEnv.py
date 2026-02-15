@@ -88,7 +88,7 @@ class EBAlfEnv(gym.Env):
         action_space (gym.spaces.Discrete): Discrete action space 
         language_skill_set (list): Readable action descriptions
     """
-    def __init__(self, exp_name='', detection_box=False, resolution=500, data_dir=None, x_display=None):
+    def __init__(self, exp_name='', detection_box=False, resolution=500, data_dir=None, x_display=None, max_steps=30):
         """
         Initialize the AI2THOR environment.
 
@@ -98,6 +98,7 @@ class EBAlfEnv(gym.Env):
             resolution: screen resolution for AI2-THOR
             data_dir: path to task JSON files (e.g. datasets/.../tasks)
             x_display: X display number for AI2-THOR
+            max_steps: maximum steps per episode (from task YAML config)
         """
         super().__init__()
         self.reward_config_path = ALFRED_REWARD_PATH
@@ -111,7 +112,7 @@ class EBAlfEnv(gym.Env):
         # Episode tracking
         self._reset = False
         self._current_step = 0
-        self._max_episode_steps = 30
+        self._max_episode_steps = max_steps
         self._cur_invalid_actions = 0
         self._max_invalid_actions = 10
         self._episode_start_time = 0
