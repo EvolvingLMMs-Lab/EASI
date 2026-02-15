@@ -10,7 +10,7 @@ import math
 
 import ai2thor.controller
 import numpy as np
-from ai2thor.platform import CloudRendering
+from ai2thor.platform import Linux64
 
 SUCCESS_THRESHOLD = 1  # meters (horizontal distance)
 
@@ -29,7 +29,7 @@ class EBNavEnv:
             "width": resolution,
             "height": resolution,
             "fieldOfView": fov,
-            "platform": CloudRendering,
+            "platform": Linux64,
         }
         self.env = ai2thor.controller.Controller(**self.config)
         self._max_episode_steps = max_steps

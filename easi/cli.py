@@ -73,8 +73,8 @@ def build_parser() -> argparse.ArgumentParser:
     sim_test = sim_sub.add_parser("test", help="Run a smoke test (reset + N steps)", parents=[common])
     sim_test.add_argument("simulator", type=str, help="e.g., 'dummy' or 'ai2thor:v5_0_0'")
     sim_test.add_argument("--steps", type=int, default=5, help="Number of steps")
-    sim_test.add_argument("--timeout", type=float, default=30.0,
-                          help="Bridge startup timeout in seconds (default: 30)")
+    sim_test.add_argument("--timeout", type=float, default=200.0,
+                          help="Bridge startup timeout in seconds (default: 200)")
 
     # --- run command ---
     run_parser = subparsers.add_parser("run", help="Run a full evaluation", parents=[common])
