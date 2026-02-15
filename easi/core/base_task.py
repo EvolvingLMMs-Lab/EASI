@@ -49,6 +49,7 @@ class BaseTask(ABC):
         self._split_yaml_path = split_yaml_path
         self._config = self._load_config()
         self._episodes: list[dict] | None = None
+        self._action_space_cache: list[str] | None = None
         self._data_dir = data_dir
 
     @abstractmethod
@@ -134,7 +135,16 @@ class BaseTask(ABC):
 
     @property
     def action_space(self) -> list[str]:
-        return self._config["action_space"]
+        if self._action_space_cache is None:
+            self._action_space_cache = self._build_action_space()
+        return self._action_space_cache
+
+    def _build_action_space(self) -> list[str]:
+        """Return the action space for this task.
+
+        Override in subclasses to define the action space programmatically.
+        """
+        return []
 
     @property
     def max_steps(self) -> int:

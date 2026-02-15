@@ -203,7 +203,6 @@ display_name: "{class_name}"
 description: "TODO: Add description"
 simulator: "{simulator}"
 task_class: "easi.tasks.{name}.task.{class_name}Task"
-action_space: []
 max_steps: {max_steps}
 dataset:
   source: local
@@ -239,7 +238,6 @@ class Test{class_name}Task:
             "description: test\\n"
             "simulator: dummy:v1\\n"
             "task_class: easi.tasks.{name}.task.{class_name}Task\\n"
-            "action_space: []\\n"
             "max_steps: 10\\n"
             "dataset:\\n"
             "  source: local\\n"

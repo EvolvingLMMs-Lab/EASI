@@ -26,10 +26,8 @@ logger = get_logger(__name__)
 
 class EBAlfredTask(BaseTask):
 
-    def __init__(self, data_dir: Path | None = None, split_yaml_path: Path | None = None):
-        super().__init__(data_dir=data_dir, split_yaml_path=split_yaml_path)
-        # Override static action space with dynamic one
-        self._config["action_space"] = get_global_action_space()
+    def _build_action_space(self) -> list[str]:
+        return get_global_action_space()
 
     def get_task_yaml_path(self) -> Path:
         return Path(__file__).parent / "ebalfred_base.yaml"

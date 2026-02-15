@@ -30,7 +30,6 @@ class TaskEntry:
     description: str
     simulator_key: str
     task_class: str  # fully qualified class name
-    action_space: list[str]
     max_steps: int
     config_path: Path
 
@@ -73,7 +72,6 @@ def _discover_tasks(tasks_dir: Path | None = None) -> dict[str, TaskEntry]:
                 description=config.get("description", ""),
                 simulator_key=config["simulator"],
                 task_class=config["task_class"],
-                action_space=config.get("action_space", []),
                 max_steps=config.get("max_steps", 500),
                 config_path=task_yaml_path,
             )

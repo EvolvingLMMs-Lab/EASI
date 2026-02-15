@@ -80,7 +80,6 @@ class TestTaskRegistry:
         entry = get_task_entry("dummy_task")
         assert entry.name == "dummy_task"
         assert entry.simulator_key == "dummy:v1"
-        assert "MoveAhead" in entry.action_space
 
     def test_load_task_class(self):
         TaskClass = load_task_class("dummy_task")

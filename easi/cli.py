@@ -204,7 +204,6 @@ def cmd_task_info(task_name: str) -> None:
     logger.info("  Name:        %s", entry.name)
     logger.info("  Description: %s", entry.description)
     logger.info("  Simulator:   %s", entry.simulator_key)
-    logger.info("  Actions:     %s", ", ".join(entry.action_space))
     logger.info("  Max steps:   %s", entry.max_steps)
 
 

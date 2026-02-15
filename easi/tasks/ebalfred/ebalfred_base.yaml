@@ -3,7 +3,6 @@ display_name: "EB-Alfred Base Split"
 description: "Base evaluation split for EB-Alfred"
 simulator: "ai2thor:v2_1_0"
 task_class: "easi.tasks.ebalfred.task.EBAlfredTask"
-action_space: []
 max_steps: 50
 dataset:
   source: huggingface

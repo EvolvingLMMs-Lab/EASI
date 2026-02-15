@@ -12,11 +12,17 @@ from easi.core.base_task import BaseTask
 from easi.core.episode import StepResult
 
 
+DUMMY_ACTIONS = ["MoveAhead", "TurnLeft", "TurnRight", "Stop"]
+
+
 class DummyTask(BaseTask):
     """A dummy task for testing the evaluation pipeline."""
 
     def get_task_yaml_path(self) -> Path:
         return Path(__file__).parent / "task.yaml"
+
+    def _build_action_space(self) -> list[str]:
+        return list(DUMMY_ACTIONS)
 
     def format_reset_config(self, episode: dict) -> dict:
         """Map a dummy episode to simulator reset config.

@@ -5,13 +5,6 @@ description: "A dummy task for testing the pipeline end-to-end"
 # Pin to a specific versioned simulator
 simulator: "dummy:v1"
 
-# Action space available to the agent
-action_space:
-  - MoveAhead
-  - TurnLeft
-  - TurnRight
-  - Stop
-
 # Dataset source
 dataset:
   source: "local"
