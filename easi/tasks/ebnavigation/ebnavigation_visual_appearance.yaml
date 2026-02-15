@@ -1,0 +1,22 @@
+name: ebnavigation_visual_appearance
+display_name: "EB-Navigation Visual Appearance Split"
+description: "Visual appearance evaluation split for EB-Navigation (object-goal navigation)"
+simulator: "ai2thor:v5_0_0"
+task_class: "easi.tasks.ebnavigation.task.EBNavigationTask"
+max_steps: 20
+dataset:
+  source: huggingface
+  repo_id: "oscarqjh/EB-Navigation_easi"
+  subset: null
+  split: "visual_appearance"
+simulator_configs:
+  screen_height: 500
+  screen_width: 500
+  fov: 100
+agent:
+  prompt_builder: "easi.tasks.ebnavigation.prompts.EBNavigationPromptBuilder"
+  prompt_builder_kwargs:
+    n_shot: 3
+    split: "visual_appearance"
+    use_feedback: true
+    chat_history: true
