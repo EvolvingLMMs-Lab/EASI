@@ -508,3 +508,36 @@ class TestParseResponse:
         mem = AgentMemory(action_space=action_space)
         actions = builder.parse_response("not json at all", mem)
         assert actions == []
+
+
+class TestGetResponseFormat:
+    """Test that get_response_format returns correct schema."""
+
+    def test_returns_json_schema_dict(self):
+        builder = EBAlfredPromptBuilder(n_shot=1, split="base")
+        builder.set_action_space(["find a Mug", "pick up the Mug", "Stop"])
+        memory = AgentMemory(
+            action_space=["find a Mug", "pick up the Mug", "Stop"],
+        )
+        rf = builder.get_response_format(memory)
+        assert rf["type"] == "json_schema"
+        assert rf["json_schema"]["name"] == "embodied_planning"
+        schema = rf["json_schema"]["schema"]
+        assert "executable_plan" in schema["properties"]
+        assert schema["properties"]["executable_plan"]["type"] == "array"
+        items = schema["properties"]["executable_plan"]["items"]
+        assert "action_id" in items["properties"]
+        assert "action_name" in items["properties"]
+
+    def test_schema_matches_vlm_generation_guide(self):
+        """Verify our schema has the same required fields as EmbodiedBench."""
+        from easi.tasks.ebalfred.prompts import EBALFRED_RESPONSE_SCHEMA
+        schema = EBALFRED_RESPONSE_SCHEMA["json_schema"]["schema"]
+        assert set(schema["required"]) == {
+            "visual_state_description",
+            "reasoning_and_reflection",
+            "language_plan",
+            "executable_plan",
+        }
+        items_required = set(schema["properties"]["executable_plan"]["items"]["required"])
+        assert items_required == {"action_id", "action_name"}

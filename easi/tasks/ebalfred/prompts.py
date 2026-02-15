@@ -65,6 +65,56 @@ The fields in above JSON follows the purpose below:
 !!! When generating content for JSON strings, avoid using any contractions or abbreviated forms (like 's, 're, 've, 'll, 'd, n't) that use apostrophes. Instead, write out full forms (is, are, have, will, would, not) to prevent parsing errors in JSON. Please do not output any other thing more than the above-mentioned JSON, do not include ```json and ```!!!.
 '''
 
+# JSON schema matching EmbodiedBench's vlm_generation_guide from
+# embodiedbench/planner/planner_config/generation_guide.py
+EBALFRED_RESPONSE_SCHEMA = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "embodied_planning",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "visual_state_description": {
+                    "type": "string",
+                    "description": "Description of current state from the visual image",
+                },
+                "reasoning_and_reflection": {
+                    "type": "string",
+                    "description": "summarize the history of interactions and any available environmental feedback. Additionally, provide reasoning as to why the last action or plan failed and did not finish the task",
+                },
+                "language_plan": {
+                    "type": "string",
+                    "description": "The list of actions to achieve the user instruction. Each action is started by the step number and the action name",
+                },
+                "executable_plan": {
+                    "type": "array",
+                    "description": "A list of actions needed to achieve the user instruction, with each action having an action ID and a name. Do not output empty list.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "action_id": {
+                                "type": "integer",
+                                "description": "The action ID to select from the available actions given by the prompt",
+                            },
+                            "action_name": {
+                                "type": "string",
+                                "description": "The name of the action",
+                            },
+                        },
+                        "required": ["action_id", "action_name"],
+                    },
+                },
+            },
+            "required": [
+                "visual_state_description",
+                "reasoning_and_reflection",
+                "language_plan",
+                "executable_plan",
+            ],
+        },
+    },
+}
+
 _CONFIG_DIR = Path(__file__).parent / "config"
 
 
@@ -181,6 +231,15 @@ class EBAlfredPromptBuilder:
                 break
 
         return actions
+
+    def get_response_format(self, memory: AgentMemory) -> dict:
+        """Return JSON schema for API-level enforcement.
+
+        Matches EmbodiedBench's vlm_generation_guide. The OUTPUT_TEMPLATE
+        is always in the prompt as a fallback for backends that don't
+        support response_format.
+        """
+        return EBALFRED_RESPONSE_SCHEMA
 
     # ---- Stateless mode (chat_history=False) ----
 

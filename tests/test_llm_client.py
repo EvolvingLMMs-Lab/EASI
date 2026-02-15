@@ -107,31 +107,44 @@ class TestLLMClientGenerate:
         call_kwargs = mock_litellm.completion.call_args
         assert call_kwargs.kwargs.get("api_base") == "http://localhost:8080/v1"
 
-
-class TestLLMClientGenerateStructured:
-    @patch("easi.llm.client.instructor")
     @patch("easi.llm.client.litellm")
-    def test_generate_structured_returns_model(self, mock_litellm, mock_instructor):
+    def test_generate_passes_response_format(self, mock_litellm):
         from easi.llm.client import LLMClient
-        from easi.llm.schemas import ActionPlanResponse
 
-        expected = ActionPlanResponse(
-            reasoning="I see a mug",
-            executable_plan=[{"action": "find a Mug"}],
-        )
+        mock_choice = MagicMock()
+        mock_choice.message.content = '{"executable_plan": [{"action": "Stop"}]}'
+        mock_response = MagicMock()
+        mock_response.choices = [mock_choice]
+        mock_response.usage.prompt_tokens = 10
+        mock_response.usage.completion_tokens = 5
+        mock_litellm.completion.return_value = mock_response
+        mock_litellm.completion_cost.return_value = 0.0
 
-        mock_client = MagicMock()
-        mock_client.chat.completions.create.return_value = expected
-        mock_instructor.from_litellm.return_value = mock_client
+        rf = {"type": "json_schema", "json_schema": {"name": "test", "schema": {"type": "object"}}}
+        client = LLMClient(model="openai/gpt-4o")
+        client.generate([{"role": "user", "content": "test"}], response_format=rf)
+
+        call_kwargs = mock_litellm.completion.call_args
+        assert call_kwargs.kwargs.get("response_format") == rf
+
+    @patch("easi.llm.client.litellm")
+    def test_generate_omits_response_format_when_none(self, mock_litellm):
+        from easi.llm.client import LLMClient
+
+        mock_choice = MagicMock()
+        mock_choice.message.content = "ok"
+        mock_response = MagicMock()
+        mock_response.choices = [mock_choice]
+        mock_response.usage.prompt_tokens = 10
+        mock_response.usage.completion_tokens = 5
+        mock_litellm.completion.return_value = mock_response
+        mock_litellm.completion_cost.return_value = 0.0
 
         client = LLMClient(model="openai/gpt-4o")
-        result = client.generate_structured(
-            [{"role": "user", "content": "test"}],
-            response_model=ActionPlanResponse,
-        )
+        client.generate([{"role": "user", "content": "test"}])
 
-        assert isinstance(result, ActionPlanResponse)
-        assert result.get_actions() == ["find a Mug"]
+        call_kwargs = mock_litellm.completion.call_args
+        assert "response_format" not in call_kwargs.kwargs
 
 
 class TestLLMClientProtocolCompat:

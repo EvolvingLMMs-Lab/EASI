@@ -51,6 +51,19 @@ class PromptBuilderProtocol(Protocol):
     Implementations are referenced in task.yaml via:
         agent:
           prompt_builder: "easi.tasks.my_task.prompts.MyPromptBuilder"
+
+    Required methods:
+        build_messages(memory) -> list[dict]
+        parse_response(llm_response, memory) -> list[Action]
+
+    Optional methods:
+        get_response_format(memory) -> dict | None
+            Return a response_format dict for API-level JSON enforcement.
+            E.g. {"type": "json_schema", "json_schema": {"name": "...", "schema": {...}}}
+            When provided, the agent passes it to LLMClient.generate().
+            If the backend doesn't support it, the agent falls back to
+            prompt-only (the template is already in the messages).
+            Builders that don't implement this get no schema enforcement.
     """
 
     def build_messages(self, memory: AgentMemory) -> list[dict]:

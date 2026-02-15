@@ -327,21 +327,6 @@ class EvaluationRunner:
                     base_url=base_url,
                     **client_kwargs,
                 )
-
-                # Wrap for structured output if configured
-                schema_class_name = agent_config.get("response_schema")
-                if schema_class_name:
-                    import json as _json
-                    SchemaClass = import_class(schema_class_name)
-
-                    def _structured_generate(messages):
-                        result = llm.generate_structured(messages, response_model=SchemaClass)
-                        actions = result.get_actions()
-                        return _json.dumps({
-                            "executable_plan": [{"action": a} for a in actions]
-                        })
-
-                    llm.generate = _structured_generate
             else:
                 # Legacy path: existing LLMApiClient
                 from easi.llm.api_client import LLMApiClient

@@ -14,9 +14,11 @@ class MockLLMClient:
     def __init__(self, actions=None):
         self.actions = actions or [{"action": "MoveAhead"}]
         self.call_count = 0
+        self.last_response_format = None
 
-    def generate(self, messages):
+    def generate(self, messages, response_format=None):
         self.call_count += 1
+        self.last_response_format = response_format
         return json.dumps({
             "observation": "I see a room.",
             "reasoning": "I should move forward.",
@@ -216,7 +218,7 @@ class TestReActAgent:
 
     def test_parse_error_returns_stop(self):
         """When LLM returns invalid JSON, agent returns Stop."""
-        llm = type('MockLLM', (), {'generate': lambda self, m: 'not json at all'})()
+        llm = type('MockLLM', (), {'generate': lambda self, m, response_format=None: 'not json at all'})()
         agent = ReActAgent(
             llm_client=llm,
             action_space=["MoveAhead", "TurnLeft", "TurnRight", "Stop"],
@@ -257,3 +259,126 @@ class TestReActAgent:
         multi_action_agent.add_feedback("MoveAhead", "success")
         multi_action_agent.act(obs, "Go to the goal.")  # buffered
         assert multi_action_agent.memory.steps[1].llm_response is None
+
+
+_SENTINEL = object()
+
+
+class SchemaPromptBuilder:
+    """Builder that provides a response_format schema."""
+    def __init__(self, schema=_SENTINEL):
+        self._schema = {"type": "json_object"} if schema is _SENTINEL else schema
+
+    def build_messages(self, memory):
+        return [{"role": "user", "content": "test"}]
+
+    def parse_response(self, llm_response, memory):
+        data = json.loads(llm_response)
+        return [Action(action_name=e["action"]) for e in data.get("executable_plan", [])]
+
+    def get_response_format(self, memory):
+        return self._schema
+
+
+class TestResponseFormatFallback:
+    def test_response_format_passed_when_builder_provides_it(self):
+        """When builder has get_response_format(), it's passed to generate()."""
+        llm = MockLLMClient([{"action": "MoveAhead"}])
+        schema = {"type": "json_schema", "json_schema": {"name": "test", "schema": {"type": "object"}}}
+        agent = ReActAgent(
+            llm_client=llm,
+            action_space=["MoveAhead", "Stop"],
+            prompt_builder=SchemaPromptBuilder(schema=schema),
+        )
+        obs = Observation(rgb_path="/tmp/rgb.png")
+        agent.act(obs, "Go.")
+        assert llm.last_response_format == schema
+
+    def test_no_response_format_when_builder_lacks_method(self):
+        """When builder doesn't have get_response_format(), no response_format is passed."""
+        llm = MockLLMClient([{"action": "MoveAhead"}])
+        agent = ReActAgent(
+            llm_client=llm,
+            action_space=["MoveAhead", "Stop"],
+            prompt_builder=CustomPromptBuilder(),  # no get_response_format
+        )
+        obs = Observation(rgb_path="/tmp/rgb.png")
+        agent.act(obs, "Go.")
+        assert llm.last_response_format is None
+
+    def test_fallback_on_exception(self):
+        """When generate() raises with response_format, agent retries without it."""
+        call_log = []
+
+        class FailOnSchemaLLM:
+            call_count = 0
+            last_response_format = None
+
+            def generate(self, messages, response_format=None):
+                self.call_count += 1
+                call_log.append(response_format)
+                if response_format is not None:
+                    raise Exception("response_format not supported")
+                return json.dumps({
+                    "executable_plan": [{"action": "MoveAhead"}],
+                })
+
+        llm = FailOnSchemaLLM()
+        agent = ReActAgent(
+            llm_client=llm,
+            action_space=["MoveAhead", "Stop"],
+            prompt_builder=SchemaPromptBuilder(),
+        )
+        obs = Observation(rgb_path="/tmp/rgb.png")
+        action = agent.act(obs, "Go.")
+
+        assert action.action_name == "MoveAhead"
+        assert llm.call_count == 2  # first with schema (failed), second without
+        assert call_log[0] is not None  # first call had schema
+        assert call_log[1] is None  # second call without schema
+
+    def test_fallback_cached_after_first_failure(self):
+        """After first failure, subsequent calls skip response_format entirely."""
+        call_log = []
+
+        class FailOnSchemaLLM:
+            call_count = 0
+
+            def generate(self, messages, response_format=None):
+                self.call_count += 1
+                call_log.append(response_format)
+                if response_format is not None:
+                    raise Exception("not supported")
+                return json.dumps({
+                    "executable_plan": [{"action": "MoveAhead"}],
+                })
+
+        llm = FailOnSchemaLLM()
+        agent = ReActAgent(
+            llm_client=llm,
+            action_space=["MoveAhead", "Stop"],
+            prompt_builder=SchemaPromptBuilder(),
+        )
+        obs = Observation(rgb_path="/tmp/rgb.png")
+
+        # First call: tries with schema, fails, retries without = 2 calls
+        agent.act(obs, "Go.")
+        assert llm.call_count == 2
+
+        # Second call: skips schema entirely = 1 call
+        agent.add_feedback("MoveAhead", "success")
+        agent.act(obs, "Go.")
+        assert llm.call_count == 3  # only 1 more call, not 2
+        assert call_log[2] is None  # went straight to no-schema
+
+    def test_response_format_none_returns_none(self):
+        """Builder returning None means no response_format enforcement."""
+        llm = MockLLMClient([{"action": "MoveAhead"}])
+        agent = ReActAgent(
+            llm_client=llm,
+            action_space=["MoveAhead", "Stop"],
+            prompt_builder=SchemaPromptBuilder(schema=None),
+        )
+        obs = Observation(rgb_path="/tmp/rgb.png")
+        agent.act(obs, "Go.")
+        assert llm.last_response_format is None

@@ -6,12 +6,6 @@ class TestLlmImports:
         from easi.llm.client import LLMClient
         assert LLMClient is not None
 
-    def test_import_schemas(self):
-        from easi.llm.schemas import BaseResponseSchema, ActionPlanResponse, ExecutableAction
-        assert BaseResponseSchema is not None
-        assert ActionPlanResponse is not None
-        assert ExecutableAction is not None
-
     def test_import_server_manager(self):
         from easi.llm.server_manager import ServerManager
         assert ServerManager is not None

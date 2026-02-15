@@ -48,21 +48,3 @@ class TestFullFlow:
         client.reset_usage()
         assert client.get_usage()["num_calls"] == 0
 
-    def test_schema_normalization(self):
-        from easi.llm.schemas import ActionPlanResponse
-
-        resp = ActionPlanResponse(
-            reasoning="I should find the apple",
-            executable_plan=[
-                {"action": "find a Apple"},
-                {"action": "pick up the Apple"},
-                {"action": "clean the Apple"},
-            ],
-        )
-        actions = resp.get_actions()
-        normalized = json.dumps({
-            "executable_plan": [{"action": a} for a in actions]
-        })
-        data = json.loads(normalized)
-        assert len(data["executable_plan"]) == 3
-        assert data["executable_plan"][0]["action"] == "find a Apple"

@@ -15,6 +15,26 @@ from easi.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
+def _format_messages_for_log(messages: list[dict]) -> str:
+    """Extract readable text from OpenAI-format messages for logging."""
+    parts = []
+    for msg in messages:
+        role = msg.get("role", "?")
+        content = msg.get("content", "")
+        if isinstance(content, str):
+            text = content
+        elif isinstance(content, list):
+            text_parts = [p.get("text", "") for p in content if p.get("type") == "text"]
+            n_images = sum(1 for p in content if p.get("type") == "image_url")
+            text = "".join(text_parts)
+            if n_images:
+                text = f"[{n_images} image(s)]\n{text}"
+        else:
+            text = str(content)
+        parts.append(f"--- {role} ---\n{text}")
+    return "\n".join(parts)
+
+
 class ReActAgent(BaseAgent):
     """ReAct agent with action buffering and pluggable prompt building.
 
@@ -37,6 +57,7 @@ class ReActAgent(BaseAgent):
         self.prompt_builder: PromptBuilderProtocol = prompt_builder or DefaultPromptBuilder()
         self.memory = AgentMemory(action_space=self.action_space)
         self._action_buffer: list[Action] = []
+        self._supports_response_format: bool | None = None  # None = unknown
 
     def reset(self) -> None:
         super().reset()
@@ -67,7 +88,19 @@ class ReActAgent(BaseAgent):
         self.memory.task_description = task_description
 
         messages = self.prompt_builder.build_messages(self.memory)
-        response = self.llm_client.generate(messages)
+
+        logger.trace("Step %d prompt (%d messages):\n%s",
+                     self._step_count + 1, len(messages),
+                     _format_messages_for_log(messages))
+
+        # Query builder for response_format (optional method)
+        get_rf = getattr(self.prompt_builder, 'get_response_format', None)
+        response_format = get_rf(self.memory) if get_rf else None
+
+        response = self._generate_with_fallback(messages, response_format)
+
+        logger.trace("Step %d LLM response:\n%s",
+                     self._step_count + 1, response)
 
         actions = self.prompt_builder.parse_response(response, self.memory)
         if not actions:
@@ -100,3 +133,25 @@ class ReActAgent(BaseAgent):
         if "Stop" in self.action_space:
             return Action(action_name="Stop")
         return Action(action_name=self.action_space[0])
+
+    def _generate_with_fallback(
+        self, messages: list[dict], response_format: dict | None,
+    ) -> str:
+        """Call LLM with optional response_format, falling back on failure.
+
+        If response_format is provided and the backend doesn't support it,
+        the failure is caught, cached, and retried without response_format.
+        The prompt template is already in messages, so fallback always works.
+        """
+        if response_format is None or self._supports_response_format is False:
+            return self.llm_client.generate(messages)
+
+        try:
+            return self.llm_client.generate(messages, response_format=response_format)
+        except Exception as e:
+            logger.warning(
+                "response_format not supported by backend, "
+                "falling back to prompt-only: %s", e,
+            )
+            self._supports_response_format = False
+            return self.llm_client.generate(messages)

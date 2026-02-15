@@ -22,7 +22,6 @@ dev = [
 ]
 llm = [
     "litellm>=1.40",
-    "instructor>=1.0",
 ]
 
 [project.scripts]
