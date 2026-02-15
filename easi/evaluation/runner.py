@@ -120,14 +120,23 @@ class EvaluationRunner:
 
         # Save run config
         config = {
-            "task_name": self.task_name,
-            "agent_type": self.agent_type,
-            "agent_seed": self.agent_seed,
             "run_id": self.run_id,
-            "max_episodes": max_episodes,
             "total_episodes": len(episodes),
-            "backend": backend,
-            "model": self.model,
+            "cli_options": {
+                "task_name": self.task_name,
+                "agent_type": self.agent_type,
+                "output_dir": str(self.output_dir),
+                "data_dir": str(self.data_dir),
+                "max_episodes": max_episodes,
+                "llm_base_url": self.llm_base_url,
+                "agent_seed": self.agent_seed,
+                "backend": self.backend,
+                "model": self.model,
+                "port": self.port,
+                "llm_kwargs_raw": self.llm_kwargs_raw,
+            },
+            "resolved_backend": backend,
+            "task_config": task._config,
         }
         (run_dir / "config.json").write_text(json.dumps(config, indent=2))
 
@@ -216,11 +225,17 @@ class EvaluationRunner:
             step_result = sim.step(action)
             trajectory.append(step_result)
 
+            # Get LLM response from agent memory (None for buffered actions)
+            llm_response = None
+            if hasattr(agent, 'memory') and agent.memory.steps:
+                llm_response = agent.memory.steps[-1].llm_response
+
             # Write step entry to trajectory
             self._write_trajectory_entry(trajectory_path, {
                 "step": step + 1,
                 "type": "step",
                 "action": action.action_name,
+                "llm_response": llm_response,
                 "rgb_path": Path(step_result.observation.rgb_path).name,
                 "agent_pose": step_result.observation.agent_pose,
                 "reward": step_result.reward,
@@ -246,6 +261,7 @@ class EvaluationRunner:
         # Evaluate
         metrics = task.evaluate_episode(episode, trajectory)
         metrics["episode_id"] = episode_id
+        metrics["instruction"] = task_description
         metrics["elapsed_seconds"] = round(elapsed, 2)
 
         # Snapshot LLM usage for this episode

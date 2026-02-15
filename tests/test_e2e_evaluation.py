@@ -161,11 +161,14 @@ class TestE2EEvaluation:
 
         run_dir = _find_run_dir(output_dir)
         config = json.loads((run_dir / "config.json").read_text())
-        assert config["task_name"] == "dummy_task"
-        assert config["agent_type"] == "dummy"
-        assert config["agent_seed"] == 42
-        assert config["max_episodes"] == 1
+        assert config["cli_options"]["task_name"] == "dummy_task"
+        assert config["cli_options"]["agent_type"] == "dummy"
+        assert config["cli_options"]["agent_seed"] == 42
+        assert config["cli_options"]["max_episodes"] == 1
         assert "run_id" in config
+        # Task YAML config is included
+        assert "task_config" in config
+        assert config["task_config"]["name"] == "dummy_task"
 
     def test_trajectory_jsonl_format(self, tmp_path):
         """Verify trajectory.jsonl has correct format."""
