@@ -38,6 +38,7 @@ class EBAlfredBridge(BaseBridge):
         max_steps = simulator_kwargs.get("max_steps", 30)
         max_invalid_actions = simulator_kwargs.get("max_invalid_actions", 10)
         feedback_verbosity = simulator_kwargs.get("feedback_verbosity", 0)
+        detection_box = simulator_kwargs.get("detection_box", False)
         # x_display from YAML, falling back to DISPLAY env var (set by xvfb-run)
         x_display = simulator_kwargs.get(
             "x_display", os.environ.get("DISPLAY", ":0").lstrip(":")
@@ -49,6 +50,7 @@ class EBAlfredBridge(BaseBridge):
             max_steps=max_steps,
             max_invalid_actions=max_invalid_actions,
             feedback_verbosity=feedback_verbosity,
+            detection_box=detection_box,
         )
 
     def _on_reset(self, env, reset_config):

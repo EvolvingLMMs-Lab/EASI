@@ -258,7 +258,7 @@ class EBAlfEnv(gym.Env):
         self._current_step = 0
         self._cur_invalid_actions = 0
         obs = {
-            'head_rgb': self.env.last_event.frame,
+            'head_rgb': self._get_frame(),
         }
         self._reset = True
         self.episode_log = []
@@ -300,7 +300,7 @@ class EBAlfEnv(gym.Env):
         info['task_progress'] = subgoal_met[0] / subgoal_met[1]
 
         obs = {
-            'head_rgb': self.env.last_event.frame,
+            'head_rgb': self._get_frame(),
         }
         # if exceed the maximum episode steps or the goal is achieved
         if self._current_step >= self._max_episode_steps or info['task_success'] or self._cur_invalid_actions >= self._max_invalid_actions:
@@ -350,6 +350,15 @@ class EBAlfEnv(gym.Env):
     
     def seed(self, seed=None):
         self.env.random_initilize(seed)
+
+    def _get_frame(self):
+        """Return the current frame, with bounding boxes if detection is enabled."""
+        frame = self.env.last_event.frame
+        if self.detection:
+            img = Image.fromarray(frame)
+            img = utils.draw_boxes(img, self.env.last_event.instance_detections2D, name_translation=self.id_to_name_dict)
+            frame = np.array(img)
+        return frame
 
     def save_image(self, *args, **kwargs):
         """Save current agent view as a PNG image."""
