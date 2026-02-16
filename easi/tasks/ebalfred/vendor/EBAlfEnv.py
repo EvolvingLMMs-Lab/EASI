@@ -88,7 +88,8 @@ class EBAlfEnv(gym.Env):
         action_space (gym.spaces.Discrete): Discrete action space 
         language_skill_set (list): Readable action descriptions
     """
-    def __init__(self, exp_name='', detection_box=False, resolution=500, data_dir=None, x_display=None, max_steps=30):
+    def __init__(self, exp_name='', detection_box=False, resolution=500, data_dir=None, x_display=None, max_steps=30,
+                 max_invalid_actions=10, feedback_verbosity=0):
         """
         Initialize the AI2THOR environment.
 
@@ -99,6 +100,8 @@ class EBAlfEnv(gym.Env):
             data_dir: path to task JSON files (e.g. datasets/.../tasks)
             x_display: X display number for AI2-THOR
             max_steps: maximum steps per episode (from task YAML config)
+            max_invalid_actions: max consecutive invalid actions before episode ends
+            feedback_verbosity: 0=concise, 1=verbose env feedback
         """
         super().__init__()
         self.reward_config_path = ALFRED_REWARD_PATH
@@ -114,7 +117,7 @@ class EBAlfEnv(gym.Env):
         self._current_step = 0
         self._max_episode_steps = max_steps
         self._cur_invalid_actions = 0
-        self._max_invalid_actions = 10
+        self._max_invalid_actions = max_invalid_actions
         self._episode_start_time = 0
         self.episode_log = []
         
@@ -127,7 +130,7 @@ class EBAlfEnv(gym.Env):
 
         # env feedback and image save
         # feedback verbosity, 0: concise, 1: verbose
-        self.feedback_verbosity = 0
+        self.feedback_verbosity = feedback_verbosity
         self.log_path = 'running/eb_alfred/{}'.format(exp_name)
 
         self.detection = detection_box # add detection in image

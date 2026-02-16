@@ -36,6 +36,8 @@ class EBAlfredBridge(BaseBridge):
         data_dir = reset_config.get("data_dir") or simulator_kwargs.get("data_dir")
         resolution = simulator_kwargs.get("screen_height", 500)
         max_steps = simulator_kwargs.get("max_steps", 30)
+        max_invalid_actions = simulator_kwargs.get("max_invalid_actions", 10)
+        feedback_verbosity = simulator_kwargs.get("feedback_verbosity", 0)
         # x_display from YAML, falling back to DISPLAY env var (set by xvfb-run)
         x_display = simulator_kwargs.get(
             "x_display", os.environ.get("DISPLAY", ":0").lstrip(":")
@@ -45,6 +47,8 @@ class EBAlfredBridge(BaseBridge):
             data_dir=data_dir,
             x_display=x_display,
             max_steps=max_steps,
+            max_invalid_actions=max_invalid_actions,
+            feedback_verbosity=feedback_verbosity,
         )
 
     def _on_reset(self, env, reset_config):
