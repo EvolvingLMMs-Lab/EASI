@@ -50,12 +50,18 @@ class EBHabitatBridge(BaseBridge):
 
         eval_set = reset_config.get("eval_set", "base")
         resolution = simulator_kwargs.get("screen_height", 500)
+        max_steps = simulator_kwargs.get("max_steps", 30)
+        max_invalid_actions = simulator_kwargs.get("max_invalid_actions", 10)
+        feedback_verbosity = simulator_kwargs.get("feedback_verbosity", 1)
 
         env = EBHabEnv(
             eval_set=eval_set,
             data_dir=data_dir,
             dataset_dir=dataset_dir,
             resolution=resolution,
+            max_steps=max_steps,
+            max_invalid_actions=max_invalid_actions,
+            feedback_verbosity=feedback_verbosity,
         )
 
         # Extract dynamic action space

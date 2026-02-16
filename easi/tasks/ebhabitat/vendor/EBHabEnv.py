@@ -115,7 +115,8 @@ def transform_action_to_natural_language(skill_set):
 class EBHabEnv(gym.Env):
     def __init__(self, eval_set='train', exp_name='', down_sample_ratio=1.0,
                  start_epi_index=0, resolution=500, recording=False,
-                 data_dir=None, dataset_dir=None):
+                 data_dir=None, dataset_dir=None,
+                 max_steps=30, max_invalid_actions=10, feedback_verbosity=1):
         """
         Initialize the HabitatRearrange environment.
 
@@ -174,9 +175,9 @@ class EBHabEnv(gym.Env):
             self._current_episode_num += 1
 
         self._current_step = 0
-        self._max_episode_steps = 30
+        self._max_episode_steps = max_steps
         self._cur_invalid_actions = 0
-        self._max_invalid_actions = 10
+        self._max_invalid_actions = max_invalid_actions
         self._episode_start_time = 0
         # is holding an object
         self.is_holding = False
@@ -190,7 +191,7 @@ class EBHabEnv(gym.Env):
 
         # env feedback and image save
         # feedback verbosity, 0: concise, 1: verbose
-        self.feedback_verbosity = 1
+        self.feedback_verbosity = feedback_verbosity
         self.log_path = 'running/eb_habitat/{}'.format(exp_name)
         # video recorder
         self.recording = recording

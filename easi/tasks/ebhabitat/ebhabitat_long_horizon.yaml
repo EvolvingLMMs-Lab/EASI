@@ -15,6 +15,8 @@ dataset:
 simulator_configs:
   screen_height: 500
   screen_width: 500
+  max_invalid_actions: 10
+  feedback_verbosity: 1
   additional_deps:
     - "gym"
     - "hydra-core>=1.3"
