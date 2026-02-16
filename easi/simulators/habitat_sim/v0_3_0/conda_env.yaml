@@ -5,4 +5,6 @@ channels:
   - defaults
 dependencies:
   - python=3.10
-  - habitat-sim=0.3.0=*withbullet*headless*
+  - habitat-sim=0.3.0
+  - headless
+  - withbullet
