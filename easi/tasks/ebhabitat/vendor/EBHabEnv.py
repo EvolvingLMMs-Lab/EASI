@@ -149,6 +149,12 @@ class EBHabEnv(gym.Env):
         self.config.habitat.simulator.agents.main_agent.sim_sensors.head_rgb_sensor.width = resolution
         self.resolution = resolution
 
+        # Set GPU device for rendering.
+        # Default to 0 (first GPU). Use HABITAT_SIM_GPU_ID env var to override.
+        # The headless conda build may need the NVIDIA EGL ICD installed.
+        gpu_id = int(os.environ.get("HABITAT_SIM_GPU_ID", "0"))
+        self.config.habitat.simulator.habitat_sim_v0.gpu_device_id = gpu_id
+
         # modify config path to ease data loading
         self.dataset = make_dataset(self.config.habitat.dataset.type, config=self.config.habitat.dataset)
 

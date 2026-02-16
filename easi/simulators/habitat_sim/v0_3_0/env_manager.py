@@ -20,7 +20,7 @@ class HabitatEnvManagerV030(BaseEnvironmentManager):
 
     @property
     def needs_display(self) -> bool:
-        return False  # habitat-sim headless build uses EGL
+        return True  # habitat-sim needs a display (xvfb on headless servers)
 
     def get_conda_env_yaml_path(self) -> Path:
         return Path(__file__).parent / "conda_env.yaml"
@@ -29,7 +29,7 @@ class HabitatEnvManagerV030(BaseEnvironmentManager):
         return Path(__file__).parent / "requirements.txt"
 
     def get_system_deps(self) -> list[str]:
-        return ["conda"]
+        return ["conda", "xvfb", "egl"]
 
     def get_validation_import(self) -> str:
         return "import habitat_sim"

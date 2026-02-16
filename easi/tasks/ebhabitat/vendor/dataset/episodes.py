@@ -33,6 +33,7 @@ def check_and_gen_physics_config():
         "restitution_coefficient": 0.1,
         "rigid object paths": ["objects"],
     }
+    os.makedirs(os.path.dirname(DEFAULT_PHYSICS_CONFIG_PATH), exist_ok=True)
     with open(DEFAULT_PHYSICS_CONFIG_PATH, "w") as f:
         json.dump(physics_config, f)
 
