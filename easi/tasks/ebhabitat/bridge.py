@@ -38,11 +38,12 @@ class EBHabitatBridge(BaseBridge):
     def _create_env(self, reset_config, simulator_kwargs):
         from easi.tasks.ebhabitat.vendor.EBHabEnv import EBHabEnv
 
-        # Resolve data directories from extracted zip files
-        data_dir = simulator_kwargs.get("data_dir")
+        # Resolve data directories from HF dataset cache (passed via reset_config)
+        # or from --data-dir CLI arg (passed via simulator_kwargs)
+        data_dir = reset_config.get("data_dir") or simulator_kwargs.get("data_dir")
         dataset_dir = None
         if data_dir:
-            # datasets.zip extracts pickle files to data_dir/datasets/
+            # HF dataset structure: data_dir/datasets/*.pickle, data_dir/data/...
             candidate = Path(data_dir) / "datasets"
             if candidate.exists():
                 dataset_dir = str(candidate)

@@ -48,6 +48,7 @@ class EBHabitatTask(BaseTask):
             "episode_id": episode.get("id", "unknown"),
             "eval_set": self._config.get("dataset", {}).get("split", "base"),
             "instruction": episode.get("instruction", ""),
+            "data_dir": episode.get("_data_dir", ""),
         }
 
     def evaluate_episode(
