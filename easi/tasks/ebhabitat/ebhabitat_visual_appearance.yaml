@@ -1,0 +1,30 @@
+name: ebhabitat_visual_appearance
+display_name: "EB-Habitat Visual Appearance Split"
+description: "Visual appearance evaluation split for EB-Habitat (rearrangement)"
+simulator: "habitat_sim:v0_3_0"
+task_class: "easi.tasks.ebhabitat.task.EBHabitatTask"
+max_steps: 30
+dataset:
+  source: huggingface
+  repo_id: "oscarqjh/EB-Habitat_easi"
+  subset: null
+  split: "visual_appearance"
+  zip_files:
+    - "simulator_data.zip"
+    - "datasets.zip"
+simulator_configs:
+  screen_height: 500
+  screen_width: 500
+  additional_deps:
+    - "gym"
+    - "hydra-core>=1.3"
+    - "omegaconf>=2.3"
+    - "imageio"
+    - "habitat-lab @ git+https://github.com/facebookresearch/habitat-lab.git@v0.3.0#subdirectory=habitat-lab"
+agent:
+  prompt_builder: "easi.tasks.ebhabitat.prompts.EBHabitatPromptBuilder"
+  prompt_builder_kwargs:
+    n_shot: 10
+    split: "visual_appearance"
+    use_feedback: true
+    chat_history: false

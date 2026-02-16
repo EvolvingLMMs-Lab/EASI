@@ -1,0 +1,9 @@
+name: habitat_sim
+display_name: "Habitat Simulator"
+default_version: "v0_3_0"
+versions:
+  v0_3_0:
+    description: "Habitat 0.3.0 — currently used by eb-habitat"
+    simulator_class: "easi.simulators.habitat_sim.v0_3_0.simulator.HabitatSimulatorV030"
+    env_manager_class: "easi.simulators.habitat_sim.v0_3_0.env_manager.HabitatEnvManagerV030"
+    python_version: "3.10"
