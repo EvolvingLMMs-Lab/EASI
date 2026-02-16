@@ -2,7 +2,6 @@
 # For licensing see accompanying LICENSE file.
 # Copyright (C) 2024 Apple Inc. All Rights Reserved.
 #
-import os.path as osp
 from typing import List
 
 import gym.spaces as spaces

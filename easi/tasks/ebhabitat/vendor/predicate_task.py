@@ -2,13 +2,10 @@
 # For licensing see accompanying LICENSE file.
 # Copyright (C) 2024 Apple Inc. All Rights Reserved.
 #
-import inspect
-import os.path as osp
 import random
 import time
 from typing import Any, Dict, List
 
-import hydra
 import magnum as mn
 import numpy as np
 from habitat.core.registry import registry
@@ -21,14 +18,10 @@ from habitat.tasks.rearrange.multi_task.rearrange_pddl import (
 from habitat.tasks.rearrange.rearrange_task import RearrangeTask
 from habitat.tasks.rearrange.utils import add_perf_timing_func
 from omegaconf import DictConfig, ListConfig
-from PIL import Image
-from transformers import AutoTokenizer
 
-import easi.tasks.ebhabitat.vendor.config
 from easi.tasks.ebhabitat.vendor.dataset.episodes import LangRearrangeEpisode
 from easi.tasks.ebhabitat.vendor.dataset.utils import get_category_info
-from easi.tasks.ebhabitat.vendor.actions import KinematicArmEEAction
-from easi.tasks.ebhabitat.vendor.utils import PLACABLE_RECEP_TYPE, get_pddl 
+from easi.tasks.ebhabitat.vendor.utils import get_pddl
 
 
 @registry.register_task(name="RearrangePredicateTask-v0")

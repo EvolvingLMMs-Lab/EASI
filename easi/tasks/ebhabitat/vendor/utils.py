@@ -2,24 +2,21 @@
 # For licensing see accompanying LICENSE file.
 # Copyright (C) 2024 Apple Inc. All Rights Reserved.
 #
-import inspect
 import os.path as osp
-from typing import Dict, List, Tuple
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-import yaml
 from habitat.tasks.rearrange.multi_task.pddl_action import PddlAction
 from habitat.tasks.rearrange.multi_task.pddl_domain import PddlDomain
 from habitat.tasks.rearrange.multi_task.pddl_logical_expr import (
     LogicalExpr, LogicalQuantifierType)
 from habitat.tasks.rearrange.multi_task.rearrange_pddl import (
     ExprType, PddlEntity, SimulatorObjectType)
-from transformers import (AutoConfig, AutoModelForSeq2SeqLM, AutoTokenizer,
-                          LlamaForCausalLM, LlamaModel, LlamaTokenizer,
-                          T5Model)
 from habitat.utils.visualizations.utils import (tile_images, draw_collision)
-import easi.tasks.ebhabitat.vendor.config
-import easi.tasks.ebhabitat.vendor.dataset
+
+# Side-effect imports: register habitat configs and dataset classes.
+# Do NOT remove — they run Hydra ConfigStore and @registry.register_* at import time.
+import easi.tasks.ebhabitat.vendor.config  # noqa: F401
+import easi.tasks.ebhabitat.vendor.dataset  # noqa: F401
 
 # Also defined in the PDDL
 PLACABLE_RECEP_TYPE = "place_receptacle"
@@ -194,6 +191,10 @@ def get_pddl(task_config, all_cats, obj_cats) -> PddlDomain:
 
 
 def get_parser(llm_id):
+    # Lazy import: transformers is heavy and only needed if this function
+    # is actually called (by sensors not used in the default EASI config).
+    from transformers import AutoTokenizer, LlamaTokenizer
+
     if "llama" in llm_id.lower():
         tokenizer = LlamaTokenizer.from_pretrained(llm_id)
         # llama has no pad token by default. As per this thread:

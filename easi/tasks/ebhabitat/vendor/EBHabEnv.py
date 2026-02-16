@@ -17,7 +17,6 @@ import time
 import json
 import imageio
 from PIL import Image 
-import numpy as np
 import habitat
 import hydra
 from habitat.datasets import make_dataset
@@ -27,14 +26,18 @@ from easi.tasks.ebhabitat.vendor.config.default_structured_configs import (
 from habitat.gym.gym_definitions import _add_sim_sensor_to_config
 from omegaconf import OmegaConf
 
-from habitat_sim.utils import viz_utils as vut
-from easi.tasks.ebhabitat.vendor.config import default_structured_configs
-import easi.tasks.ebhabitat.vendor.predicate_task
-import easi.tasks.ebhabitat.vendor.config
-import easi.tasks.ebhabitat.vendor.measures
-from easi.tasks.ebhabitat.vendor.utils import observations_to_image, merge_to_file, draw_text
+from easi.tasks.ebhabitat.vendor.utils import observations_to_image
 from easi.utils.logging import get_logger
 logger = get_logger(__name__)
+
+# Side-effect imports: register habitat components (tasks, sensors, actions,
+# measures, dataset, configs) so make_gym_from_config() can find them.
+# Do NOT remove even if they appear unused — they run @registry.register_*
+# decorators at import time.
+import easi.tasks.ebhabitat.vendor.predicate_task  # noqa: F401
+import easi.tasks.ebhabitat.vendor.sensors  # noqa: F401
+import easi.tasks.ebhabitat.vendor.actions  # noqa: F401
+import easi.tasks.ebhabitat.vendor.measures  # noqa: F401
 
 HABITAT_CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config/task/language_rearrangement.yaml')
 

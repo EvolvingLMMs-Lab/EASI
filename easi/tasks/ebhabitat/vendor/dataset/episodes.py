@@ -17,8 +17,6 @@ from habitat.core.registry import registry
 from habitat.core.utils import DatasetFloatJSONEncoder
 from habitat.datasets.rearrange.rearrange_dataset import (RearrangeDatasetV0,
                                                           RearrangeEpisode)
-# from habitat.datasets.utils import check_and_gen_physics_config
-from habitat.tasks.rearrange.multi_task.pddl_predicate import Predicate
 
 DEFAULT_PHYSICS_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '../data/default.physics_config.json')
 

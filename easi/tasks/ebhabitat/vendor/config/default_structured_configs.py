@@ -5,7 +5,6 @@ Contains the structured config definitions.
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-import attr
 from habitat.config.default_structured_configs import (
     ActionConfig, ArmActionConfig, HabitatSimRGBSensorConfig, LabSensorConfig,
     MeasurementConfig, TaskConfig)

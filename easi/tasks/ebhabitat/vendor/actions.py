@@ -8,9 +8,7 @@ from gym import spaces
 from habitat.core.registry import registry
 from habitat.tasks.rearrange.actions.articulated_agent_action import \
     ArticulatedAgentAction
-from habitat.tasks.rearrange.actions.grip_actions import (
-    GazeGraspAction, GripSimulatorTaskAction, MagicGraspAction,
-    SuctionGraspAction)
+from habitat.tasks.rearrange.actions.grip_actions import MagicGraspAction
 from habitat.tasks.rearrange.rearrange_sim import RearrangeSim
 
 from easi.tasks.ebhabitat.vendor.utils import get_allowed_actions
