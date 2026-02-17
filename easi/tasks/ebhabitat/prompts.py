@@ -261,7 +261,7 @@ class EBHabitatPromptBuilder:
                 )
 
             prompt += f'\n\n## Now the human instruction is: {user_instruction}.'
-            prompt += f" You are supposed to output in json. You need to describe current visual state from the image, output your reasoning steps and plan. At the end, output the action id (0 ~ {max_id}) from the available actions to excute."
+            prompt += f"\nYou are supposed to output in json. You need to describe current visual state from the image, output your reasoning steps and plan. At the end, output the action id (0 ~ {max_id}) from the available actions to excute."
 
         else:
             # Subsequent turn path, chat_history=False (vlm_planner.py lines 78-94)

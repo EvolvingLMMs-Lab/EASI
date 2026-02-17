@@ -138,6 +138,14 @@ class EvaluationRunner:
             )
             base_url = server.start()
 
+        # Compute resolved generation kwargs (YAML defaults + CLI overrides)
+        from easi.llm.utils import parse_llm_kwargs, split_kwargs
+        agent_config = task._config.get("agent", {})
+        yaml_gen_kwargs = agent_config.get("generation_kwargs", {})
+        all_llm_kwargs = parse_llm_kwargs(self.llm_kwargs_raw)
+        _, cli_gen_kwargs = split_kwargs(all_llm_kwargs)
+        resolved_gen_kwargs = {**yaml_gen_kwargs, **cli_gen_kwargs}
+
         # Save run config
         config = {
             "run_id": self.run_id,
@@ -157,9 +165,14 @@ class EvaluationRunner:
                 "max_retries": self.max_retries,
             },
             "resolved_backend": backend,
+            "resolved_base_url": base_url,
+            "resolved_generation_kwargs": resolved_gen_kwargs,
             "task_config": task._config,
         }
         (run_dir / "config.json").write_text(json.dumps(config, indent=2))
+        logger.trace(
+            "Run config:\n%s", json.dumps(config, indent=2, default=str)
+        )
 
         # 3. Create agent
         agent = self._create_agent(task.action_space, task._config,

@@ -14,6 +14,17 @@ from easi.utils.logging import get_logger
 logger = get_logger(__name__)
 
 # Lazy imports to avoid requiring litellm when not needed.
+# Parameters accepted by litellm.completion() / OpenAI chat completions API.
+# Anything not in this set is silently dropped to avoid provider rejections.
+_LITELLM_PARAMS = frozenset({
+    "temperature", "max_tokens", "top_p", "n", "stop", "seed",
+    "frequency_penalty", "presence_penalty", "logit_bias",
+    "logprobs", "top_logprobs",
+    "response_format", "tools", "tool_choice",
+    "stream", "stream_options",
+    "user", "metadata",
+})
+
 litellm = None
 
 
@@ -46,7 +57,11 @@ class LLMClient:
         self.model = model
         self.base_url = base_url
         self.num_retries = num_retries
-        self.default_kwargs = kwargs
+        # Only keep params that litellm/OpenAI API recognises.
+        dropped = {k: v for k, v in kwargs.items() if k not in _LITELLM_PARAMS}
+        if dropped:
+            logger.debug("Dropping unsupported generation kwargs: %s", dropped)
+        self.default_kwargs = {k: v for k, v in kwargs.items() if k in _LITELLM_PARAMS}
         self._usage = {
             "prompt_tokens": 0,
             "completion_tokens": 0,
@@ -62,6 +77,7 @@ class LLMClient:
             "model": self.model,
             "messages": messages,
             "num_retries": self.num_retries,
+            "drop_params": True,
             **self.default_kwargs,
         }
         if self.base_url:
