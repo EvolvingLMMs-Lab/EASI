@@ -515,6 +515,10 @@ class EvaluationRunner:
 
         env_vars = env_manager.get_env_vars()
 
+        # Merge task-level env_vars from simulator_configs.env_vars
+        if task and task.extra_env_vars:
+            env_vars = {**env_vars, **task.extra_env_vars}
+
         runner = SubprocessRunner(
             python_executable=env_manager.get_python_executable(),
             bridge_script_path=bridge_path,

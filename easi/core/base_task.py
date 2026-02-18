@@ -110,11 +110,17 @@ class BaseTask(ABC):
 
     @property
     def simulator_kwargs(self) -> dict:
-        """Bridge-facing kwargs (simulator_configs minus additional_deps + max_steps)."""
+        """Bridge-facing kwargs (simulator_configs minus additional_deps/env_vars + max_steps)."""
         cfg = dict(self.simulator_configs)
         cfg.pop("additional_deps", None)
+        cfg.pop("env_vars", None)
         cfg["max_steps"] = self.max_steps
         return cfg
+
+    @property
+    def extra_env_vars(self) -> dict[str, str]:
+        """Task-level environment variables from simulator_configs.env_vars."""
+        return self.simulator_configs.get("env_vars", {})
 
     def get_instruction(self, episode: dict) -> str:
         """Return human-readable task instruction for this episode.
