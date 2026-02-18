@@ -485,15 +485,13 @@ class EvaluationRunner:
         import json as _json
 
         from easi.simulators.registry import (
-            load_env_manager_class,
+            create_env_manager,
             load_simulator_class,
         )
         from easi.simulators.subprocess_runner import SubprocessRunner
 
-        EnvManagerClass = load_env_manager_class(simulator_key)
+        env_manager = create_env_manager(simulator_key)
         SimClass = load_simulator_class(simulator_key)
-
-        env_manager = EnvManagerClass()
         sim = SimClass()
 
         # Auto-install simulator env if not ready
@@ -515,12 +513,15 @@ class EvaluationRunner:
         if task and task.simulator_kwargs:
             extra_args.extend(["--simulator-kwargs", _json.dumps(task.simulator_kwargs)])
 
+        env_vars = env_manager.get_env_vars()
+
         runner = SubprocessRunner(
             python_executable=env_manager.get_python_executable(),
             bridge_script_path=bridge_path,
             needs_display=env_manager.needs_display,
             xvfb_screen_config=env_manager.xvfb_screen_config,
             extra_args=extra_args,
+            extra_env=env_vars or None,
         )
         runner.launch()
         sim.set_runner(runner)

@@ -12,7 +12,7 @@ Lookup semantics:
 from __future__ import annotations
 
 import importlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
@@ -32,6 +32,7 @@ class SimulatorEntry:
     simulator_class: str  # fully qualified class name
     env_manager_class: str  # fully qualified class name
     python_version: str
+    installation_kwargs: dict = field(default_factory=dict)
 
 
 # Module-level registry populated on first access
@@ -61,6 +62,7 @@ def _discover_simulators() -> dict[str, SimulatorEntry]:
                 simulator_class=ver_info["simulator_class"],
                 env_manager_class=ver_info["env_manager_class"],
                 python_version=ver_info.get("python_version", "3.10"),
+                installation_kwargs=ver_info.get("installation_kwargs", {}),
             )
 
             # Register with explicit key: "ai2thor:v2_1_0"
@@ -122,6 +124,13 @@ def load_env_manager_class(key: str):
     """Import and return the env manager class for the given key."""
     entry = get_simulator_entry(key)
     return _import_class(entry.env_manager_class)
+
+
+def create_env_manager(key: str):
+    """Create an env manager instance with installation_kwargs from the manifest."""
+    entry = get_simulator_entry(key)
+    cls = _import_class(entry.env_manager_class)
+    return cls(installation_kwargs=entry.installation_kwargs)
 
 
 def _import_class(fully_qualified_name: str):

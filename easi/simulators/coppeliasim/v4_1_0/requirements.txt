@@ -1,0 +1,6 @@
+numpy>=1.24,<2.0
+Pillow>=10.0
+pyquaternion
+natsort
+scipy
+opencv-python-headless

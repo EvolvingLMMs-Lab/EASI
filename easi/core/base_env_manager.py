@@ -13,6 +13,8 @@ The shared install() logic handles the full sequence:
 from __future__ import annotations
 
 import subprocess
+import tarfile
+import urllib.request
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -29,8 +31,9 @@ logger = get_logger(__name__)
 class BaseEnvironmentManager(ABC):
     """Abstract base for per-simulator-version environment management."""
 
-    def __init__(self, conda_prefix: Path | None = None):
+    def __init__(self, conda_prefix: Path | None = None, installation_kwargs: dict | None = None):
         self.conda_prefix = conda_prefix or self._default_conda_prefix()
+        self.installation_kwargs = installation_kwargs or {}
         self._dep_checker = SystemDependencyChecker()
 
     @property
@@ -81,6 +84,18 @@ class BaseEnvironmentManager(ABC):
         """Xvfb screen config. Override for custom resolution/depth."""
         return "1024x768x24"
 
+    def get_env_vars(self) -> dict[str, str]:
+        """Return environment variables to inject into the bridge subprocess.
+
+        Override in subclasses to provide simulator-specific env vars.
+        Use _get_template_variables() and _resolve_template() to build
+        paths relative to the conda env directory.
+
+        Returns:
+            Dict of env var name -> value. Empty dict by default.
+        """
+        return {}
+
     def get_env_name(self) -> str:
         """Conda environment name for this simulator version."""
         return f"easi_{self.simulator_name}_{self.version}"
@@ -100,12 +115,21 @@ class BaseEnvironmentManager(ABC):
         if not Path(python_exec).exists():
             return False
 
+        # Include simulator env vars (e.g. LD_LIBRARY_PATH for CoppeliaSim)
+        env_vars = self.get_env_vars()
+        run_env = None
+        if env_vars:
+            import os
+            run_env = os.environ.copy()
+            run_env.update(env_vars)
+
         try:
             result = subprocess.run(
                 [python_exec, "-c", self.get_validation_import()],
                 capture_output=True,
                 text=True,
                 timeout=30,
+                env=run_env,
             )
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -184,14 +208,145 @@ class BaseEnvironmentManager(ABC):
         else:
             logger.warning("No requirements.txt found at %s, skipping uv install", requirements)
 
-        # Step 5: Validate
+        # Step 5: Run post-install hook (binary downloads, file copies, etc.)
+        self._run_post_install()
+
+        # Step 6: Validate (with env vars so e.g. LD_LIBRARY_PATH is set)
+        env_vars = self.get_env_vars()
+        validation_env = None
+        if env_vars:
+            import os
+            validation_env = os.environ.copy()
+            validation_env.update(env_vars)
         with spinner("Validating environment"):
             self._run_command(
                 [python_exec, "-c", self.get_validation_import()],
                 "environment validation",
+                env=validation_env,
             )
 
         logger.info("Environment %s installed and validated successfully", env_name)
+
+    # ── Post-install hook and helpers ──────────────────────────────────
+
+    def get_extras_dir(self) -> Path:
+        """Directory for downloaded binaries and other extras (inside conda env dir)."""
+        env_path = self.conda_prefix / "envs" / self.get_env_name()
+        return env_path / "extras"
+
+    @staticmethod
+    def _resolve_template(template: str, variables: dict[str, str]) -> str:
+        """Resolve {var} placeholders in a string."""
+        result = template
+        for key, value in variables.items():
+            result = result.replace(f"{{{key}}}", value)
+        return result
+
+    def _get_template_variables(self) -> dict[str, str]:
+        """Return template variables for env_vars and post_install use.
+
+        Available variables:
+          {env_dir}    — conda env directory
+          {extras_dir} — extras directory for binaries/downloads
+        """
+        env_dir = str(self.conda_prefix / "envs" / self.get_env_name())
+        return {
+            "env_dir": env_dir,
+            "extras_dir": str(self.get_extras_dir()),
+        }
+
+    def post_install(self, context: dict) -> None:
+        """Override for custom post-install steps (binary downloads, file copies, etc.).
+
+        Called after conda + pip installs, before validation. Use helper methods
+        like _download_and_extract() for common operations. Use _run_command()
+        with an env dict to run pip install with custom env vars.
+
+        Args:
+            context: Dict with keys:
+                env_dir    — conda env directory path
+                extras_dir — directory for downloaded extras
+                env_vars   — resolved env vars from get_env_vars()
+
+        Does nothing by default.
+        """
+
+    def _run_post_install(self) -> None:
+        """Build context and call post_install() hook."""
+        ctx = self._get_template_variables()
+        ctx["env_vars"] = self.get_env_vars()
+        self.post_install(ctx)
+
+    def _download_and_extract(
+        self,
+        url: str,
+        filename: str,
+        dest_dir: Path,
+        extract: bool = True,
+        strip_components: int = 0,
+    ) -> None:
+        """Download a file and optionally extract it. Idempotent (skips if done).
+
+        Helper for use inside post_install() overrides.
+
+        Args:
+            url: Download URL.
+            filename: Local filename to save as.
+            dest_dir: Directory to download/extract into.
+            extract: Whether to extract archives (tar.xz, tar.gz, zip).
+            strip_components: Remove N leading path components when extracting.
+        """
+        dest_dir = Path(dest_dir)
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = dest_dir / filename
+
+        # Idempotency: check marker for extracted archives, or file existence
+        marker = dest_dir / f".{filename}.done"
+        if marker.exists():
+            logger.info("Already installed: %s, skipping", filename)
+            return
+        if not extract and dest.exists():
+            logger.info("Already downloaded: %s, skipping", filename)
+            return
+
+        with spinner(f"Downloading {filename}"):
+            logger.info("Downloading %s", url)
+            req = urllib.request.Request(url, headers={"User-Agent": "easi/1.0"})
+            with urllib.request.urlopen(req) as response, open(str(dest), "wb") as out:
+                while True:
+                    chunk = response.read(1024 * 1024)  # 1MB chunks
+                    if not chunk:
+                        break
+                    out.write(chunk)
+
+        if extract:
+            with spinner(f"Extracting {filename}"):
+                self._extract_archive(dest, dest_dir, strip_components)
+            dest.unlink(missing_ok=True)  # Remove archive to save space
+
+        marker.touch()
+
+    def _extract_archive(self, archive: Path, dest_dir: Path, strip_components: int = 0) -> None:
+        """Extract a tar.xz, tar.gz, tar.bz2, or zip archive."""
+        name = archive.name
+        if name.endswith((".tar.xz", ".tar.gz", ".tgz", ".tar.bz2")):
+            with tarfile.open(str(archive)) as tf:
+                if strip_components > 0:
+                    for member in tf.getmembers():
+                        parts = Path(member.name).parts
+                        if len(parts) > strip_components:
+                            member.name = str(Path(*parts[strip_components:]))
+                            tf.extract(member, dest_dir)
+                else:
+                    tf.extractall(dest_dir)
+        elif name.endswith(".zip"):
+            import zipfile
+            with zipfile.ZipFile(str(archive)) as zf:
+                zf.extractall(dest_dir)
+        else:
+            logger.warning("Unknown archive format: %s, skipping extraction", name)
+
+    # ── Conda / command helpers ─────────────────────────────────────
 
     def _run_conda_create(self, env_name: str, yaml_path: Path) -> None:
         """Create or update a conda environment from a YAML file."""
@@ -206,8 +361,14 @@ class BaseEnvironmentManager(ABC):
 
         self._run_command(cmd, desc)
 
-    def _run_command(self, cmd: list[str], description: str) -> None:
-        """Run a subprocess command, streaming output through the logger."""
+    def _run_command(self, cmd: list[str], description: str, env: dict[str, str] | None = None) -> None:
+        """Run a subprocess command, streaming output through the logger.
+
+        Args:
+            cmd: Command and arguments.
+            description: Human-readable description for error messages.
+            env: Optional environment dict. If None, inherits parent env.
+        """
         logger.trace("%s", " ".join(cmd))
         process = subprocess.Popen(
             cmd,
@@ -215,6 +376,7 @@ class BaseEnvironmentManager(ABC):
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
+            env=env,
         )
         output_lines = []
         for line in process.stdout:

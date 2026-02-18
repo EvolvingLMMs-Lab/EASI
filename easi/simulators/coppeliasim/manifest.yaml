@@ -1,0 +1,15 @@
+name: coppeliasim
+display_name: "CoppeliaSim"
+default_version: "v4_1_0"
+versions:
+  v4_1_0:
+    description: "CoppeliaSim V4.1.0 (Pro) with PyRep — used by eb-manipulation"
+    simulator_class: "easi.simulators.coppeliasim.v4_1_0.simulator.CoppeliaSimSimulatorV410"
+    env_manager_class: "easi.simulators.coppeliasim.v4_1_0.env_manager.CoppeliaSimEnvManagerV410"
+    python_version: "3.10"
+    installation_kwargs:
+      binary_url: "https://downloads.coppeliarobotics.com/V4_1_0/CoppeliaSim_Pro_V4_1_0_Ubuntu20_04.tar.xz"
+      binary_filename: "CoppeliaSim_Pro_V4_1_0_Ubuntu20_04.tar.xz"
+      binary_dir_name: "CoppeliaSim_Pro_V4_1_0_Ubuntu20_04"
+      pyrep_git_url: "git+https://github.com/stepjam/PyRep.git"
+      lua_addon_script: "simAddOnScript_PyRep.lua"

@@ -143,10 +143,9 @@ def cmd_env_list() -> None:
 
 
 def cmd_env_install(simulator: str, reinstall: bool = False, with_task_deps: str | None = None) -> None:
-    from easi.simulators.registry import load_env_manager_class
+    from easi.simulators.registry import create_env_manager
 
-    EnvManagerClass = load_env_manager_class(simulator)
-    env_manager = EnvManagerClass()
+    env_manager = create_env_manager(simulator)
 
     if reinstall:
         logger.info("Removing existing environment: %s", env_manager.get_env_name())
@@ -170,10 +169,9 @@ def cmd_env_install(simulator: str, reinstall: bool = False, with_task_deps: str
 
 
 def cmd_env_check(simulator: str) -> None:
-    from easi.simulators.registry import load_env_manager_class
+    from easi.simulators.registry import create_env_manager
 
-    EnvManagerClass = load_env_manager_class(simulator)
-    env_manager = EnvManagerClass()
+    env_manager = create_env_manager(simulator)
 
     missing = env_manager.check_system_deps()
     if missing:
@@ -242,17 +240,17 @@ def cmd_task_download(task_name: str, redownload: bool = False) -> None:
 
 def cmd_sim_test(simulator: str, steps: int, timeout: float) -> None:
     from easi.core.episode import Action
-    from easi.simulators.registry import load_env_manager_class, load_simulator_class
+    from easi.simulators.registry import create_env_manager, load_simulator_class
     from easi.simulators.subprocess_runner import SubprocessRunner
 
-    EnvManagerClass = load_env_manager_class(simulator)
+    env_manager = create_env_manager(simulator)
     SimClass = load_simulator_class(simulator)
-
-    env_manager = EnvManagerClass()
     sim = SimClass()
 
     logger.info("Testing %s...", simulator)
     logger.info("  Python: %s", env_manager.get_python_executable())
+
+    env_vars = env_manager.get_env_vars()
 
     runner = SubprocessRunner(
         python_executable=env_manager.get_python_executable(),
@@ -261,6 +259,7 @@ def cmd_sim_test(simulator: str, steps: int, timeout: float) -> None:
         xvfb_screen_config=env_manager.xvfb_screen_config,
         startup_timeout=timeout,
         command_timeout=timeout,
+        extra_env=env_vars or None,
     )
 
     try:

@@ -83,6 +83,26 @@ def test_is_running(dummy_simulator):
     assert dummy_simulator.is_running()
 
 
+def test_dummy_simulator_with_env_vars_wiring():
+    """Verify DummyEnvManager.get_env_vars() returns {} and doesn't break launch."""
+    env_manager = DummyEnvManager()
+    assert env_manager.get_env_vars() == {}
+
+    sim = DummySimulator()
+    runner = SubprocessRunner(
+        python_executable=env_manager.get_python_executable(),
+        bridge_script_path=sim._get_bridge_script_path(),
+        startup_timeout=10.0,
+        command_timeout=10.0,
+        extra_env=env_manager.get_env_vars() or None,
+    )
+    runner.launch()
+    try:
+        assert runner.is_alive()
+    finally:
+        runner.shutdown()
+
+
 def test_registry_discovery():
     """Test that the dummy simulator is discoverable via the registry."""
     from easi.simulators.registry import get_simulator_entry, list_simulators

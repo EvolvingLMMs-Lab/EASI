@@ -35,6 +35,12 @@ logger = get_logger(__name__)
 class SubprocessRunner:
     """Manages a bridge subprocess for a single simulator instance."""
 
+    # Path-like env vars that should prepend rather than replace
+    _PREPEND_ENV_VARS = frozenset({
+        "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "PATH",
+        "PYTHONPATH", "QT_QPA_PLATFORM_PLUGIN_PATH",
+    })
+
     def __init__(
         self,
         python_executable: str,
@@ -45,6 +51,7 @@ class SubprocessRunner:
         command_timeout: float = 60.0,
         poll_interval: float = 0.1,
         extra_args: list[str] | None = None,
+        extra_env: dict[str, str] | None = None,
     ):
         self.python_executable = python_executable
         self.bridge_script_path = bridge_script_path
@@ -54,6 +61,7 @@ class SubprocessRunner:
         self.command_timeout = command_timeout
         self.poll_interval = poll_interval
         self.extra_args = extra_args or []
+        self.extra_env = extra_env
 
         self._process: subprocess.Popen | None = None
         self._workspace: Path | None = None
@@ -88,6 +96,7 @@ class SubprocessRunner:
             stderr=subprocess.STDOUT,  # merge stderr into stdout
             text=True,
             bufsize=1,
+            env=self._build_subprocess_env(),
         )
 
         # Stream bridge output through logger in a background thread
@@ -163,6 +172,25 @@ class SubprocessRunner:
         if self._workspace is not None:
             cleanup_workspace(self._workspace)
             self._workspace = None
+
+    def _build_subprocess_env(self) -> dict[str, str] | None:
+        """Build env dict for subprocess, merging extra_env with os.environ.
+
+        For path-like vars (LD_LIBRARY_PATH, PATH, etc.), prepends the new
+        value to the existing value with ':' separator.
+
+        Returns None if no extra_env (subprocess inherits parent env).
+        """
+        if not self.extra_env:
+            return None
+
+        env = os.environ.copy()
+        for key, value in self.extra_env.items():
+            if key in self._PREPEND_ENV_VARS and key in env:
+                env[key] = f"{value}:{env[key]}"
+            else:
+                env[key] = value
+        return env
 
     def _build_launch_command(self) -> list[str]:
         """Build the command to launch the bridge subprocess."""
