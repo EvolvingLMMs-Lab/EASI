@@ -1,0 +1,39 @@
+display_name: "EB-Manipulation"
+description: "EB-Manipulation benchmark (robotic manipulation with 7D discrete gripper actions)"
+simulator: "coppeliasim:v4_1_0"
+task_class: "easi.tasks.ebmanipulation.task.EBManipulationTask"
+action_space: []
+max_steps: 15
+dataset:
+  source: huggingface
+  repo_id: "oscarqjh/EB-Manipulation_easi"
+  subset: null
+  zip_files:
+    - "simulator_data.zip"
+simulator_configs:
+  screen_height: 500
+  screen_width: 500
+  max_steps: 15
+  voxel_size: 100
+  rotation_resolution: 3
+  scene_bounds: [-0.3, -0.5, 0.6, 0.7, 0.5, 1.6]
+  amsolver_parent_path: ""
+  detection_box: true
+  additional_deps:
+    - "gymnasium"
+    - "ultralytics"
+    - "open3d"
+  env_vars:
+    QT_QPA_PLATFORM: "xcb"
+agent:
+  prompt_builder: "easi.tasks.ebmanipulation.prompts.EBManipulationPromptBuilder"
+  prompt_builder_kwargs:
+    n_shot: 10
+    use_feedback: true
+    chat_history: false
+  generation_kwargs:
+    temperature: 0
+    max_tokens: 2048
+    top_k: 50
+    top_p: 0.95
+    do_sample: false
