@@ -111,7 +111,12 @@ class ServerManager:
             ]
             for key, value in self.server_kwargs.items():
                 flag = "--" + key.replace("_", "-")
-                cmd.extend([flag, str(value)])
+                if isinstance(value, bool):
+                    if value:
+                        cmd.append(flag)
+                    # Skip False booleans (don't add the flag)
+                else:
+                    cmd.extend([flag, str(value)])
             return cmd
         else:
             raise ValueError(f"Unsupported server backend: {self.backend}")

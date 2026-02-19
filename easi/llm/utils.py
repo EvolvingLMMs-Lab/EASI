@@ -30,6 +30,12 @@ _SERVER_KWARGS = {
     "quantization",
     "enforce_eager",
     "enable_prefix_caching",
+    "trust_remote_code",
+    "tokenizer_mode",
+    "seed",
+    "max_num_seqs",
+    "disable_log_requests",
+    "limit_mm_per_prompt",
 }
 
 
