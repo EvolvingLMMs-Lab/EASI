@@ -13,15 +13,14 @@ dependencies = [
     "pyyaml>=6.0",
     "datasets>=2.0.0",
     "huggingface_hub>=0.19.0",
+    "litellm>=1.40",
+    "vllm"
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
     "pytest-timeout>=2.0",
-]
-llm = [
-    "litellm>=1.40",
 ]
 
 [project.scripts]
