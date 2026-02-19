@@ -45,8 +45,9 @@ class TestE2EEvaluation:
             task_name="dummy_task",
             agent_type="dummy",
             output_dir=tmp_path / "logs",
+            max_episodes=1,
         )
-        results = runner.run(max_episodes=1)
+        results = runner.run()
         assert len(results) == 1
 
     def test_per_episode_files(self, tmp_path):
@@ -56,8 +57,9 @@ class TestE2EEvaluation:
             task_name="dummy_task",
             agent_type="dummy",
             output_dir=output_dir,
+            max_episodes=2,
         )
-        runner.run(max_episodes=2)
+        runner.run()
 
         run_dir = _find_run_dir(output_dir)
         episode_dirs = sorted((run_dir / "episodes").iterdir())
@@ -77,8 +79,9 @@ class TestE2EEvaluation:
             task_name="dummy_task",
             agent_type="dummy",
             output_dir=tmp_path / "logs",
+            max_episodes=1,
         )
-        results = runner.run(max_episodes=1)
+        results = runner.run()
 
         ep = results[0]
         assert "success" in ep
@@ -112,14 +115,16 @@ class TestE2EEvaluation:
             agent_type="dummy",
             output_dir=tmp_path / "a",
             agent_seed=123,
-        ).run(max_episodes=2)
+            max_episodes=2,
+        ).run()
 
         results_b = EvaluationRunner(
             task_name="dummy_task",
             agent_type="dummy",
             output_dir=tmp_path / "b",
             agent_seed=123,
-        ).run(max_episodes=2)
+            max_episodes=2,
+        ).run()
 
         for a, b in zip(results_a, results_b):
             assert a["num_steps"] == b["num_steps"]
@@ -156,8 +161,9 @@ class TestE2EEvaluation:
             agent_type="dummy",
             output_dir=output_dir,
             agent_seed=42,
+            max_episodes=1,
         )
-        runner.run(max_episodes=1)
+        runner.run()
 
         run_dir = _find_run_dir(output_dir)
         config = json.loads((run_dir / "config.json").read_text())
@@ -177,8 +183,9 @@ class TestE2EEvaluation:
             task_name="dummy_task",
             agent_type="dummy",
             output_dir=output_dir,
+            max_episodes=1,
         )
-        runner.run(max_episodes=1)
+        runner.run()
 
         run_dir = _find_run_dir(output_dir)
         episode_dirs = sorted((run_dir / "episodes").iterdir())
@@ -207,8 +214,9 @@ class TestE2EEvaluation:
             task_name="dummy_task",
             agent_type="dummy",
             output_dir=output_dir,
+            max_episodes=1,
         )
-        runner.run(max_episodes=1)
+        runner.run()
 
         run_dir = _find_run_dir(output_dir)
         episode_dirs = sorted((run_dir / "episodes").iterdir())
@@ -228,9 +236,10 @@ class TestE2EEvaluation:
             agent_type="dummy",
             output_dir=output_dir,
             max_retries=5,
+            max_episodes=1,
         )
         assert runner.max_retries == 5
-        runner.run(max_episodes=1)
+        runner.run()
 
         run_dir = _find_run_dir(output_dir)
         config = json.loads((run_dir / "config.json").read_text())
@@ -363,6 +372,7 @@ class TestEpisodeRetry:
             agent_type="dummy",
             output_dir=output_dir,
             max_retries=3,
+            max_episodes=1,
         )
 
         call_count = {"n": 0}
@@ -375,7 +385,7 @@ class TestEpisodeRetry:
             return original_run_episode(*args, **kwargs)
 
         with patch.object(runner, "_run_episode", side_effect=failing_first_call):
-            results = runner.run(max_episodes=1)
+            results = runner.run()
 
         assert len(results) == 1
         assert "error" not in results[0]
@@ -391,13 +401,14 @@ class TestEpisodeRetry:
             agent_type="dummy",
             output_dir=output_dir,
             max_retries=2,
+            max_episodes=1,
         )
 
         with patch.object(
             runner, "_run_episode",
             side_effect=RuntimeError("persistent crash"),
         ):
-            results = runner.run(max_episodes=1)
+            results = runner.run()
 
         assert len(results) == 1
         assert results[0]["success"] == 0.0
@@ -414,6 +425,7 @@ class TestEpisodeRetry:
             agent_type="dummy",
             output_dir=output_dir,
             max_retries=2,
+            max_episodes=1,
         )
 
         original_run_episode = runner._run_episode
@@ -432,7 +444,7 @@ class TestEpisodeRetry:
             return original_run_episode(*args, **kwargs)
 
         with patch.object(runner, "_run_episode", side_effect=crash_then_succeed):
-            results = runner.run(max_episodes=1)
+            results = runner.run()
 
         assert len(results) == 1
         # The partial file should have been cleaned up
@@ -452,6 +464,7 @@ class TestEpisodeRetry:
             agent_type="dummy",
             output_dir=output_dir,
             max_retries=1,
+            max_episodes=2,
         )
 
         original_run_episode = runner._run_episode
@@ -465,7 +478,7 @@ class TestEpisodeRetry:
             return original_run_episode(*args, **kwargs)
 
         with patch.object(runner, "_run_episode", side_effect=fail_first_episode):
-            results = runner.run(max_episodes=2)
+            results = runner.run()
 
         # Both episodes should have results
         assert len(results) == 2
@@ -479,47 +492,46 @@ class TestEpisodeRetry:
 class TestResumeConfigLoading:
     def test_resume_loads_config_from_run_dir(self, tmp_path):
         """cmd_run with --resume loads task_name and options from config.json."""
+        from argparse import Namespace
         from easi.cli import cmd_run
 
         output_dir = tmp_path / "logs"
 
-        # First run with specific options
-        cmd_run(
+        # First run — only 2 of 3 episodes
+        runner = EvaluationRunner(
             task_name="dummy_task",
             agent_type="dummy",
-            output_dir=str(output_dir),
-            data_dir="./datasets",
+            output_dir=output_dir,
             max_episodes=2,
-            llm_url=None,
-            seed=42,
-            backend=None,
-            model="default",
-            port=8080,
-            llm_kwargs_raw=None,
-            max_retries=3,
-            resume=None,
+            agent_seed=42,
         )
+        runner.run()
 
         run_dir = _find_run_dir(output_dir)
 
-        # Resume without specifying task_name — should load from config.json
-        cmd_run(
+        # Resume with higher max_episodes to complete remaining
+        # Saved config has max_episodes=2; override to 3 to run all.
+        args = Namespace(
+            command="run",
+            verbosity="INFO",
             task_name=None,
             agent_type="dummy",
-            output_dir="./logs",
-            data_dir="./datasets",
-            max_episodes=None,
-            llm_url=None,
-            seed=None,
+            output_dir=None,
+            data_dir=None,
+            max_episodes=3,
+            llm_base_url=None,
+            agent_seed=None,
             backend=None,
-            model="default",
-            port=8080,
+            model=None,
+            port=None,
             llm_kwargs_raw=None,
-            max_retries=3,
-            resume=str(run_dir),
+            max_retries=None,
+            resume_dir=str(run_dir),
+            redownload=False,
         )
+        cmd_run(args)
 
-        # Should have completed successfully (3 total episodes from config)
+        # Should have completed all 3 episodes (2 from first run + 1 from resume)
         summary = json.loads((run_dir / "summary.json").read_text())
         assert summary["num_episodes"] == 3
 
@@ -529,7 +541,7 @@ class TestCLIParsing:
         from easi.cli import build_parser
         parser = build_parser()
         args = parser.parse_args(["run", "dummy_task"])
-        assert args.max_retries == 3
+        assert args.max_retries is None
 
     def test_cli_max_retries_custom(self):
         from easi.cli import build_parser
@@ -541,18 +553,33 @@ class TestCLIParsing:
         from easi.cli import build_parser
         parser = build_parser()
         args = parser.parse_args(["run", "dummy_task"])
-        assert args.resume is None
+        assert args.resume_dir is None
 
     def test_cli_resume_custom(self):
         from easi.cli import build_parser
         parser = build_parser()
         args = parser.parse_args(["run", "dummy_task", "--resume", "/tmp/logs/run_123"])
-        assert args.resume == "/tmp/logs/run_123"
+        assert args.resume_dir == "/tmp/logs/run_123"
 
     def test_cli_resume_without_task(self):
         """--resume should work without specifying a task name."""
         from easi.cli import build_parser
         parser = build_parser()
         args = parser.parse_args(["run", "--resume", "/tmp/logs/run_123"])
-        assert args.resume == "/tmp/logs/run_123"
-        assert args.task is None
+        assert args.resume_dir == "/tmp/logs/run_123"
+        assert args.task_name is None
+
+    def test_cli_all_defaults_are_none(self):
+        """All argparse defaults should be None (real defaults in __init__)."""
+        from easi.cli import build_parser
+        parser = build_parser()
+        args = parser.parse_args(["run", "dummy_task"])
+        assert args.agent_type is None
+        assert args.output_dir is None
+        assert args.data_dir is None
+        assert args.model is None
+        assert args.port is None
+        assert args.max_retries is None
+        assert args.llm_base_url is None
+        assert args.agent_seed is None
+        assert args.llm_kwargs_raw is None

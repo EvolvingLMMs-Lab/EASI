@@ -23,6 +23,7 @@ Output directory structure:
 
 from __future__ import annotations
 
+import inspect
 import json
 import re
 import time
@@ -44,12 +45,16 @@ def _sanitize_dirname(name: str) -> str:
 class EvaluationRunner:
     """Sequential evaluation runner."""
 
+    # Session-specific params excluded from config.json
+    _EXCLUDE_FROM_CONFIG = frozenset({"resume_dir", "redownload"})
+
     def __init__(
         self,
         task_name: str,
-        agent_type: str = "dummy",
+        agent_type: str = "react",
         output_dir: Path | str = "./logs",
         data_dir: Path | str = "./datasets",
+        max_episodes: int | None = None,
         llm_base_url: str | None = None,
         agent_seed: int | None = None,
         backend: str | None = None,
@@ -60,10 +65,18 @@ class EvaluationRunner:
         resume_dir: Path | str | None = None,
         redownload: bool = False,
     ):
+        # Auto-capture all init args for config.json (before any mutation)
+        frame = inspect.currentframe()
+        self._cli_options = {
+            k: v for k, v in inspect.getargvalues(frame).locals.items()
+            if k not in ("self", "frame") and k not in self._EXCLUDE_FROM_CONFIG
+        }
+
         self.task_name = task_name
         self.agent_type = agent_type
         self.output_dir = Path(output_dir)
         self.data_dir = Path(data_dir)
+        self.max_episodes = max_episodes
         self.llm_base_url = llm_base_url
         self.agent_seed = agent_seed
         self.backend = backend
@@ -102,7 +115,14 @@ class EvaluationRunner:
             f"Use --backend vllm|openai|anthropic|gemini or --llm-url <url>."
         )
 
-    def run(self, max_episodes: int | None = None) -> list[dict]:
+    def _serialize_cli_options(self) -> dict:
+        """Serialize _cli_options for JSON output (convert Paths to strings)."""
+        return {
+            k: str(v) if isinstance(v, Path) else v
+            for k, v in self._cli_options.items()
+        }
+
+    def run(self) -> list[dict]:
         """Run evaluation and return per-episode metric dicts."""
         if self.resume_dir:
             run_dir = self.resume_dir
@@ -125,8 +145,8 @@ class EvaluationRunner:
         if self.redownload:
             task.download_dataset(force=True)
         episodes = task.load_episodes()
-        if max_episodes is not None:
-            episodes = episodes[:max_episodes]
+        if self.max_episodes is not None:
+            episodes = episodes[:self.max_episodes]
 
         # 2. Resolve LLM backend and optionally start server
         backend, base_url = self._resolve_llm_backend()
@@ -155,20 +175,7 @@ class EvaluationRunner:
         config = {
             "run_id": self.run_id,
             "total_episodes": len(episodes),
-            "cli_options": {
-                "task_name": self.task_name,
-                "agent_type": self.agent_type,
-                "output_dir": str(self.output_dir),
-                "data_dir": str(self.data_dir),
-                "max_episodes": max_episodes,
-                "llm_base_url": self.llm_base_url,
-                "agent_seed": self.agent_seed,
-                "backend": self.backend,
-                "model": self.model,
-                "port": self.port,
-                "llm_kwargs_raw": self.llm_kwargs_raw,
-                "max_retries": self.max_retries,
-            },
+            "cli_options": self._serialize_cli_options(),
             "resolved_backend": backend,
             "resolved_base_url": base_url,
             "resolved_generation_kwargs": resolved_gen_kwargs,

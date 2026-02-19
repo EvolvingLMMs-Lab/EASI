@@ -52,11 +52,13 @@ class LLMClient:
         model: str,
         base_url: str | None = None,
         num_retries: int = 3,
+        timeout: float = 120.0,
         **kwargs: Any,
     ):
         self.model = model
         self.base_url = base_url
         self.num_retries = num_retries
+        self.timeout = timeout
         # Only keep params that litellm/OpenAI API recognises.
         dropped = {k: v for k, v in kwargs.items() if k not in _LITELLM_PARAMS}
         if dropped:
@@ -77,6 +79,7 @@ class LLMClient:
             "model": self.model,
             "messages": messages,
             "num_retries": self.num_retries,
+            "timeout": self.timeout,
             "drop_params": True,
             **self.default_kwargs,
         }
@@ -86,7 +89,11 @@ class LLMClient:
             call_kwargs["response_format"] = response_format
 
         logger.trace("LLM call: model=%s, messages=%d", self.model, len(messages))
-        response = litellm.completion(**call_kwargs)
+        try:
+            response = litellm.completion(**call_kwargs)
+        except Exception as e:
+            logger.trace("LLM API error: %s: %s", type(e).__name__, e)
+            raise
         self._track_usage(response)
 
         content = response.choices[0].message.content
