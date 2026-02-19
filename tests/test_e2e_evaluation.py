@@ -256,7 +256,7 @@ class TestE2EEvaluation:
         assert runner.resume_dir == tmp_path / "old_run"
 
     def test_resume_skips_completed_episodes(self, tmp_path):
-        """Resume skips completed episodes and re-runs the last one."""
+        """Resume with all episodes complete re-aggregates but doesn't re-run."""
         output_dir = tmp_path / "logs"
 
         # First run: complete all 3 episodes
@@ -271,7 +271,7 @@ class TestE2EEvaluation:
 
         run_dir = _find_run_dir(output_dir)
 
-        # Resume: should load episodes 0-1, re-run episode 2
+        # Resume: all episodes already complete — should load all, re-run none
         runner2 = EvaluationRunner(
             task_name="dummy_task",
             agent_type="dummy",
@@ -280,10 +280,10 @@ class TestE2EEvaluation:
             agent_seed=42,
         )
         results2 = runner2.run()
-        assert len(results2) == 3  # 2 loaded + 1 re-run
+        assert len(results2) == 3  # All loaded, none re-run
 
-    def test_resume_clears_last_episode_dir(self, tmp_path):
-        """Resume clears the last episode directory before re-running."""
+    def test_resume_clears_from_first_incomplete(self, tmp_path):
+        """Resume clears directories from the first incomplete episode onward."""
         output_dir = tmp_path / "logs"
 
         runner1 = EvaluationRunner(
@@ -297,11 +297,9 @@ class TestE2EEvaluation:
         run_dir = _find_run_dir(output_dir)
         episodes_dir = run_dir / "episodes"
         episode_dirs = sorted(episodes_dir.iterdir())
-        last_ep_dir = episode_dirs[-1]
 
-        # Add a marker file to the last episode dir
-        marker = last_ep_dir / "marker.txt"
-        marker.write_text("should be deleted")
+        # Simulate incomplete episode 1 by removing its result.json
+        (episode_dirs[1] / "result.json").unlink()
 
         runner2 = EvaluationRunner(
             task_name="dummy_task",
@@ -310,12 +308,8 @@ class TestE2EEvaluation:
             resume_dir=run_dir,
             agent_seed=42,
         )
-        runner2.run()
-
-        # Marker should be gone (dir was cleared)
-        assert not marker.exists()
-        # But result.json should exist (re-run completed)
-        assert (last_ep_dir / "result.json").exists()
+        results2 = runner2.run()
+        assert len(results2) == 3  # 1 loaded + 2 re-run
 
     def test_resume_produces_valid_summary(self, tmp_path):
         """Resumed run produces a valid summary with all episodes."""

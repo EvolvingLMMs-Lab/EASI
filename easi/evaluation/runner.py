@@ -126,27 +126,30 @@ class EvaluationRunner:
         """Run evaluation and return per-episode metric dicts."""
         if self.resume_dir:
             run_dir = self.resume_dir
-            all_results = self._load_completed_results(run_dir)
-            start_index = len(all_results)
-            logger.info(
-                "Resuming from %s — %d completed episodes, starting from %d",
-                run_dir, len(all_results), start_index,
-            )
         else:
             run_dir = self.output_dir / self.task_name / self.run_id
-            all_results = []
-            start_index = 0
 
         episodes_dir = run_dir / "episodes"
         episodes_dir.mkdir(parents=True, exist_ok=True)
 
-        # 1. Load task
+        # 1. Load task (before resume so we know total_episodes)
         task = self._create_task()
         if self.redownload:
             task.download_dataset(force=True)
         episodes = task.load_episodes()
         if self.max_episodes is not None:
             episodes = episodes[:self.max_episodes]
+
+        # Handle resume: load completed results and find start point
+        if self.resume_dir:
+            all_results, start_index = self._load_completed_results(run_dir, len(episodes))
+            logger.info(
+                "Resuming from %s — %d completed episodes, starting from index %d",
+                run_dir, len(all_results), start_index,
+            )
+        else:
+            all_results = []
+            start_index = 0
 
         # 2. Resolve LLM backend and optionally start server
         backend, base_url = self._resolve_llm_backend()
@@ -186,71 +189,77 @@ class EvaluationRunner:
             "Run config:\n%s", json.dumps(config, indent=2, default=str)
         )
 
-        # 3. Create agent
-        agent = self._create_agent(task.action_space, task._config,
-                                   backend=backend, base_url=base_url)
-
-        # 4. Start simulator
-        sim, sim_runner = self._create_simulator(task.simulator_key, task=task)
-
-        try:
-            for i, episode in enumerate(episodes):
-                if i < start_index:
-                    continue
-                episode_id = episode.get("episode_id", f"ep_{i}")
-                logger.info(
-                    "Episode %d/%d: %s", i + 1, len(episodes), episode_id,
-                )
-
-                episode_dir = episodes_dir / f"{i:03d}_{_sanitize_dirname(episode_id)}"
-                episode_dir.mkdir(exist_ok=True)
-
-                result = None
-                for attempt in range(1, self.max_retries + 1):
-                    try:
-                        result = self._run_episode(
-                            sim, agent, task, episode, i, episode_dir,
-                        )
-                        break
-                    except Exception as exc:
-                        logger.warning(
-                            "Episode %s attempt %d/%d failed: %s",
-                            episode_id, attempt, self.max_retries, exc,
-                        )
-                        self._clear_episode_dir(episode_dir)
-                        if attempt < self.max_retries:
-                            logger.info("Re-launching simulator for retry...")
-                            try:
-                                sim.close()
-                            except Exception:
-                                pass
-                            sim, sim_runner = self._create_simulator(
-                                task.simulator_key, task=task,
-                            )
-                        else:
-                            logger.error(
-                                "Episode %s failed after %d attempts, skipping",
-                                episode_id, self.max_retries,
-                            )
-                            result = {
-                                "episode_id": episode_id,
-                                "instruction": task.get_instruction(episode),
-                                "success": 0.0,
-                                "num_steps": 0,
-                                "elapsed_seconds": 0.0,
-                                "error": str(exc),
-                            }
-
-                all_results.append(result)
-
-                (episode_dir / "result.json").write_text(
-                    json.dumps(result, indent=2)
-                )
-
-        finally:
-            sim.close()
+        # Skip simulator/agent if all episodes already complete (resume)
+        if start_index >= len(episodes):
+            logger.info("All %d episodes already complete, re-aggregating summary.", len(episodes))
             if server:
                 server.stop()
+        else:
+            # 3. Create agent
+            agent = self._create_agent(task.action_space, task._config,
+                                       backend=backend, base_url=base_url)
+
+            # 4. Start simulator
+            sim, sim_runner = self._create_simulator(task.simulator_key, task=task)
+
+            try:
+                for i, episode in enumerate(episodes):
+                    if i < start_index:
+                        continue
+                    episode_id = episode.get("episode_id", f"ep_{i}")
+                    logger.info(
+                        "Episode %d/%d: %s", i + 1, len(episodes), episode_id,
+                    )
+
+                    episode_dir = episodes_dir / f"{i:03d}_{_sanitize_dirname(episode_id)}"
+                    episode_dir.mkdir(exist_ok=True)
+
+                    result = None
+                    for attempt in range(1, self.max_retries + 1):
+                        try:
+                            result = self._run_episode(
+                                sim, agent, task, episode, i, episode_dir,
+                            )
+                            break
+                        except Exception as exc:
+                            logger.warning(
+                                "Episode %s attempt %d/%d failed: %s",
+                                episode_id, attempt, self.max_retries, exc,
+                            )
+                            self._clear_episode_dir(episode_dir)
+                            if attempt < self.max_retries:
+                                logger.info("Re-launching simulator for retry...")
+                                try:
+                                    sim.close()
+                                except Exception:
+                                    pass
+                                sim, sim_runner = self._create_simulator(
+                                    task.simulator_key, task=task,
+                                )
+                            else:
+                                logger.error(
+                                    "Episode %s failed after %d attempts, skipping",
+                                    episode_id, self.max_retries,
+                                )
+                                result = {
+                                    "episode_id": episode_id,
+                                    "instruction": task.get_instruction(episode),
+                                    "success": 0.0,
+                                    "num_steps": 0,
+                                    "elapsed_seconds": 0.0,
+                                    "error": str(exc),
+                                }
+
+                    all_results.append(result)
+
+                    (episode_dir / "result.json").write_text(
+                        json.dumps(result, indent=2)
+                    )
+
+            finally:
+                sim.close()
+                if server:
+                    server.stop()
 
         # 5. Aggregate and save summary
         summary = aggregate_metrics(all_results)
@@ -264,32 +273,63 @@ class EvaluationRunner:
 
         return all_results
 
-    def _load_completed_results(self, run_dir: Path) -> list[dict]:
-        """Load results from a previous run for resume.
+    def _load_completed_results(self, run_dir: Path, total_episodes: int) -> tuple[list[dict], int]:
+        """Scan episode dirs to find the first incomplete episode.
 
-        Returns results from all completed episodes except the last one.
-        The last episode directory is cleared for re-run (it may have been
-        interrupted mid-way).
+        Walks episode directories in ascending order (by index prefix).
+        An episode is "complete" if its directory has a valid result.json.
+        Returns results for all consecutive complete episodes from the start,
+        and clears all directories from the first incomplete episode onward.
+
+        Args:
+            run_dir: The run directory containing episodes/.
+            total_episodes: Total number of episodes in the evaluation.
+
+        Returns:
+            (completed_results, start_index) tuple.
         """
+        import shutil
+
         episodes_dir = run_dir / "episodes"
         if not episodes_dir.exists():
-            return []
+            return [], 0
 
-        result_files = sorted(episodes_dir.glob("*/result.json"))
-        if not result_files:
-            return []
+        # Collect all episode dirs, sorted by name (which starts with {i:03d}_)
+        episode_dirs = sorted(
+            [d for d in episodes_dir.iterdir() if d.is_dir()],
+            key=lambda d: d.name,
+        )
+        if not episode_dirs:
+            return [], 0
 
-        # Load all completed results except the last
-        all_results = []
-        for rf in result_files[:-1]:
-            all_results.append(json.loads(rf.read_text()))
+        # Walk in order, loading results until we hit an incomplete episode
+        completed_results = []
+        start_index = 0
 
-        # Clear the last episode directory for re-run
-        last_episode_dir = result_files[-1].parent
-        for f in last_episode_dir.iterdir():
-            f.unlink()
+        for ep_dir in episode_dirs:
+            result_file = ep_dir / "result.json"
+            if result_file.exists():
+                try:
+                    result = json.loads(result_file.read_text())
+                    completed_results.append(result)
+                    start_index += 1
+                    continue
+                except (json.JSONDecodeError, OSError):
+                    logger.warning("Corrupt result.json in %s, treating as incomplete", ep_dir)
+            # First incomplete episode found — stop here
+            break
 
-        return all_results
+        # Clear all episode dirs from start_index onward
+        dirs_to_clear = episode_dirs[start_index:]
+        if dirs_to_clear:
+            logger.info(
+                "Resume: clearing %d episode dirs from index %d onward",
+                len(dirs_to_clear), start_index,
+            )
+            for d in dirs_to_clear:
+                shutil.rmtree(d)
+
+        return completed_results, start_index
 
     def _run_episode(
         self, sim, agent, task, episode: dict, index: int, episode_dir: Path,

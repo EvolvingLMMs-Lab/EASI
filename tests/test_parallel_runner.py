@@ -31,19 +31,6 @@ class TestParallelRunnerInit:
 class TestParallelRunnerValidation:
     """Test that unsupported configs are rejected."""
 
-    def test_resume_raises_not_implemented(self, tmp_path):
-        from easi.evaluation.parallel_runner import ParallelRunner
-        resume_dir = tmp_path / "fake_run"
-        resume_dir.mkdir()
-        (resume_dir / "config.json").write_text('{"cli_options": {}}')
-
-        runner = ParallelRunner(
-            task_name="dummy_task", num_parallel=2,
-            agent_type="dummy", resume_dir=str(resume_dir),
-        )
-        with pytest.raises(NotImplementedError, match="does not support --resume"):
-            runner.run()
-
     def test_local_vllm_raises_not_implemented(self, tmp_path):
         from easi.evaluation.parallel_runner import ParallelRunner
         runner = ParallelRunner(
@@ -154,3 +141,76 @@ class TestCLIParallelArg:
         parser = build_parser()
         args = parser.parse_args(["start", "dummy_task"])
         assert args.num_parallel is None
+
+
+class TestParallelResume:
+    """Test resume support for parallel runner."""
+
+    def test_parallel_resume_basic(self, tmp_path):
+        """Parallel run can be resumed after partial completion."""
+        from easi.evaluation.parallel_runner import ParallelRunner
+
+        # First run: complete only 1 of 3 episodes
+        runner1 = ParallelRunner(
+            task_name="dummy_task", num_parallel=2,
+            agent_type="dummy", output_dir=str(tmp_path),
+            max_episodes=1,
+        )
+        results1 = runner1.run()
+        assert len(results1) == 1
+
+        run_dir = list((tmp_path / "dummy_task").iterdir())[0]
+
+        # Resume: should complete remaining episodes
+        runner2 = ParallelRunner(
+            task_name="dummy_task", num_parallel=2,
+            agent_type="dummy", output_dir=str(tmp_path),
+            resume_dir=str(run_dir),
+        )
+        results2 = runner2.run()
+        assert len(results2) == 3  # 1 loaded + 2 re-run
+
+    def test_parallel_resume_all_complete(self, tmp_path):
+        """Resuming a fully complete parallel run re-aggregates."""
+        from easi.evaluation.parallel_runner import ParallelRunner
+
+        runner1 = ParallelRunner(
+            task_name="dummy_task", num_parallel=2,
+            agent_type="dummy", output_dir=str(tmp_path),
+        )
+        runner1.run()
+
+        run_dir = list((tmp_path / "dummy_task").iterdir())[0]
+
+        runner2 = ParallelRunner(
+            task_name="dummy_task", num_parallel=2,
+            agent_type="dummy", output_dir=str(tmp_path),
+            resume_dir=str(run_dir),
+        )
+        results2 = runner2.run()
+        assert len(results2) == 3
+
+    def test_parallel_resume_with_gap(self, tmp_path):
+        """Resume clears from first incomplete even if later episodes exist."""
+        from easi.evaluation.parallel_runner import ParallelRunner
+
+        runner1 = ParallelRunner(
+            task_name="dummy_task", num_parallel=2,
+            agent_type="dummy", output_dir=str(tmp_path),
+        )
+        runner1.run()
+
+        run_dir = list((tmp_path / "dummy_task").iterdir())[0]
+        episodes_dir = run_dir / "episodes"
+        episode_dirs = sorted(episodes_dir.iterdir())
+
+        # Simulate gap: remove result.json from episode 1
+        (episode_dirs[1] / "result.json").unlink()
+
+        runner2 = ParallelRunner(
+            task_name="dummy_task", num_parallel=2,
+            agent_type="dummy", output_dir=str(tmp_path),
+            resume_dir=str(run_dir),
+        )
+        results2 = runner2.run()
+        assert len(results2) == 3  # 1 loaded + 2 re-run
