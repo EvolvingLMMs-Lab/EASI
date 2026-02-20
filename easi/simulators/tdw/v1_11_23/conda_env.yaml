@@ -1,0 +1,6 @@
+name: easi_tdw_v1_11_23
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10

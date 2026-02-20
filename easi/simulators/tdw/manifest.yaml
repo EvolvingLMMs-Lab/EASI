@@ -1,0 +1,9 @@
+name: tdw
+display_name: "ThreeDWorld (TDW)"
+default_version: "v1_11_23"
+versions:
+  v1_11_23:
+    description: "TDW 1.11.23 — used by HAZARD benchmark"
+    simulator_class: "easi.simulators.tdw.v1_11_23.simulator.TDWSimulator"
+    env_manager_class: "easi.simulators.tdw.v1_11_23.env_manager.TDWEnvManager"
+    python_version: "3.10"
