@@ -60,7 +60,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     task_download = task_sub.add_parser("download", help="Download task dataset", parents=[common])
     task_download.add_argument("task", type=str)
-    task_download.add_argument("--redownload", action="store_true",
+    task_download.add_argument("--refresh-data", action="store_true", dest="refresh_data",
                                help="Delete cached dataset and re-download from source")
 
     task_scaffold = task_sub.add_parser("scaffold", help="Generate boilerplate for a new benchmark", parents=[common])
@@ -113,7 +113,7 @@ def build_parser() -> argparse.ArgumentParser:
                                    "Only supported with proprietary API backends (openai, anthropic, gemini).")
     start_parser.add_argument("--resume", type=str, default=None, dest="resume_dir",
                               help="Path to a previous run directory to resume from")
-    start_parser.add_argument("--redownload", action="store_true",
+    start_parser.add_argument("--refresh-data", action="store_true", dest="refresh_data",
                               help="Delete cached dataset and re-download from source")
 
     # --- llm-server command ---
@@ -235,12 +235,12 @@ def cmd_task_scaffold(name: str, simulator: str, max_steps: int) -> None:
     logger.info("  4. Run tests: pytest tests/test_%s.py -v", name)
 
 
-def cmd_task_download(task_name: str, redownload: bool = False) -> None:
+def cmd_task_download(task_name: str, refresh_data: bool = False) -> None:
     from easi.tasks.registry import load_task_class
 
     TaskClass = load_task_class(task_name)
     task = TaskClass()
-    path = task.download_dataset(force=redownload)
+    path = task.download_dataset(force=refresh_data)
     if path and str(path):
         logger.info("Dataset ready at: %s", path)
     else:
@@ -328,7 +328,7 @@ def cmd_start(args):
 
     # Extract session-specific params (not saved in config.json)
     resume_dir = raw.pop("resume_dir", None)
-    redownload = raw.pop("redownload", False)
+    redownload = raw.pop("refresh_data", False)
 
     if resume_dir:
         if len(task_list) > 1:
@@ -371,14 +371,14 @@ def cmd_start(args):
                 num_parallel=num_parallel,
                 **run_kwargs,
                 resume_dir=resume_dir,
-                redownload=redownload,
+                refresh_data=redownload,
             )
         else:
             runner = EvaluationRunner(
                 task_name=task_name,
                 **run_kwargs,
                 resume_dir=resume_dir,
-                redownload=redownload,
+                refresh_data=redownload,
             )
 
         results = runner.run()
@@ -434,7 +434,7 @@ def main() -> None:
         elif args.task_action == "info":
             cmd_task_info(args.task)
         elif args.task_action == "download":
-            cmd_task_download(args.task, redownload=args.redownload)
+            cmd_task_download(args.task, refresh_data=args.refresh_data)
         elif args.task_action == "scaffold":
             cmd_task_scaffold(args.name, args.simulator, args.max_steps)
         else:

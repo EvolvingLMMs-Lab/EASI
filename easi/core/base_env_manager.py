@@ -309,22 +309,32 @@ class BaseEnvironmentManager(ABC):
             logger.info("Already downloaded: %s, skipping", filename)
             return
 
+        logger.trace("Download target: %s -> %s", url, dest)
         with spinner(f"Downloading {filename}"):
             logger.info("Downloading %s", url)
             req = urllib.request.Request(url, headers={"User-Agent": "easi/1.0"})
             with urllib.request.urlopen(req) as response, open(str(dest), "wb") as out:
+                total = 0
                 while True:
                     chunk = response.read(1024 * 1024)  # 1MB chunks
                     if not chunk:
                         break
                     out.write(chunk)
+                    total += len(chunk)
+                logger.trace("Download complete: %s (%.1f MB)", filename, total / 1024 / 1024)
 
         if extract:
+            logger.trace("Extracting %s to %s (strip_components=%d)", filename, dest_dir, strip_components)
             with spinner(f"Extracting {filename}"):
                 self._extract_archive(dest, dest_dir, strip_components)
+            logger.trace("Extraction complete, removing archive %s", dest)
             dest.unlink(missing_ok=True)  # Remove archive to save space
+            # Log extracted contents (top-level only)
+            top_items = sorted(p.name for p in dest_dir.iterdir() if not p.name.startswith("."))
+            logger.trace("Contents of %s after extraction: %s", dest_dir, top_items)
 
         marker.touch()
+        logger.trace("Wrote done marker: %s", marker)
 
     def _extract_archive(self, archive: Path, dest_dir: Path, strip_components: int = 0) -> None:
         """Extract a tar.xz, tar.gz, tar.bz2, or zip archive."""

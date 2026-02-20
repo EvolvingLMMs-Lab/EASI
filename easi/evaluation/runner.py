@@ -45,7 +45,7 @@ class EvaluationRunner:
     """Sequential evaluation runner."""
 
     # Session-specific params excluded from config.json
-    _EXCLUDE_FROM_CONFIG = frozenset({"resume_dir", "redownload"})
+    _EXCLUDE_FROM_CONFIG = frozenset({"resume_dir", "refresh_data"})
 
     def __init__(
         self,
@@ -62,7 +62,7 @@ class EvaluationRunner:
         llm_kwargs_raw: str | None = None,
         max_retries: int = 3,
         resume_dir: Path | str | None = None,
-        redownload: bool = False,
+        refresh_data: bool = False,
     ):
         # Auto-capture all init args for config.json (before any mutation)
         frame = inspect.currentframe()
@@ -84,7 +84,7 @@ class EvaluationRunner:
         self.llm_kwargs_raw = llm_kwargs_raw
         self.max_retries = max_retries
         self.resume_dir = Path(resume_dir) if resume_dir else None
-        self.redownload = redownload
+        self.refresh_data = refresh_data
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         if self.model:
             safe_model = self.model.replace("/", "_")
@@ -133,7 +133,7 @@ class EvaluationRunner:
 
         # 1. Load task (before resume so we know total_episodes)
         task = self._create_task()
-        if self.redownload:
+        if self.refresh_data:
             task.download_dataset(force=True)
         episodes = task.load_episodes()
         if self.max_episodes is not None:

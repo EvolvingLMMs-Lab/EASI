@@ -87,6 +87,11 @@ class HAZARDBridge(BaseBridge):
         build_path = os.environ.get("TDW_BUILD_PATH") or self.simulator_kwargs.get(
             "tdw_build_path"
         )
+        logger.trace(
+            "TDW build lookup: TDW_BUILD_PATH=%s, simulator_kwargs.tdw_build_path=%s",
+            os.environ.get("TDW_BUILD_PATH"),
+            self.simulator_kwargs.get("tdw_build_path"),
+        )
         if not build_path:
             logger.warning(
                 "TDW_BUILD_PATH not set — assuming TDW build is already running. "
@@ -94,7 +99,12 @@ class HAZARDBridge(BaseBridge):
             )
             return
 
-        binary = Path(build_path) / "TDW.x86_64"
+        build_dir = Path(build_path)
+        binary = build_dir / "TDW.x86_64"
+        logger.trace("TDW build dir: %s (exists=%s)", build_dir, build_dir.exists())
+        if build_dir.exists():
+            items = sorted(p.name for p in build_dir.iterdir())
+            logger.trace("TDW build dir contents: %s", items)
         if not binary.exists():
             logger.warning(
                 "TDW build binary not found at %s — assuming TDW build is already running.",
@@ -102,28 +112,46 @@ class HAZARDBridge(BaseBridge):
             )
             return
 
+        logger.trace("DISPLAY=%s", os.environ.get("DISPLAY", "<unset>"))
+        cmd = [str(binary), "-port", str(port)]
         logger.info("Launching TDW build: %s (port %d)", binary, port)
+        logger.trace("TDW launch command: %s", cmd)
         self._tdw_process = subprocess.Popen(
-            [str(binary), "-port", str(port)],
+            cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
+        logger.trace("TDW build process started (pid %d)", self._tdw_process.pid)
 
         # Wait for TDW to start listening on the port
         self._wait_for_port(port, timeout=60)
+
+        # Check if process is still alive after port wait
+        retcode = self._tdw_process.poll()
+        if retcode is not None:
+            logger.error("TDW build process exited with code %d before becoming ready", retcode)
+            self._tdw_process = None
+            return
+
         logger.info("TDW build is ready on port %d (pid %d)", port, self._tdw_process.pid)
 
     @staticmethod
     def _wait_for_port(port, timeout=60, interval=1.0):
         """Poll until a TCP port is accepting connections."""
+        logger.trace("Waiting for port %d (timeout=%ds, interval=%.1fs)", port, timeout, interval)
         deadline = time.time() + timeout
+        attempts = 0
         while time.time() < deadline:
+            attempts += 1
             try:
                 with socket.create_connection(("127.0.0.1", port), timeout=2):
+                    logger.trace("Port %d is ready after %d attempts", port, attempts)
                     return
-            except OSError:
+            except OSError as e:
+                if attempts <= 3 or attempts % 10 == 0:
+                    logger.trace("Port %d not ready (attempt %d): %s", port, attempts, e)
                 time.sleep(interval)
-        logger.warning("TDW build did not become ready on port %d within %ds", port, timeout)
+        logger.warning("TDW build did not become ready on port %d within %ds (%d attempts)", port, timeout, attempts)
 
     def _create_env(self, reset_config, simulator_kwargs):
         """Create the appropriate HAZARD env (Fire/Flood/Wind).
@@ -136,6 +164,7 @@ class HAZARDBridge(BaseBridge):
         port = simulator_kwargs.get("port", 1071)
         screen_size = simulator_kwargs.get("screen_size", 512)
         use_cached_assets = simulator_kwargs.get("use_cached_assets", False)
+        use_gt = simulator_kwargs.get("use_gt", True)
 
         # Launch TDW Unity build (no-op if TDW_BUILD_PATH not set)
         self._launch_tdw_build(port)
@@ -146,21 +175,21 @@ class HAZARDBridge(BaseBridge):
             env = FireEnv(
                 launch_build=launch_build, screen_size=screen_size, port=port,
                 use_local_resources=use_cached_assets,
-                check_version=False, use_gt=False,
+                check_version=False, use_gt=use_gt,
             )
         elif scenario == "flood":
             from HAZARD.envs.flood import FloodEnv
             env = FloodEnv(
                 launch_build=launch_build, screen_size=screen_size, port=port,
                 use_local_resources=use_cached_assets,
-                check_version=False, use_gt=False,
+                check_version=False, use_gt=use_gt,
             )
         elif scenario == "wind":
             from HAZARD.envs.wind import WindEnv
             env = WindEnv(
                 launch_build=launch_build, screen_size=screen_size, port=port,
                 use_local_resources=use_cached_assets,
-                check_version=False, use_gt=False,
+                check_version=False, use_gt=use_gt,
             )
         else:
             raise ValueError(f"Unknown HAZARD scenario: {scenario}")

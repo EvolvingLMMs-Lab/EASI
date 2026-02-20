@@ -13,6 +13,7 @@ Supports xvfb-run wrapping for simulators that need a display.
 from __future__ import annotations
 
 import os
+import re
 import signal
 import subprocess
 import threading
@@ -215,8 +216,25 @@ class SubprocessRunner:
         """Check if an X display is available."""
         return bool(os.environ.get("DISPLAY", ""))
 
+    # Pattern to extract log level from bridge output (e.g. "[WARNING]" or "[ERROR]")
+    _BRIDGE_LEVEL_RE = re.compile(r"\[(\w+)\]")
+
+    # Map bridge level names to logging levels
+    _BRIDGE_LEVEL_MAP = {
+        "TRACE": 5,  # easi TRACE level
+        "DEBUG": 10,
+        "INFO": 20,
+        "WARNING": 30,
+        "ERROR": 40,
+        "CRITICAL": 50,
+    }
+
     def _stream_output(self) -> None:
-        """Read bridge stdout line-by-line and log at DEBUG level.
+        """Read bridge stdout line-by-line and re-log at the matching level.
+
+        Parses the log level from each bridge line (e.g. "[WARNING]") and
+        re-emits at that level so the parent process applies correct coloring.
+        Lines without a recognized level default to TRACE.
 
         Runs in a daemon thread for the lifetime of the subprocess.
         """
@@ -227,9 +245,17 @@ class SubprocessRunner:
             for line in proc.stdout:
                 line = line.rstrip()
                 self._output_lines.append(line)
-                logger.trace("[bridge] %s", line)
+                level = self._parse_bridge_level(line)
+                logger.log(level, "[bridge] %s", line)
         except (ValueError, OSError):
             pass  # pipe closed
+
+    def _parse_bridge_level(self, line: str) -> int:
+        """Extract log level from a bridge output line."""
+        match = self._BRIDGE_LEVEL_RE.search(line)
+        if match:
+            return self._BRIDGE_LEVEL_MAP.get(match.group(1), 5)
+        return 5  # default to TRACE
 
     def _get_recent_output(self) -> str:
         """Return the last N lines of captured bridge output."""

@@ -45,6 +45,23 @@ class TDWEnvManager(BaseEnvironmentManager):
     def get_validation_import(self) -> str:
         return "from tdw.controller import Controller; print('tdw ok')"
 
+    def env_is_ready(self) -> bool:
+        """Check conda env + TDW build binary exist."""
+        if not super().env_is_ready():
+            return False
+        # Also verify the TDW Unity build binary was downloaded
+        build_dir = self.installation_kwargs.get("build_dir_name", "")
+        if build_dir:
+            binary = self.get_extras_dir() / build_dir / "TDW.x86_64"
+            if not binary.exists():
+                logger.info(
+                    "TDW conda env is ready but build binary missing at %s, "
+                    "will re-run install to download it.",
+                    binary,
+                )
+                return False
+        return True
+
     def get_env_vars(self) -> dict[str, str]:
         """Return TDW env vars for bridge subprocess."""
         build_dir = self.installation_kwargs.get("build_dir_name", "")
@@ -64,6 +81,8 @@ class TDWEnvManager(BaseEnvironmentManager):
         build_url = self.installation_kwargs.get("build_url")
         build_filename = self.installation_kwargs.get("build_filename")
 
+        logger.trace("post_install: extras_dir=%s, build_url=%s", extras_dir, build_url)
+
         if build_url and build_filename:
             logger.info("Downloading TDW build from %s", build_url)
             self._download_and_extract(
@@ -71,9 +90,24 @@ class TDWEnvManager(BaseEnvironmentManager):
                 filename=build_filename,
                 dest_dir=extras_dir,
             )
-            # Make binary executable
+
+            # Log what was extracted
             build_dir = self.installation_kwargs.get("build_dir_name", "TDW")
-            binary = extras_dir / build_dir / "TDW.x86_64"
+            build_path = extras_dir / build_dir
+            logger.trace("Expected build dir: %s (exists=%s)", build_path, build_path.exists())
+            if build_path.exists():
+                items = sorted(p.name for p in build_path.iterdir())
+                logger.trace("Build dir contents: %s", items)
+            else:
+                # List extras_dir to help debug incorrect dir name
+                items = sorted(p.name for p in extras_dir.iterdir() if not p.name.startswith("."))
+                logger.trace("extras_dir contents (build dir missing): %s", items)
+
+            # Make binary executable
+            binary = build_path / "TDW.x86_64"
+            logger.trace("Expected binary: %s (exists=%s)", binary, binary.exists())
             if binary.exists():
                 binary.chmod(binary.stat().st_mode | 0o755)
                 logger.info("TDW build binary ready at %s", binary)
+            else:
+                logger.warning("TDW binary not found at %s after extraction", binary)

@@ -59,7 +59,7 @@ class ParallelRunner(EvaluationRunner):
         # --- Phase 1: Load task ---
         logger.trace("Phase 1: Loading task")
         task = self._create_task()
-        if self.redownload:
+        if self.refresh_data:
             task.download_dataset(force=True)
         episodes = task.load_episodes()
         if self.max_episodes is not None:
