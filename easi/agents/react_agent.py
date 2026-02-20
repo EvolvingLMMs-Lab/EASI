@@ -131,9 +131,8 @@ class ReActAgent(BaseAgent):
     def _fallback_action(self) -> Action:
         """Return a safe fallback action when parsing fails.
 
-        If the action space has "Stop", use it (e.g., EB-Alfred).
+        If the action space has "Stop", use it.
         Otherwise, signal that the episode should end via "<<STOP>>"
-        (matching EmbodiedBench behavior where empty plans end episodes).
         """
         if "Stop" in self.action_space:
             return Action(action_name="Stop")

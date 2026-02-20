@@ -61,8 +61,6 @@ class PromptBuilderProtocol(Protocol):
             Return a response_format dict for API-level JSON enforcement.
             E.g. {"type": "json_schema", "json_schema": {"name": "...", "schema": {...}}}
             When provided, the agent passes it to LLMClient.generate().
-            If the backend doesn't support it, the agent falls back to
-            prompt-only (the template is already in the messages).
             Builders that don't implement this get no schema enforcement.
     """
 
