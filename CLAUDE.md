@@ -1,123 +1,183 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with this repository.
 
 ## Project Overview
 
-EASI (Holistic Evaluation of Multimodal LLMs on Spatial Intelligence) is a unified evaluation suite for benchmarking multimodal LLMs on spatial intelligence tasks. It is an **orchestration project** — it does not contain evaluation code itself but wraps two external backends via git submodules.
+EASI is a unified evaluation framework for embodied AI agents. It has two layers:
+
+1. **Static benchmarks** — VLMEvalKit and lmms-eval submodules for VLM evaluation (image Q&A, spatial reasoning). These are mature and rarely modified.
+2. **Embodied agent evaluation** (`easi/` library) — The active development focus. Subprocess-isolated simulators, multi-split tasks, and LLM-powered agents for interactive benchmarks (EB-Alfred, EB-Navigation, EB-Habitat, EB-Manipulation, HAZARD).
+
+Most development work happens in the `easi/` library.
+
+## Quick Reference
+
+```bash
+# Setup
+pip install -e ".[dev]"
+
+# Run tests (540 tests, ~4-5min)
+pytest tests/ -v --timeout=60
+
+# CLI
+easi task list                    # List all tasks
+easi env list                     # List all simulators
+easi env install ai2thor:v2_1_0   # Install simulator env
+easi sim test dummy               # Smoke test simulator
+easi start dummy_task --agent dummy  # Run evaluation (no LLM)
+
+# Real evaluation
+easi start ebalfred_base --agent react --backend openai --model gpt-4o
+easi start ebalfred_base --agent react --backend openai --model gpt-4o --num-parallel 4
+easi start --resume ./logs/ebalfred_base/<run_id>
+```
 
 ## Architecture
 
-EASI uses a **dual-backend architecture**:
-
-- **VLMEvalKit** (`VLMEvalKit/` submodule) — Feature-rich backend with built-in model zoo and LLM-based answer judging. Entry point: `VLMEvalKit/run.py`.
-- **lmms-eval** (`lmms-eval/` submodule) — Lightweight, accelerate-based backend with multi-GPU distributed inference. Entry point: `lmms-eval` CLI command after `pip install -e ./lmms-eval`.
-
-Both submodules point to EvolvingLMMs-Lab forks. Submodules must be initialized before use:
-```bash
-git submodule update --init --recursive
-```
-
-The root repository contains:
-- `examples/` — Shell scripts demonstrating evaluation invocations (lmms-eval backend)
-- `dockerfiles/` — Docker configs for EASI, VLM3R, and Cambrains runtime environments
-- `docs/` — Changelog, benchmark verification data, supported models/benchmarks matrix
-
-## Setup & Installation
-
-**VLMEvalKit backend:**
-```bash
-git clone --recursive https://github.com/EvolvingLMMs-Lab/EASI.git
-cd EASI && pip install -e ./VLMEvalKit
-```
-
-**lmms-eval backend:**
-```bash
-git clone --recursive https://github.com/EvolvingLMMs-Lab/EASI.git
-cd EASI && pip install -e ./lmms-eval spacy
-pip install flash-attn --no-build-isolation
-```
-
-**Docker:**
-```bash
-bash dockerfiles/EASI/build_runtime_docker.sh
-```
-
-## Running Evaluations
-
-**VLMEvalKit:**
-```bash
-cd VLMEvalKit/
-python run.py --data {BENCHMARK} --model {MODEL} --judge {JUDGE_MODE} --verbose --reuse
-```
-Judge modes: `extract_matching` (regex), `gpt-4o-1120` (LLM-based, needs OPENAI_API_KEY).
-
-**lmms-eval (single GPU):**
-```bash
-lmms-eval --model {MODEL_TYPE} --model_args pretrained={MODEL_PATH} \
-  --tasks {TASK} --batch_size 1 --log_samples --output_path ./logs/
-```
-
-**lmms-eval (multi-GPU):**
-```bash
-CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch --num_processes=4 \
-  -m lmms_eval --model {MODEL_TYPE} --model_args pretrained={MODEL_PATH} \
-  --tasks {TASK} --batch_size 1 --log_samples --output_path ./logs/
-```
-
-List available tasks: `lmms-eval --tasks list`
-
-## EASI Library (`easi/`)
-
-The `easi` package is a Python library for embodied agent evaluation with subprocess-isolated simulators. Install: `pip install -e .`
-
-### Architecture
-
 ```
 easi/
-├── core/           # Base classes: BaseTask, BaseSimulator, BaseAgent, Episode/Action/StepResult
-├── agents/         # DummyAgent, ReActAgent (with multi-action buffering + PromptBuilder)
-├── communication/  # Filesystem IPC: atomic JSON read/write, command/response schemas
-├── evaluation/     # EvaluationRunner (sequential orchestrator), metrics aggregation
-├── llm/            # LLMApiClient (OpenAI-compatible), DummyLLMServer
-├── simulators/     # Simulator implementations (subprocess bridges)
-│   ├── dummy/v1/   # In-memory dummy bridge for testing
-│   └── ai2thor/v2_1_0/  # Real AI2-THOR 2.1.0 bridge for EB-Alfred
-├── tasks/          # Task definitions (per-split YAML configs)
-│   ├── dummy/      # dummy_task (3 test episodes)
-│   └── ebalfred/   # EB-Alfred (6 splits: base, long_horizon, common_sense, etc.)
-└── utils/          # import_class(), logging setup
+├── core/              # Abstract base classes + dataclasses
+│   ├── base_task.py          # BaseTask — task interface
+│   ├── base_simulator.py     # BaseSimulator — simulator interface
+│   ├── base_agent.py         # BaseAgent — agent interface
+│   ├── base_env_manager.py   # BaseEnvironmentManager — conda env setup
+│   ├── episode.py            # Observation, Action, StepResult, EpisodeRecord
+│   ├── memory.py             # AgentMemory — shared agent/prompt state
+│   ├── protocols.py          # Runtime-checkable Protocol interfaces
+│   └── exceptions.py         # EASIError hierarchy
+│
+├── agents/            # Agent implementations
+│   ├── dummy_agent.py        # Random action picker (testing)
+│   ├── react_agent.py        # ReAct agent with multi-action buffering
+│   └── prompt_builder.py     # PromptBuilder protocol + DefaultPromptBuilder
+│
+├── simulators/        # Simulator implementations (subprocess-isolated)
+│   ├── base_bridge.py        # BaseBridge — Gym-like env wrapper for IPC
+│   ├── subprocess_runner.py  # SubprocessRunner — process lifecycle
+│   ├── registry.py           # Auto-discovery via manifest.yaml
+│   ├── dummy/v1/             # In-memory testing simulator
+│   ├── ai2thor/v2_1_0/       # AI2-THOR 2.1.0 (EB-Alfred, Python 3.8)
+│   ├── ai2thor/v5_0_0/       # AI2-THOR 5.0.0 (EB-Navigation, Python 3.10)
+│   ├── habitat_sim/v0_3_0/   # Habitat-Sim 0.3.0 (EB-Habitat, Python 3.9)
+│   ├── coppeliasim/v4_1_0/   # CoppeliaSim 4.1.0 (EB-Manipulation, Python 3.10)
+│   └── tdw/v1_11_23/         # ThreeDWorld 1.11.23 (HAZARD, Python 3.10)
+│
+├── tasks/             # Benchmark task definitions
+│   ├── registry.py           # Auto-discovery via *.yaml glob
+│   ├── yaml_utils.py         # Template inheritance (extends)
+│   ├── dataset.py            # HuggingFace + local dataset loading
+│   ├── scaffold.py           # Task boilerplate generator
+│   ├── dummy_task/           # 3-episode testing task
+│   ├── ebalfred/             # EB-Alfred (6 splits)
+│   ├── ebnavigation/         # EB-Navigation (5 splits)
+│   ├── ebhabitat/            # EB-Habitat (4 splits)
+│   └── ebmanipulation/       # EB-Manipulation (4 splits)
+│
+├── evaluation/        # Evaluation orchestration
+│   ├── runner.py             # EvaluationRunner (sequential)
+│   ├── parallel_runner.py    # ParallelRunner (thread-pool, API backends)
+│   └── metrics.py            # default_aggregate + legacy aggregate_metrics
+│
+├── llm/               # LLM client infrastructure
+│   ├── client.py             # LLMClient (LiteLLM wrapper, any backend)
+│   ├── api_client.py         # LLMApiClient (legacy OpenAI-only)
+│   ├── server_manager.py     # vLLM server lifecycle
+│   ├── dummy_server.py       # Dummy LLM server for testing
+│   └── utils.py              # Backend config (parse, validate, split kwargs)
+│
+├── communication/     # Filesystem IPC (parent <-> bridge subprocess)
+│   ├── filesystem.py         # Atomic JSON read/write, command/response
+│   └── schemas.py            # Command/response schemas
+│
+├── utils/             # Shared utilities
+│   ├── logging.py            # Centralized logging (TRACE/DEBUG/INFO/WARNING/ERROR)
+│   ├── import_utils.py       # Dynamic class importing
+│   ├── json_repair.py        # LLM response JSON repair
+│   └── ...                   # paths, locking, system_deps, spinner
+│
+└── cli.py             # CLI entry point (easi command)
 ```
 
-### Key Patterns
+## Key Patterns
 
-- **Subprocess isolation**: Each simulator runs in its own conda env (e.g., Python 3.8 for ai2thor). The bridge script communicates via filesystem IPC (JSON files in a temp workspace).
-- **Multi-split tasks**: Each task folder has one or more `*.yaml` config files. The registry discovers all YAMLs, each registering as a separate task (e.g., `ebalfred_base`, `ebalfred_spatial`).
-- **EB-Alfred skills**: Actions are high-level skill text (e.g., `"find a Cabinet"`, `"pick up the Mug"`), NOT raw THOR API calls. The bridge translates these to THOR API sequences.
-- **ReAct agent**: Uses a PromptBuilder protocol for task-specific prompts. Supports multi-action buffering (LLM returns a plan, agent executes one action per step, clears buffer on failure).
-- **State tracking**: The AI2-THOR bridge tracks `cleaned_objects`, `cooled_objects`, `heated_objects` for EB-Alfred goal condition evaluation.
+### Subprocess Isolation
+Each simulator runs in its own conda environment (potentially different Python version). The bridge script communicates with the parent process via filesystem IPC (atomic JSON files in a temp directory). This enables Python 3.8 for AI2-THOR v2.1 while the host runs Python 3.10+.
 
-### CLI
+### Multi-Split Tasks
+Each task folder can have multiple YAML configs. The task registry discovers all `*.yaml` files and registers each as a separate task (e.g., `ebalfred_base`, `ebalfred_spatial`). Split YAMLs use template inheritance via `extends: _base.yaml`.
+
+### Pluggable Metrics
+Two-phase metric system:
+- **Per-episode**: `task.evaluate_episode(episode, trajectory) -> dict` (always user-defined)
+- **Cross-episode**: `task.aggregate_results(records: list[EpisodeRecord]) -> dict` (optional override, default averages all numeric keys)
+
+Metrics are nested under `summary["metrics"]` in summary.json, separated from run metadata.
+
+### ReAct Agent + PromptBuilder
+The agent uses a PromptBuilder protocol for task-specific prompts. The builder constructs messages from AgentMemory and parses LLM responses into validated Actions. Multi-action buffering: LLM returns a plan, agent executes one action per step, clears buffer on failure.
+
+### Auto-Discovery
+- **Simulators**: Discovered via `easi/simulators/*/manifest.yaml`
+- **Tasks**: Discovered via `easi/tasks/*/*.yaml`
+- Both use dotted import paths to load classes dynamically
+
+## CLI Commands
+
+| Command | Description |
+|---|---|
+| `easi env list` | List available simulators |
+| `easi env install <sim>` | Install simulator conda env |
+| `easi env check <sim>` | Verify environment is ready |
+| `easi task list` | List available tasks |
+| `easi task info <task>` | Show task details |
+| `easi task download <task>` | Download task dataset |
+| `easi task scaffold <name>` | Generate new task boilerplate |
+| `easi sim test <sim>` | Smoke test a simulator bridge |
+| `easi start <task>` | Run evaluation |
+| `easi llm-server` | Start dummy LLM server |
+
+### Key `easi start` Options
 
 ```bash
-easi env list|install|check <simulator>    # Manage simulator environments
-easi task list|info|download <task>        # Manage tasks
-easi sim test <simulator>                  # Smoke test a simulator
-easi start <task> --agent dummy|react      # Run evaluation (single task)
-easi start --tasks t1,t2 --agent react    # Run evaluation (multi-task)
-easi llm-server [--port PORT]              # Start dummy LLM server
+easi start <task> \
+  --agent {dummy|react} \
+  --backend {vllm|openai|anthropic|gemini} \
+  --model <name> \
+  --num-parallel <n> \        # Thread-pool parallelism (API backends only)
+  --max-episodes <n> \
+  --resume <run_dir> \
+  --output-dir ./logs \
+  --llm-kwargs '{"temperature": 0.7}'
 ```
 
-### Testing
+## Output Structure
+
+```
+logs/<task_name>/<timestamp>_<model>/
+    config.json           # CLI options + resolved config
+    summary.json          # {"num_episodes": N, "metrics": {...}, "model": "...", ...}
+    episodes/
+        000_<episode_id>/
+            result.json       # Per-episode metrics
+            trajectory.jsonl  # Action log (one JSON line per step)
+            step_0000.png     # Observation images
+```
+
+## Testing
 
 ```bash
-pip install -e ".[dev]"
-python -m pytest tests/ -v --timeout=60    # 103 tests, ~60s
+pytest tests/ -v --timeout=60   # Full suite (540 tests)
+pytest tests/test_metrics.py -v  # Specific file
 ```
 
-## Key References
+All tests run offline without simulators or LLMs. Tests mock subprocess bridges and use DummyTask + DummyAgent.
 
-- Test suite: `tests/` with pytest (103 tests covering all components)
-- Evaluation logs go to `./results/` (configurable via `--output-dir`)
-- Supported models (23) and benchmarks (25) are documented in `docs/Support_bench_models.md`.
-- Benchmark verification against official scores is in `docs/Benchmark_Verification.md`.
+## Logging Convention
+
+```python
+from easi.utils.logging import get_logger
+logger = get_logger(__name__)
+```
+
+Use `logger.info()` for user-facing messages, `logger.trace()` for detailed debug output. Never use `print()`.
