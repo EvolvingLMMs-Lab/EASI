@@ -1,0 +1,15 @@
+extends: _base.yaml
+name: hazard_wind
+display_name: "HAZARD Wind"
+description: "HAZARD wind scenario - rescue objects from wind by putting them into shopping carts"
+scenario: wind
+max_steps: 3000
+dataset:
+  subset: "wind"
+  split: "test"
+simulator_configs:
+  scenario: wind
+  max_steps: 3000
+agent:
+  prompt_builder_kwargs:
+    scenario: wind

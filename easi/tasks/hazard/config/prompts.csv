@@ -1,0 +1,37 @@
+type,prompt
+fire,"Suppose I am wearing fireproof suits and my house is on fire. I want to save as many valuable target objects as possible by picking them up and putting them into my bag. Given the current state and my previous actions, please help me choose the best available action to save as many valuable target objects as possible. All objects are denoted as <name> (id), such as <table> (712), and different objects have different values. Note objects lose their value once they start burning. The status of the objects previously seen may not be accurate any more. The final score is measured by the total value of the target objects I saved successfully.
+Target objects:
+$TARGET_OBJECTS$
+Current State:
+$STATE$
+Previous actions:
+$ACTION_HISTORY$
+Objects states history:
+$OBJECT_HISTORY$
+Available actions:
+$AVAILABLE_ACTIONS$
+Answer:"
+flood,"My house is flooding now, I want to save as many valuable target objects as possible by picking them up and putting them into my bag. Given the current state and my previous actions, please help me choose the best available action to save as many valuable target objects as possible. All objects are denoted as <name> (id), such as <table> (712), and different objects have different values. Note a non-waterproof object loses its value if it becomes submerged by the flood. The status of the objects previously seen may not be accurate any more. The final score is measured by the total value of target objects I saved successfully.
+Target objects:
+$TARGET_OBJECTS$
+Current State:
+$STATE$
+Previous actions:
+$ACTION_HISTORY$
+Objects states history:
+$OBJECT_HISTORY$
+Available actions:
+$AVAILABLE_ACTIONS$
+Answer:"
+wind,"I'm in an outdoor scene where an intense and turbulent wind is going on. I want to save as many valuable target objects as possible by picking them up and putting into some fixed shopping carts. Given current state, and my previous actions, please help me choose the best available action to save as many valuable target objects as possible. All objects are denoted as <name> (id), such as <table> (712), and different objects have different values.  Note all objects except shopping carts are moved by powerful wind forces every step and different objects may have different level of resistence to the wind forces. The distance from the objects previously seen may not be accurate any more. I should reason about the unknown object status to make the best decision. The final score is measured by the total value of target objects I put into shopping carts successfully.
+Target objects:
+$TARGET_OBJECTS$
+Current State:
+$STATE$
+Previous actions:
+$ACTION_HISTORY$
+Objects states history:
+$OBJECT_HISTORY$
+Available actions:
+$AVAILABLE_ACTIONS$
+Answer:"
