@@ -3,8 +3,8 @@
 This script runs inside the easi_coppeliasim_v4_1_0 conda env (Python 3.10).
 Communicates with parent process via filesystem IPC.
 
-The bridge adds AMSolver to sys.path at startup so the vendored EBManEnv
-can import from amsolver (CoppeliaSim scene management).
+The bridge adds vendored AMSolver (easi/tasks/ebmanipulation/vendor/amsolver/)
+to sys.path at startup so EBManEnv can import from amsolver.
 
 It also handles:
 - Object coordinate extraction (form_object_coord_for_input)
@@ -30,32 +30,21 @@ if str(_repo_root) not in sys.path:
 
 
 def _setup_amsolver_path(simulator_kwargs: dict, data_dir: str = "") -> None:
-    """Add AMSolver parent directory to sys.path and set TTMS_FOLDER.
+    """Add vendored AMSolver to sys.path and set TTMS_FOLDER.
 
-    AMSolver lives at EmbodiedBench/embodiedbench/envs/eb_manipulation/amsolver/.
-    The parent directory (eb_manipulation/) must be on sys.path so
-    ``import amsolver`` works.
-
-    The path is configurable via simulator_kwargs['amsolver_parent_path'].
-    Default: auto-detect from repo root / EmbodiedBench submodule.
-
-    Also sets amsolver.task_environment.TTMS_FOLDER to the extracted HF data
-    directory so AMSolver can find task templates, object models, and robot TTMs.
+    AMSolver is vendored at easi/tasks/ebmanipulation/vendor/amsolver/.
+    The vendor/ directory must be on sys.path so ``import amsolver`` works.
     """
-    amsolver_parent = simulator_kwargs.get("amsolver_parent_path", "")
-    if not amsolver_parent:
-        # Auto-detect: try repo_root/EmbodiedBench/embodiedbench/envs/eb_manipulation
-        candidate = (
-            _repo_root / "EmbodiedBench" / "embodiedbench" / "envs" / "eb_manipulation"
-        )
-        if candidate.exists():
-            amsolver_parent = str(candidate)
+    vendor_dir = str(Path(__file__).parent / "vendor")
+    if vendor_dir not in sys.path:
+        sys.path.insert(0, vendor_dir)
 
+    # Allow override via simulator_kwargs (for custom installations)
+    amsolver_parent = simulator_kwargs.get("amsolver_parent_path", "")
     if amsolver_parent and amsolver_parent not in sys.path:
         sys.path.insert(0, amsolver_parent)
 
     # Point AMSolver's TTMS_FOLDER to the HF dataset cache
-    # (contains vlm/, amsolver/robot_ttms/)
     if data_dir:
         import amsolver.task_environment as te
 
