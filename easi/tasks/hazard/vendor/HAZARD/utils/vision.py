@@ -1,9 +1,8 @@
 import os
 
-import cv2
-import torch
-
 try:
+    import cv2
+    import torch
     import mmcv
     from mmcv.transforms import Compose
     from mmengine.utils import track_iter_progress
@@ -11,7 +10,7 @@ try:
     from mmdet.apis import init_detector, inference_detector
     from mmdet.apis.inference import DetDataSample
     _HAS_MMDET = True
-except ImportError:
+except Exception:
     _HAS_MMDET = False
 
 PATH = os.path.dirname(os.path.abspath(__file__))

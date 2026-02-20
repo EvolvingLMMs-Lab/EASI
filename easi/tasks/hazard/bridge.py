@@ -13,7 +13,11 @@ from __future__ import annotations
 
 import json
 import math
+import os
+import socket
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -64,32 +68,97 @@ class HAZARDBridge(BaseBridge):
         self._env_change_record = {}  # {str(obj_id): [temp/water_level values]}
         self._cached_plans = []       # plan descriptions from previous step
         self._cached_plan_actions = [] # action tuples from previous step
+        self._tdw_process = None       # TDW Unity build subprocess
+
+    def _launch_tdw_build(self, port):
+        """Launch TDW Unity build if TDW_BUILD_PATH is available.
+
+        The build path comes from:
+        1. TDW_BUILD_PATH env var (set by TDWEnvManager.get_env_vars)
+        2. simulator_kwargs["tdw_build_path"] (manual override)
+
+        The bridge runs inside xvfb-run (from SubprocessRunner), so DISPLAY
+        is inherited by the TDW build process.
+
+        The TDW build is a child of this bridge process. SubprocessRunner
+        already kills the entire process group on shutdown, so no separate
+        cleanup is needed.
+        """
+        build_path = os.environ.get("TDW_BUILD_PATH") or self.simulator_kwargs.get(
+            "tdw_build_path"
+        )
+        if not build_path:
+            logger.warning(
+                "TDW_BUILD_PATH not set — assuming TDW build is already running. "
+                "Run 'easi env install tdw:v1_11_23' to auto-download the build."
+            )
+            return
+
+        binary = Path(build_path) / "TDW.x86_64"
+        if not binary.exists():
+            logger.warning(
+                "TDW build binary not found at %s — assuming TDW build is already running.",
+                binary,
+            )
+            return
+
+        logger.info("Launching TDW build: %s (port %d)", binary, port)
+        self._tdw_process = subprocess.Popen(
+            [str(binary), "-port", str(port)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        # Wait for TDW to start listening on the port
+        self._wait_for_port(port, timeout=60)
+        logger.info("TDW build is ready on port %d (pid %d)", port, self._tdw_process.pid)
+
+    @staticmethod
+    def _wait_for_port(port, timeout=60, interval=1.0):
+        """Poll until a TCP port is accepting connections."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=2):
+                    return
+            except OSError:
+                time.sleep(interval)
+        logger.warning("TDW build did not become ready on port %d within %ds", port, timeout)
 
     def _create_env(self, reset_config, simulator_kwargs):
-        """Create the appropriate HAZARD env (Fire/Flood/Wind)."""
+        """Create the appropriate HAZARD env (Fire/Flood/Wind).
+
+        Launches the TDW Unity build first (if TDW_BUILD_PATH is available),
+        then creates the HAZARD env with launch_build=False so the env
+        connects to the already-running build.
+        """
         scenario = simulator_kwargs.get("scenario", "fire")
         port = simulator_kwargs.get("port", 1071)
         screen_size = simulator_kwargs.get("screen_size", 512)
         use_cached_assets = simulator_kwargs.get("use_cached_assets", False)
 
+        # Launch TDW Unity build (no-op if TDW_BUILD_PATH not set)
+        self._launch_tdw_build(port)
+        launch_build = self._tdw_process is None
+
         if scenario == "fire":
             from HAZARD.envs.fire import FireEnv
             env = FireEnv(
-                launch_build=True, screen_size=screen_size, port=port,
+                launch_build=launch_build, screen_size=screen_size, port=port,
                 use_local_resources=use_cached_assets,
                 check_version=False, use_gt=False,
             )
         elif scenario == "flood":
             from HAZARD.envs.flood import FloodEnv
             env = FloodEnv(
-                launch_build=True, screen_size=screen_size, port=port,
+                launch_build=launch_build, screen_size=screen_size, port=port,
                 use_local_resources=use_cached_assets,
                 check_version=False, use_gt=False,
             )
         elif scenario == "wind":
             from HAZARD.envs.wind import WindEnv
             env = WindEnv(
-                launch_build=True, screen_size=screen_size, port=port,
+                launch_build=launch_build, screen_size=screen_size, port=port,
                 use_local_resources=use_cached_assets,
                 check_version=False, use_gt=False,
             )

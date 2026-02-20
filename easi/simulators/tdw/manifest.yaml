@@ -7,3 +7,7 @@ versions:
     simulator_class: "easi.simulators.tdw.v1_11_23.simulator.TDWSimulator"
     env_manager_class: "easi.simulators.tdw.v1_11_23.env_manager.TDWEnvManager"
     python_version: "3.10"
+    installation_kwargs:
+      build_url: "https://github.com/threedworld-mit/tdw/releases/download/v1.11.23/TDW_Linux.tar.gz"
+      build_filename: "TDW_Linux.tar.gz"
+      build_dir_name: "TDW"
