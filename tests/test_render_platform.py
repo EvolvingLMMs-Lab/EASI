@@ -379,3 +379,153 @@ class TestSimulatorRenderPlatforms:
 
         mgr = DummyEnvManager()
         assert mgr.default_render_platform == "headless"
+
+
+from unittest.mock import MagicMock
+
+
+class TestCLIRenderPlatform:
+    """Verify --render-platform is accepted by CLI parser."""
+
+    def test_start_parser_accepts_render_platform(self):
+        from easi.cli import build_parser
+
+        parser = build_parser()
+        args = parser.parse_args(["start", "dummy_task", "--render-platform", "egl"])
+        assert args.render_platform == "egl"
+
+    def test_start_parser_default_is_none(self):
+        from easi.cli import build_parser
+
+        parser = build_parser()
+        args = parser.parse_args(["start", "dummy_task"])
+        assert args.render_platform is None
+
+    def test_sim_test_parser_accepts_render_platform(self):
+        from easi.cli import build_parser
+
+        parser = build_parser()
+        args = parser.parse_args(["sim", "test", "dummy", "--render-platform", "xvfb"])
+        assert args.render_platform == "xvfb"
+
+
+class TestRunnerRenderPlatformWiring:
+    """Verify EvaluationRunner resolves and passes render platform."""
+
+    def _make_mock_env_mgr(self):
+        mgr = MagicMock()
+        mgr.env_is_ready.return_value = True
+        mgr.get_python_executable.return_value = "/usr/bin/python3"
+        mgr.default_render_platform = "auto"
+        mgr.supported_render_platforms = ["auto", "xvfb", "native", "egl"]
+        mgr.screen_config = "1024x768x24"
+        mgr.needs_display = True
+        mgr.xvfb_screen_config = "1024x768x24"
+        mgr.get_env_vars.return_value = {}
+        return mgr
+
+    def _make_mock_task(self, render_platform=None):
+        task = MagicMock()
+        task.additional_deps = []
+        task.simulator_kwargs = {}
+        task.extra_env_vars = {}
+        task.simulator_configs = {}
+        if render_platform:
+            task.simulator_configs = {"render_platform": render_platform}
+        task.get_bridge_script_path.return_value = None
+        return task
+
+    def test_default_uses_env_manager_platform(self):
+        from easi.evaluation.runner import EvaluationRunner
+
+        runner = EvaluationRunner.__new__(EvaluationRunner)
+        runner.data_dir = Path("/tmp/fake")
+        runner.render_platform_name = None
+
+        mock_env_mgr = self._make_mock_env_mgr()
+        mock_sim_cls = MagicMock()
+        mock_sim_cls.return_value._get_bridge_script_path.return_value = Path("/fake/bridge.py")
+
+        with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
+             patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
+             patch("easi.simulators.subprocess_runner.SubprocessRunner") as MockRunner:
+            MockRunner.return_value.launch.return_value = None
+            runner._create_simulator("fake:v1")
+            rp = MockRunner.call_args.kwargs.get("render_platform")
+            assert rp.name == "auto"
+
+    def test_cli_override_wins(self):
+        from easi.evaluation.runner import EvaluationRunner
+
+        runner = EvaluationRunner.__new__(EvaluationRunner)
+        runner.data_dir = Path("/tmp/fake")
+        runner.render_platform_name = "xvfb"
+
+        mock_env_mgr = self._make_mock_env_mgr()
+        mock_sim_cls = MagicMock()
+        mock_sim_cls.return_value._get_bridge_script_path.return_value = Path("/fake/bridge.py")
+
+        with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
+             patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
+             patch("easi.simulators.subprocess_runner.SubprocessRunner") as MockRunner:
+            MockRunner.return_value.launch.return_value = None
+            runner._create_simulator("fake:v1")
+            rp = MockRunner.call_args.kwargs.get("render_platform")
+            assert rp.name == "xvfb"
+
+    def test_yaml_override_used_when_no_cli(self):
+        from easi.evaluation.runner import EvaluationRunner
+
+        runner = EvaluationRunner.__new__(EvaluationRunner)
+        runner.data_dir = Path("/tmp/fake")
+        runner.render_platform_name = None
+
+        mock_env_mgr = self._make_mock_env_mgr()
+        mock_task = self._make_mock_task(render_platform="egl")
+        mock_sim_cls = MagicMock()
+        mock_sim_cls.return_value._get_bridge_script_path.return_value = Path("/fake/bridge.py")
+
+        with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
+             patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
+             patch("easi.simulators.subprocess_runner.SubprocessRunner") as MockRunner:
+            MockRunner.return_value.launch.return_value = None
+            runner._create_simulator("fake:v1", task=mock_task)
+            rp = MockRunner.call_args.kwargs.get("render_platform")
+            assert rp.name == "egl"
+
+    def test_cli_beats_yaml(self):
+        from easi.evaluation.runner import EvaluationRunner
+
+        runner = EvaluationRunner.__new__(EvaluationRunner)
+        runner.data_dir = Path("/tmp/fake")
+        runner.render_platform_name = "xvfb"
+
+        mock_env_mgr = self._make_mock_env_mgr()
+        mock_task = self._make_mock_task(render_platform="egl")
+        mock_sim_cls = MagicMock()
+        mock_sim_cls.return_value._get_bridge_script_path.return_value = Path("/fake/bridge.py")
+
+        with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
+             patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
+             patch("easi.simulators.subprocess_runner.SubprocessRunner") as MockRunner:
+            MockRunner.return_value.launch.return_value = None
+            runner._create_simulator("fake:v1", task=mock_task)
+            rp = MockRunner.call_args.kwargs.get("render_platform")
+            assert rp.name == "xvfb"
+
+    def test_unsupported_platform_raises(self):
+        from easi.evaluation.runner import EvaluationRunner
+
+        runner = EvaluationRunner.__new__(EvaluationRunner)
+        runner.data_dir = Path("/tmp/fake")
+        runner.render_platform_name = "egl"
+
+        mock_env_mgr = self._make_mock_env_mgr()
+        mock_env_mgr.supported_render_platforms = ["auto", "xvfb"]  # no egl
+        mock_sim_cls = MagicMock()
+        mock_sim_cls.return_value._get_bridge_script_path.return_value = Path("/fake/bridge.py")
+
+        with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
+             patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
+             pytest.raises(ValueError, match="not supported"):
+            runner._create_simulator("fake:v1")

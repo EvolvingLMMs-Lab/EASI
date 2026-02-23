@@ -96,6 +96,7 @@ class TestCliOptionsCapture:
             "task_name", "agent_type", "output_dir", "data_dir",
             "max_episodes", "llm_base_url", "agent_seed", "backend",
             "model", "port", "llm_kwargs_raw", "max_retries",
+            "render_platform",
         }
         assert set(opts.keys()) == expected_keys
 

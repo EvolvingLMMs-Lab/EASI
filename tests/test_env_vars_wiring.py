@@ -14,10 +14,14 @@ class TestEnvVarsWiring:
 
         runner = EvaluationRunner.__new__(EvaluationRunner)
         runner.data_dir = Path("/tmp/fake")
+        runner.render_platform_name = None
 
         mock_env_mgr = MagicMock()
         mock_env_mgr.env_is_ready.return_value = True
         mock_env_mgr.get_python_executable.return_value = "/usr/bin/python3"
+        mock_env_mgr.default_render_platform = "headless"
+        mock_env_mgr.supported_render_platforms = ["headless"]
+        mock_env_mgr.screen_config = "1024x768x24"
         mock_env_mgr.needs_display = False
         mock_env_mgr.xvfb_screen_config = "1024x768x24"
         mock_env_mgr.get_env_vars.return_value = {"SIM_ROOT": "/opt/sim"}
@@ -42,10 +46,14 @@ class TestEnvVarsWiring:
 
         runner = EvaluationRunner.__new__(EvaluationRunner)
         runner.data_dir = Path("/tmp/fake")
+        runner.render_platform_name = None
 
         mock_env_mgr = MagicMock()
         mock_env_mgr.env_is_ready.return_value = True
         mock_env_mgr.get_python_executable.return_value = "/usr/bin/python3"
+        mock_env_mgr.default_render_platform = "headless"
+        mock_env_mgr.supported_render_platforms = ["headless"]
+        mock_env_mgr.screen_config = "1024x768x24"
         mock_env_mgr.needs_display = False
         mock_env_mgr.xvfb_screen_config = "1024x768x24"
         mock_env_mgr.get_env_vars.return_value = {}

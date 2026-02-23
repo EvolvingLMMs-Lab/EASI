@@ -78,6 +78,9 @@ def build_parser() -> argparse.ArgumentParser:
     sim_test.add_argument("--steps", type=int, default=5, help="Number of steps")
     sim_test.add_argument("--timeout", type=float, default=200.0,
                           help="Bridge startup timeout in seconds (default: 200)")
+    sim_test.add_argument(
+        "--render-platform", type=str, default=None, dest="render_platform",
+        help="Rendering platform override (auto, native, xvfb, egl, headless)")
 
     # --- start command ---
     start_parser = subparsers.add_parser("start", help="Run a full evaluation", parents=[common])
@@ -115,6 +118,9 @@ def build_parser() -> argparse.ArgumentParser:
                               help="Path to a previous run directory to resume from")
     start_parser.add_argument("--refresh-data", action="store_true", dest="refresh_data",
                               help="Delete cached dataset and re-download from source")
+    start_parser.add_argument(
+        "--render-platform", type=str, default=None, dest="render_platform",
+        help="Rendering platform: auto, native, xvfb, egl, headless (default: simulator's preference)")
 
     # --- llm-server command ---
     llm_parser = subparsers.add_parser("llm-server", help="Start dummy LLM server", parents=[common])
@@ -247,8 +253,9 @@ def cmd_task_download(task_name: str, refresh_data: bool = False) -> None:
         logger.info("Task uses built-in episodes (no download needed).")
 
 
-def cmd_sim_test(simulator: str, steps: int, timeout: float) -> None:
+def cmd_sim_test(simulator: str, steps: int, timeout: float, render_platform_name: str | None = None) -> None:
     from easi.core.episode import Action
+    from easi.core.render_platform import get_render_platform
     from easi.simulators.registry import create_env_manager, load_simulator_class
     from easi.simulators.subprocess_runner import SubprocessRunner
 
@@ -256,16 +263,27 @@ def cmd_sim_test(simulator: str, steps: int, timeout: float) -> None:
     SimClass = load_simulator_class(simulator)
     sim = SimClass()
 
+    # Resolve render platform
+    platform_name = render_platform_name or env_manager.default_render_platform
+    if platform_name not in env_manager.supported_render_platforms:
+        logger.error(
+            "Render platform '%s' not supported by %s. Supported: %s",
+            platform_name, simulator, env_manager.supported_render_platforms,
+        )
+        sys.exit(1)
+    render_platform = get_render_platform(platform_name)
+
     logger.info("Testing %s...", simulator)
     logger.info("  Python: %s", env_manager.get_python_executable())
+    logger.info("  Render platform: %s", platform_name)
 
-    env_vars = env_manager.get_env_vars()
+    env_vars = env_manager.get_env_vars(render_platform_name=platform_name)
 
     runner = SubprocessRunner(
         python_executable=env_manager.get_python_executable(),
         bridge_script_path=sim._get_bridge_script_path(),
-        needs_display=env_manager.needs_display,
-        xvfb_screen_config=env_manager.xvfb_screen_config,
+        render_platform=render_platform,
+        screen_config=env_manager.screen_config,
         startup_timeout=timeout,
         command_timeout=timeout,
         extra_env=env_vars or None,
@@ -442,7 +460,7 @@ def main() -> None:
 
     elif args.command == "sim":
         if args.sim_action == "test":
-            cmd_sim_test(args.simulator, args.steps, args.timeout)
+            cmd_sim_test(args.simulator, args.steps, args.timeout, getattr(args, "render_platform", None))
         else:
             parser.parse_args(["sim", "--help"])
 

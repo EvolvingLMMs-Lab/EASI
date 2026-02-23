@@ -63,6 +63,7 @@ class EvaluationRunner:
         max_retries: int = 3,
         resume_dir: Path | str | None = None,
         refresh_data: bool = False,
+        render_platform: str | None = None,
     ):
         # Auto-capture all init args for config.json (before any mutation)
         frame = inspect.currentframe()
@@ -85,6 +86,7 @@ class EvaluationRunner:
         self.max_retries = max_retries
         self.resume_dir = Path(resume_dir) if resume_dir else None
         self.refresh_data = refresh_data
+        self.render_platform_name = render_platform
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         if self.model:
             safe_model = self.model.replace("/", "_")
@@ -580,12 +582,6 @@ class EvaluationRunner:
         if task and task.simulator_kwargs:
             extra_args.extend(["--simulator-kwargs", _json.dumps(task.simulator_kwargs)])
 
-        env_vars = env_manager.get_env_vars()
-
-        # Merge task-level env_vars from simulator_configs.env_vars
-        if task and task.extra_env_vars:
-            env_vars = {**env_vars, **task.extra_env_vars}
-
         # Extract runner-level timeouts from simulator_configs
         sim_configs = task.simulator_configs if task else {}
         runner_kwargs = {}
@@ -594,11 +590,37 @@ class EvaluationRunner:
         if sim_configs.get("startup_timeout"):
             runner_kwargs["startup_timeout"] = float(sim_configs["startup_timeout"])
 
+        # Resolve render platform: CLI > task YAML > env_manager default
+        from easi.core.render_platform import get_render_platform
+
+        yaml_platform = sim_configs.get("render_platform") if task else None
+        platform_name = (
+            self.render_platform_name
+            or yaml_platform
+            or env_manager.default_render_platform
+        )
+
+        if platform_name not in env_manager.supported_render_platforms:
+            raise ValueError(
+                f"Render platform '{platform_name}' is not supported by "
+                f"{env_manager.simulator_name}:{env_manager.version}. "
+                f"Supported: {env_manager.supported_render_platforms}"
+            )
+
+        render_platform = get_render_platform(platform_name)
+
+        # Pass platform name to get_env_vars for conditional logic
+        env_vars = env_manager.get_env_vars(render_platform_name=platform_name)
+
+        # Merge task-level env_vars from simulator_configs.env_vars
+        if task and task.extra_env_vars:
+            env_vars = {**env_vars, **task.extra_env_vars}
+
         runner = SubprocessRunner(
             python_executable=env_manager.get_python_executable(),
             bridge_script_path=bridge_path,
-            needs_display=env_manager.needs_display,
-            xvfb_screen_config=env_manager.xvfb_screen_config,
+            render_platform=render_platform,
+            screen_config=env_manager.screen_config,
             extra_args=extra_args,
             extra_env=env_vars or None,
             **runner_kwargs,
