@@ -186,3 +186,51 @@ class TestAutoPlatform:
 
         p = get_render_platform("auto")
         assert p.get_system_deps() == []
+
+
+class TestBaseEnvManagerRenderPlatform:
+    """Verify env_manager exposes render platform config."""
+
+    def _make_stub(self, **overrides):
+        """Create a minimal concrete BaseEnvironmentManager subclass."""
+        from easi.core.base_env_manager import BaseEnvironmentManager
+
+        attrs = {
+            "simulator_name": property(lambda self: "stub"),
+            "version": property(lambda self: "v0"),
+            "get_conda_env_yaml_path": lambda self: Path("/fake/conda.yaml"),
+            "get_requirements_txt_path": lambda self: Path("/fake/req.txt"),
+            "get_system_deps": lambda self: [],
+            "get_validation_import": lambda self: "import sys",
+        }
+        attrs.update(overrides)
+        Stub = type("Stub", (BaseEnvironmentManager,), attrs)
+        return Stub()
+
+    def test_default_render_platform_is_headless(self):
+        mgr = self._make_stub()
+        assert mgr.default_render_platform == "headless"
+
+    def test_supported_render_platforms_default(self):
+        mgr = self._make_stub()
+        assert "headless" in mgr.supported_render_platforms
+
+    def test_screen_config_default(self):
+        mgr = self._make_stub()
+        assert mgr.screen_config == "1024x768x24"
+
+    def test_needs_display_false_for_headless(self):
+        mgr = self._make_stub()
+        assert mgr.needs_display is False
+
+    def test_needs_display_true_when_platform_not_headless(self):
+        mgr = self._make_stub(
+            default_render_platform=property(lambda self: "auto"),
+        )
+        assert mgr.needs_display is True
+
+    def test_xvfb_screen_config_aliases_screen_config(self):
+        mgr = self._make_stub(
+            screen_config=property(lambda self: "1920x1080x24"),
+        )
+        assert mgr.xvfb_screen_config == "1920x1080x24"

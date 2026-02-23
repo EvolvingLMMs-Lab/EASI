@@ -72,24 +72,57 @@ class BaseEnvironmentManager(ABC):
         ...
 
     @property
-    def needs_display(self) -> bool:
-        """Whether this simulator requires a display (X11/Xvfb).
+    def default_render_platform(self) -> str:
+        """Default rendering platform for this simulator.
 
-        Override to return True for simulators that need it (e.g., AI2-THOR).
+        Override in subclasses. Common values:
+            "auto"     -- native display if available, xvfb fallback
+            "headless" -- no display (simulator handles internally)
+            "egl"      -- GPU-accelerated headless via EGL
+
+        See ``easi.core.render_platform`` for all options.
         """
-        return False
+        return "headless"
+
+    @property
+    def supported_render_platforms(self) -> list[str]:
+        """Render platforms this simulator can use.
+
+        Override in subclasses to advertise which platforms are compatible.
+        Validated when user passes ``--render-platform``.
+        """
+        return [self.default_render_platform]
+
+    @property
+    def screen_config(self) -> str:
+        """Screen resolution config (e.g. ``"1024x768x24"``).
+
+        Used by platforms that create a virtual display (xvfb).
+        Override for custom resolution/depth.
+        """
+        return "1024x768x24"
+
+    @property
+    def needs_display(self) -> bool:
+        """Whether this simulator requires a display (backward compat).
+
+        Derived from ``default_render_platform``.
+        """
+        return self.default_render_platform != "headless"
 
     @property
     def xvfb_screen_config(self) -> str:
-        """Xvfb screen config. Override for custom resolution/depth."""
-        return "1024x768x24"
+        """Backward compat alias for ``screen_config``."""
+        return self.screen_config
 
-    def get_env_vars(self) -> dict[str, str]:
+    def get_env_vars(self, render_platform_name: str | None = None) -> dict[str, str]:
         """Return environment variables to inject into the bridge subprocess.
 
         Override in subclasses to provide simulator-specific env vars.
-        Use _get_template_variables() and _resolve_template() to build
-        paths relative to the conda env directory.
+
+        Args:
+            render_platform_name: Active render platform name (e.g. "egl").
+                Subclasses can use this to conditionally set env vars.
 
         Returns:
             Dict of env var name -> value. Empty dict by default.
