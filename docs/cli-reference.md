@@ -64,6 +64,7 @@ easi start [TASK ...] [options]
 | `--num-parallel N` | Parallel simulator instances (default: 1). API backends only. |
 | `--max-episodes N` | Max episodes to run (default: all) |
 | `--seed SEED` | Random seed for agent reproducibility |
+| `--render-platform PLATFORM` | Rendering platform override (default: simulator's preference). See [Render Platforms](#render-platforms). |
 
 ### Data & Output
 
@@ -125,6 +126,10 @@ easi start --resume ./logs/ebalfred_base/20260215_093045_gpt-4o
 
 # Force dataset re-download
 easi start ebalfred_base --agent dummy --refresh-data
+
+# Override render platform (e.g., force native display)
+easi start ebmanipulation_base --agent react --backend openai --model gpt-4o \
+    --render-platform native
 
 # Verbose logging
 easi start ebalfred_base --agent dummy --verbosity TRACE
@@ -308,7 +313,7 @@ Creates:
 Run a smoke test on a simulator (reset + N steps).
 
 ```
-easi sim test <simulator> [--steps N] [--timeout SECONDS]
+easi sim test <simulator> [--steps N] [--timeout SECONDS] [--render-platform PLATFORM]
 ```
 
 | Argument | Description |
@@ -316,6 +321,7 @@ easi sim test <simulator> [--steps N] [--timeout SECONDS]
 | `simulator` | Simulator key (e.g., `dummy`, `ai2thor:v5_0_0`) |
 | `--steps N` | Number of steps to execute (default: 5) |
 | `--timeout SECONDS` | Bridge startup timeout (default: 200.0) |
+| `--render-platform PLATFORM` | Rendering platform override (default: simulator's preference). See [Render Platforms](#render-platforms). |
 
 **Examples:**
 
@@ -323,6 +329,7 @@ easi sim test <simulator> [--steps N] [--timeout SECONDS]
 easi sim test dummy
 easi sim test ai2thor:v5_0_0 --steps 10
 easi sim test ai2thor:v2_1_0 --steps 3 --timeout 300
+easi sim test coppeliasim:v4_1_0 --render-platform native
 ```
 
 Executes `MoveAhead` for each step and reports observations and rewards.
@@ -370,6 +377,39 @@ easi llm-server --port 8000
 easi start ebalfred_base --agent react --backend openai \
     --model dummy --llm-url http://localhost:8000
 ```
+
+---
+
+## Render Platforms
+
+Render platforms control how a simulator gets a display for rendering. Each simulator declares a default platform and a set of supported platforms in its manifest. Use `--render-platform` to override.
+
+### Built-in Platforms
+
+| Platform | Description |
+|---|---|
+| `auto` | Use native display if `DISPLAY` is set, fall back to xvfb |
+| `native` | Require an existing `DISPLAY` (fails if none) |
+| `xvfb` | Wrap with `xvfb-run` (virtual X11 framebuffer) |
+| `egl` | GPU-accelerated headless rendering via EGL (no X11) |
+| `headless` | No display at all (simulator has native headless support) |
+
+### Custom Platforms
+
+Some simulators register custom render platform classes in their manifest that extend the built-in platforms with simulator-specific environment variables. For example, CoppeliaSim defines custom `auto`, `native`, and `xvfb` platforms that set `QT_QPA_PLATFORM_PLUGIN_PATH` and control the `COPPELIASIM_HEADLESS` flag.
+
+Custom platforms are resolved automatically — when you pass `--render-platform xvfb` for a CoppeliaSim task, the CoppeliaSim-specific xvfb platform is used instead of the generic one.
+
+### Platform Defaults by Simulator
+
+| Simulator | Default | Supported |
+|---|---|---|
+| `dummy:v1` | `headless` | `headless` |
+| `ai2thor:v2_1_0` | `auto` | `auto`, `native`, `xvfb` |
+| `ai2thor:v5_0_0` | `auto` | `auto`, `native`, `xvfb` |
+| `habitat_sim:v0_3_0` | `auto` | `auto`, `native`, `xvfb`, `egl` |
+| `coppeliasim:v4_1_0` | `auto` | `auto`, `native`, `xvfb` |
+| `tdw:v1_11_23` | `auto` | `auto`, `native`, `xvfb` |
 
 ---
 
