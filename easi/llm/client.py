@@ -96,7 +96,7 @@ class LLMClient:
             raise
         self._track_usage(response)
 
-        content = response.choices[0].message.content
+        content = response.choices[0].message.content or ""
         logger.trace("LLM response: %s", content[:200] if content else "")
         return content
 

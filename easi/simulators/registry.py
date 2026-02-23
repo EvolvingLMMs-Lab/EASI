@@ -11,12 +11,12 @@ Lookup semantics:
 
 from __future__ import annotations
 
-import importlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
 
+from easi.utils.import_utils import import_class as _import_class
 from easi.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -163,13 +163,6 @@ def resolve_render_platform(key: str, platform_name: str, env_manager=None):
         return instance
 
     return get_render_platform(platform_name)
-
-
-def _import_class(fully_qualified_name: str):
-    """Import a class from its fully qualified name (e.g., 'pkg.mod.ClassName')."""
-    module_path, class_name = fully_qualified_name.rsplit(".", 1)
-    module = importlib.import_module(module_path)
-    return getattr(module, class_name)
 
 
 def refresh() -> None:

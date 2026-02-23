@@ -57,6 +57,8 @@ class EnvVars:
         replace: dict[str, str] = {}
         prepend: dict[str, str] = {}
         for ev in env_vars:
+            if ev is None:
+                continue
             replace.update(ev.replace)
             for k, v in ev.prepend.items():
                 prepend[k] = f"{v}:{prepend[k]}" if k in prepend else v

@@ -10,12 +10,11 @@ Usage:
 
 from __future__ import annotations
 
-import importlib
 from dataclasses import dataclass
 from pathlib import Path
 
 from easi.tasks.yaml_utils import resolve_task_yaml
-
+from easi.utils.import_utils import import_class as _import_class
 from easi.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -111,13 +110,6 @@ def load_task_class(name: str):
     """Import and return the task class for the given name."""
     entry = get_task_entry(name)
     return _import_class(entry.task_class)
-
-
-def _import_class(fully_qualified_name: str):
-    """Import a class from its fully qualified name."""
-    module_path, class_name = fully_qualified_name.rsplit(".", 1)
-    module = importlib.import_module(module_path)
-    return getattr(module, class_name)
 
 
 def refresh() -> None:
