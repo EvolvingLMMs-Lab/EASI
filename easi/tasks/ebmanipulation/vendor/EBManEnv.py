@@ -42,13 +42,14 @@ class EBManEnv:
         scene_bounds: list[float] | None = None,
         voxel_size: int = 100,
         rotation_resolution: int = 3,
+        headless: bool = True,
     ):
         obs_config = ObservationConfig()
         obs_config.set_all(True)
         obs_config.set_image_size(img_size)
 
         action_mode = ActionMode(ArmActionMode.ABS_EE_POSE_PLAN_WORLD_FRAME)
-        self.env = Environment(action_mode, obs_config=obs_config, headless=True)
+        self.env = Environment(action_mode, obs_config=obs_config, headless=headless)
         self.env.launch()
 
         self._max_episode_steps = max_steps

@@ -24,8 +24,6 @@ simulator_configs:
     - "gymnasium"
     - "ultralytics"
     - "open3d"
-  env_vars:
-    QT_QPA_PLATFORM: "xcb"
 agent:
   prompt_builder: "easi.tasks.ebmanipulation.prompts.EBManipulationPromptBuilder"
   prompt_builder_kwargs:
