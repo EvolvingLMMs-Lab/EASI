@@ -255,8 +255,11 @@ def cmd_task_download(task_name: str, refresh_data: bool = False) -> None:
 
 def cmd_sim_test(simulator: str, steps: int, timeout: float, render_platform_name: str | None = None) -> None:
     from easi.core.episode import Action
-    from easi.core.render_platform import get_render_platform
-    from easi.simulators.registry import create_env_manager, load_simulator_class
+    from easi.simulators.registry import (
+        create_env_manager,
+        load_simulator_class,
+        resolve_render_platform,
+    )
     from easi.simulators.subprocess_runner import SubprocessRunner
 
     env_manager = create_env_manager(simulator)
@@ -271,7 +274,7 @@ def cmd_sim_test(simulator: str, steps: int, timeout: float, render_platform_nam
             platform_name, simulator, env_manager.supported_render_platforms,
         )
         sys.exit(1)
-    render_platform = get_render_platform(platform_name)
+    render_platform = resolve_render_platform(simulator, platform_name)
 
     logger.info("Testing %s...", simulator)
     logger.info("  Python: %s", env_manager.get_python_executable())

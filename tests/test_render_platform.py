@@ -440,6 +440,96 @@ class TestSimulatorRenderPlatforms:
         assert mgr.default_render_platform == "headless"
 
 
+class TestCustomRenderPlatforms:
+    """Test custom render platform registration and resolution."""
+
+    def test_simulator_entry_has_empty_render_platforms(self):
+        from easi.simulators.registry import get_simulator_entry
+
+        entry = get_simulator_entry("ai2thor:v2_1_0")
+        assert entry.render_platforms == {}
+
+    def test_simulator_entry_has_custom_render_platforms(self):
+        from easi.simulators.registry import get_simulator_entry
+
+        entry = get_simulator_entry("dummy")
+        assert entry.render_platforms == {
+            "dummy_custom": "easi.simulators.dummy.v1.render_platforms.DummyCustomPlatform"
+        }
+
+    def test_resolve_falls_back_to_builtin(self):
+        from easi.core.render_platform import HeadlessPlatform
+        from easi.simulators.registry import resolve_render_platform
+
+        platform = resolve_render_platform("dummy", "headless")
+        assert isinstance(platform, HeadlessPlatform)
+        assert platform.name == "headless"
+
+    def test_resolve_uses_custom_class(self):
+        from easi.simulators.dummy.v1.render_platforms import DummyCustomPlatform
+        from easi.simulators.registry import resolve_render_platform
+
+        platform = resolve_render_platform("dummy", "dummy_custom")
+        assert isinstance(platform, DummyCustomPlatform)
+        assert platform.name == "dummy_custom"
+        ev = platform.get_env_vars()
+        assert ev.replace == {"DUMMY_CUSTOM_PLATFORM": "1"}
+
+    def test_resolve_name_mismatch_raises(self):
+        from easi.simulators.registry import resolve_render_platform
+
+        # Patch the dummy entry to map "wrong_name" to the DummyCustomPlatform class
+        # (which has name "dummy_custom", not "wrong_name")
+        with patch("easi.simulators.registry._get_registry") as mock_reg:
+            from easi.simulators.registry import SimulatorEntry
+
+            fake_entry = SimulatorEntry(
+                name="fake", version="v1", description="",
+                simulator_class="", env_manager_class="",
+                python_version="3.10",
+                render_platforms={
+                    "wrong_name": "easi.simulators.dummy.v1.render_platforms.DummyCustomPlatform"
+                },
+            )
+            mock_reg.return_value = {"fake:v1": fake_entry}
+            with pytest.raises(ValueError, match="expected 'wrong_name'"):
+                resolve_render_platform("fake:v1", "wrong_name")
+
+    def test_custom_shadows_builtin(self):
+        """A custom 'headless' class should be returned instead of the built-in."""
+        from easi.core.render_platform import HeadlessPlatform
+        from easi.simulators.registry import resolve_render_platform
+
+        with patch("easi.simulators.registry._get_registry") as mock_reg:
+            from easi.simulators.registry import SimulatorEntry
+
+            fake_entry = SimulatorEntry(
+                name="fake", version="v1", description="",
+                simulator_class="", env_manager_class="",
+                python_version="3.10",
+                render_platforms={
+                    "headless": "easi.simulators.dummy.v1.render_platforms.DummyCustomPlatform"
+                },
+            )
+            mock_reg.return_value = {"fake:v1": fake_entry}
+            # DummyCustomPlatform.name is "dummy_custom", not "headless",
+            # so this should raise a name mismatch error.
+            # To truly shadow, we need a class whose name IS "headless".
+            # Let's test the lookup path: if a custom class is found, it's used.
+            # We'll patch _import_class to return a class with name "headless".
+            from easi.core.render_platform import EnvVars
+
+            class CustomHeadless(HeadlessPlatform):
+                def get_env_vars(self):
+                    return EnvVars(replace={"CUSTOM": "1"})
+
+            with patch("easi.simulators.registry._import_class", return_value=CustomHeadless):
+                platform = resolve_render_platform("fake:v1", "headless")
+                assert isinstance(platform, CustomHeadless)
+                assert platform.name == "headless"
+                assert platform.get_env_vars().replace == {"CUSTOM": "1"}
+
+
 from unittest.mock import MagicMock
 
 
@@ -495,6 +585,7 @@ class TestRunnerRenderPlatformWiring:
         return task
 
     def test_default_uses_env_manager_platform(self):
+        from easi.core.render_platform import get_render_platform
         from easi.evaluation.runner import EvaluationRunner
 
         runner = EvaluationRunner.__new__(EvaluationRunner)
@@ -507,6 +598,8 @@ class TestRunnerRenderPlatformWiring:
 
         with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
+             patch("easi.simulators.registry.resolve_render_platform",
+                   side_effect=lambda key, name: get_render_platform(name)), \
              patch("easi.simulators.subprocess_runner.SubprocessRunner") as MockRunner:
             MockRunner.return_value.launch.return_value = None
             runner._create_simulator("fake:v1")
@@ -514,6 +607,7 @@ class TestRunnerRenderPlatformWiring:
             assert rp.name == "auto"
 
     def test_cli_override_wins(self):
+        from easi.core.render_platform import get_render_platform
         from easi.evaluation.runner import EvaluationRunner
 
         runner = EvaluationRunner.__new__(EvaluationRunner)
@@ -526,6 +620,8 @@ class TestRunnerRenderPlatformWiring:
 
         with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
+             patch("easi.simulators.registry.resolve_render_platform",
+                   side_effect=lambda key, name: get_render_platform(name)), \
              patch("easi.simulators.subprocess_runner.SubprocessRunner") as MockRunner:
             MockRunner.return_value.launch.return_value = None
             runner._create_simulator("fake:v1")
@@ -533,6 +629,7 @@ class TestRunnerRenderPlatformWiring:
             assert rp.name == "xvfb"
 
     def test_yaml_override_used_when_no_cli(self):
+        from easi.core.render_platform import get_render_platform
         from easi.evaluation.runner import EvaluationRunner
 
         runner = EvaluationRunner.__new__(EvaluationRunner)
@@ -546,6 +643,8 @@ class TestRunnerRenderPlatformWiring:
 
         with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
+             patch("easi.simulators.registry.resolve_render_platform",
+                   side_effect=lambda key, name: get_render_platform(name)), \
              patch("easi.simulators.subprocess_runner.SubprocessRunner") as MockRunner:
             MockRunner.return_value.launch.return_value = None
             runner._create_simulator("fake:v1", task=mock_task)
@@ -553,6 +652,7 @@ class TestRunnerRenderPlatformWiring:
             assert rp.name == "egl"
 
     def test_cli_beats_yaml(self):
+        from easi.core.render_platform import get_render_platform
         from easi.evaluation.runner import EvaluationRunner
 
         runner = EvaluationRunner.__new__(EvaluationRunner)
@@ -566,6 +666,8 @@ class TestRunnerRenderPlatformWiring:
 
         with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
+             patch("easi.simulators.registry.resolve_render_platform",
+                   side_effect=lambda key, name: get_render_platform(name)), \
              patch("easi.simulators.subprocess_runner.SubprocessRunner") as MockRunner:
             MockRunner.return_value.launch.return_value = None
             runner._create_simulator("fake:v1", task=mock_task)
@@ -573,6 +675,7 @@ class TestRunnerRenderPlatformWiring:
             assert rp.name == "xvfb"
 
     def test_unsupported_platform_raises(self):
+        from easi.core.render_platform import get_render_platform
         from easi.evaluation.runner import EvaluationRunner
 
         runner = EvaluationRunner.__new__(EvaluationRunner)
@@ -586,6 +689,8 @@ class TestRunnerRenderPlatformWiring:
 
         with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
+             patch("easi.simulators.registry.resolve_render_platform",
+                   side_effect=lambda key, name: get_render_platform(name)), \
              pytest.raises(ValueError, match="not supported"):
             runner._create_simulator("fake:v1")
 

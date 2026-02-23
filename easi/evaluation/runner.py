@@ -591,7 +591,7 @@ class EvaluationRunner:
             runner_kwargs["startup_timeout"] = float(sim_configs["startup_timeout"])
 
         # Resolve render platform: CLI > task YAML > env_manager default
-        from easi.core.render_platform import get_render_platform
+        from easi.simulators.registry import resolve_render_platform
 
         yaml_platform = sim_configs.get("render_platform") if task else None
         platform_name = (
@@ -607,7 +607,7 @@ class EvaluationRunner:
                 f"Supported: {env_manager.supported_render_platforms}"
             )
 
-        render_platform = get_render_platform(platform_name)
+        render_platform = resolve_render_platform(simulator_key, platform_name)
 
         # Pass platform name to get_env_vars for conditional logic
         from easi.core.render_platform import EnvVars

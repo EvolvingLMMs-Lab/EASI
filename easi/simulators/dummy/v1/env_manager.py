@@ -39,6 +39,10 @@ class DummyEnvManager(BaseEnvironmentManager):
         """Use the current Python interpreter (no conda env needed for dummy)."""
         return sys.executable
 
+    @property
+    def supported_render_platforms(self) -> list[str]:
+        return ["headless", "dummy_custom"]
+
     def env_is_ready(self) -> bool:
         """Dummy env is always ready (uses host Python)."""
         return True

@@ -53,7 +53,7 @@ class TestRunnerUsesFactory:
     """EvaluationRunner._create_simulator uses the factory."""
 
     def test_runner_passes_installation_kwargs(self):
-        from easi.core.render_platform import EnvVars
+        from easi.core.render_platform import EnvVars, get_render_platform
         from easi.evaluation.runner import EvaluationRunner
 
         runner = EvaluationRunner.__new__(EvaluationRunner)
@@ -74,6 +74,8 @@ class TestRunnerUsesFactory:
 
         with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr) as mock_factory, \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
+             patch("easi.simulators.registry.resolve_render_platform",
+                   side_effect=lambda key, name: get_render_platform(name)), \
              patch("easi.simulators.subprocess_runner.SubprocessRunner") as MockRunner:
             mock_runner_instance = MockRunner.return_value
             mock_runner_instance.launch.return_value = None

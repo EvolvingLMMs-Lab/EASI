@@ -10,7 +10,7 @@ class TestEnvVarsWiring:
     """Verify env vars flow from env_manager to SubprocessRunner."""
 
     def test_runner_passes_env_vars_to_subprocess(self):
-        from easi.core.render_platform import EnvVars
+        from easi.core.render_platform import EnvVars, get_render_platform
         from easi.evaluation.runner import EvaluationRunner
 
         runner = EvaluationRunner.__new__(EvaluationRunner)
@@ -31,6 +31,8 @@ class TestEnvVarsWiring:
 
         with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
+             patch("easi.simulators.registry.resolve_render_platform",
+                   side_effect=lambda key, name: get_render_platform(name)), \
              patch("easi.simulators.subprocess_runner.SubprocessRunner") as MockRunner:
             mock_runner_instance = MockRunner.return_value
             mock_runner_instance.launch.return_value = None
@@ -43,7 +45,7 @@ class TestEnvVarsWiring:
             assert extra_env.replace == {"SIM_ROOT": "/opt/sim"}
 
     def test_runner_passes_none_when_no_env_vars(self):
-        from easi.core.render_platform import EnvVars
+        from easi.core.render_platform import EnvVars, get_render_platform
         from easi.evaluation.runner import EvaluationRunner
 
         runner = EvaluationRunner.__new__(EvaluationRunner)
@@ -64,6 +66,8 @@ class TestEnvVarsWiring:
 
         with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
+             patch("easi.simulators.registry.resolve_render_platform",
+                   side_effect=lambda key, name: get_render_platform(name)), \
              patch("easi.simulators.subprocess_runner.SubprocessRunner") as MockRunner:
             mock_runner_instance = MockRunner.return_value
             mock_runner_instance.launch.return_value = None

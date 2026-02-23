@@ -33,6 +33,7 @@ class SimulatorEntry:
     env_manager_class: str  # fully qualified class name
     python_version: str
     installation_kwargs: dict = field(default_factory=dict)
+    render_platforms: dict[str, str] = field(default_factory=dict)  # platform_name -> FQN class
 
 
 # Module-level registry populated on first access
@@ -63,6 +64,7 @@ def _discover_simulators() -> dict[str, SimulatorEntry]:
                 env_manager_class=ver_info["env_manager_class"],
                 python_version=ver_info.get("python_version", "3.10"),
                 installation_kwargs=ver_info.get("installation_kwargs", {}),
+                render_platforms=ver_info.get("render_platforms", {}),
             )
 
             # Register with explicit key: "ai2thor:v2_1_0"
@@ -131,6 +133,35 @@ def create_env_manager(key: str):
     entry = get_simulator_entry(key)
     cls = _import_class(entry.env_manager_class)
     return cls(installation_kwargs=entry.installation_kwargs)
+
+
+def resolve_render_platform(key: str, platform_name: str):
+    """Resolve a render platform, checking simulator manifest first, then built-ins.
+
+    Args:
+        key: Simulator registry key (e.g. "coppeliasim:v4_1_0" or "coppeliasim").
+        platform_name: Platform name (e.g. "xvfb", "isaac_headless").
+
+    Returns:
+        Instantiated RenderPlatform.
+    """
+    from easi.core.render_platform import get_render_platform
+
+    entry = get_simulator_entry(key)
+    custom_class_path = entry.render_platforms.get(platform_name)
+
+    if custom_class_path:
+        cls = _import_class(custom_class_path)
+        instance = cls()
+        if instance.name != platform_name:
+            raise ValueError(
+                f"Custom render platform class '{custom_class_path}' has "
+                f"name '{instance.name}', expected '{platform_name}'"
+            )
+        logger.trace("Using custom render platform '%s' from %s", platform_name, key)
+        return instance
+
+    return get_render_platform(platform_name)
 
 
 def _import_class(fully_qualified_name: str):

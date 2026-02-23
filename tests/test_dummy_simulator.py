@@ -124,3 +124,11 @@ def test_registry_discovery():
 
     entry_explicit = get_simulator_entry("dummy:v1")
     assert entry_explicit.name == "dummy"
+
+
+def test_dummy_custom_platform_in_registry():
+    """Test that the dummy simulator's custom render platform is in the registry."""
+    from easi.simulators.registry import get_simulator_entry
+
+    entry = get_simulator_entry("dummy")
+    assert "dummy_custom" in entry.render_platforms

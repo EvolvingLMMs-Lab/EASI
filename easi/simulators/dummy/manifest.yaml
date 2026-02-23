@@ -7,3 +7,5 @@ versions:
     simulator_class: "easi.simulators.dummy.v1.simulator.DummySimulator"
     env_manager_class: "easi.simulators.dummy.v1.env_manager.DummyEnvManager"
     python_version: "3.10"
+    render_platforms:
+      dummy_custom: "easi.simulators.dummy.v1.render_platforms.DummyCustomPlatform"
