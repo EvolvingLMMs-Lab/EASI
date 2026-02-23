@@ -7,7 +7,7 @@ Manages the full lifecycle of a simulator bridge subprocess:
 - Crash recovery: Detects subprocess exit during polling
 - Cleanup: SIGTERM -> wait -> SIGKILL the entire process group; removes temp workspace
 
-Supports xvfb-run wrapping for simulators that need a display.
+Supports pluggable render platforms (xvfb, egl, native, headless, auto).
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ from easi.communication.filesystem import (
     write_command,
 )
 from easi.core.exceptions import SimulatorError, SimulatorTimeoutError
+from easi.core.render_platform import RenderPlatform, get_render_platform
 from easi.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -46,8 +47,13 @@ class SubprocessRunner:
         self,
         python_executable: str,
         bridge_script_path: Path,
+        # -- New render-platform API --
+        render_platform: RenderPlatform | None = None,
+        screen_config: str = "1024x768x24",
+        # -- Backward-compat (deprecated) --
         needs_display: bool = False,
         xvfb_screen_config: str = "1024x768x24",
+        # -- Other params --
         startup_timeout: float = 30.0,
         command_timeout: float = 300.0,
         poll_interval: float = 0.1,
@@ -56,8 +62,18 @@ class SubprocessRunner:
     ):
         self.python_executable = python_executable
         self.bridge_script_path = bridge_script_path
-        self.needs_display = needs_display
-        self.xvfb_screen_config = xvfb_screen_config
+
+        # Resolve render platform: explicit > backward-compat fallback
+        if render_platform is not None:
+            self.render_platform = render_platform
+            self.screen_config = screen_config
+        elif needs_display:
+            self.render_platform = get_render_platform("auto")
+            self.screen_config = xvfb_screen_config
+        else:
+            self.render_platform = get_render_platform("headless")
+            self.screen_config = xvfb_screen_config
+
         self.startup_timeout = startup_timeout
         self.command_timeout = command_timeout
         self.poll_interval = poll_interval
@@ -175,18 +191,21 @@ class SubprocessRunner:
             self._workspace = None
 
     def _build_subprocess_env(self) -> dict[str, str] | None:
-        """Build env dict for subprocess, merging extra_env with os.environ.
+        """Build env dict for subprocess, merging platform + extra_env.
 
         For path-like vars (LD_LIBRARY_PATH, PATH, etc.), prepends the new
         value to the existing value with ':' separator.
 
-        Returns None if no extra_env (subprocess inherits parent env).
+        Returns None if no env vars to set (subprocess inherits parent env).
         """
-        if not self.extra_env:
+        platform_env = self.render_platform.get_env_vars()
+        combined = {**platform_env, **(self.extra_env or {})}
+
+        if not combined:
             return None
 
         env = os.environ.copy()
-        for key, value in self.extra_env.items():
+        for key, value in combined.items():
             if key in self._PREPEND_ENV_VARS and key in env:
                 env[key] = f"{value}:{env[key]}"
             else:
@@ -203,18 +222,7 @@ class SubprocessRunner:
         ]
         cmd.extend(self.extra_args)
 
-        if self.needs_display and not self._has_display():
-            # Wrap with xvfb-run for headless environments
-            cmd = [
-                "xvfb-run", "-a",
-                "-s", f"-screen 0 {self.xvfb_screen_config}",
-            ] + cmd
-
-        return cmd
-
-    def _has_display(self) -> bool:
-        """Check if an X display is available."""
-        return bool(os.environ.get("DISPLAY", ""))
+        return self.render_platform.wrap_command(cmd, self.screen_config)
 
     # Pattern to extract log level from bridge output (e.g. "[WARNING]" or "[ERROR]")
     _BRIDGE_LEVEL_RE = re.compile(r"\[(\w+)\]")

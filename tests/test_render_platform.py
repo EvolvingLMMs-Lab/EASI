@@ -234,3 +234,86 @@ class TestBaseEnvManagerRenderPlatform:
             screen_config=property(lambda self: "1920x1080x24"),
         )
         assert mgr.xvfb_screen_config == "1920x1080x24"
+
+
+class TestSubprocessRunnerRenderPlatform:
+    """Verify SubprocessRunner uses RenderPlatform for command wrapping."""
+
+    def test_accepts_render_platform_param(self):
+        from easi.core.render_platform import get_render_platform
+        from easi.simulators.subprocess_runner import SubprocessRunner
+
+        p = get_render_platform("headless")
+        runner = SubprocessRunner(
+            python_executable="/usr/bin/python3",
+            bridge_script_path=Path("/fake/bridge.py"),
+            render_platform=p,
+        )
+        assert runner.render_platform.name == "headless"
+
+    def test_build_command_uses_platform_wrap(self):
+        from easi.core.render_platform import get_render_platform
+        from easi.simulators.subprocess_runner import SubprocessRunner
+
+        p = get_render_platform("xvfb")
+        runner = SubprocessRunner(
+            python_executable="/usr/bin/python3",
+            bridge_script_path=Path("/fake/bridge.py"),
+            render_platform=p,
+            screen_config="1280x720x24",
+        )
+        runner._workspace = Path("/tmp/fake_ws")
+        cmd = runner._build_launch_command()
+        assert cmd[0] == "xvfb-run"
+        assert "1280x720x24" in cmd[3]
+
+    def test_build_command_headless_no_wrap(self):
+        from easi.core.render_platform import get_render_platform
+        from easi.simulators.subprocess_runner import SubprocessRunner
+
+        p = get_render_platform("headless")
+        runner = SubprocessRunner(
+            python_executable="/usr/bin/python3",
+            bridge_script_path=Path("/fake/bridge.py"),
+            render_platform=p,
+        )
+        runner._workspace = Path("/tmp/fake_ws")
+        cmd = runner._build_launch_command()
+        assert cmd[0] == "/usr/bin/python3"
+
+    def test_platform_env_vars_merged(self):
+        from easi.core.render_platform import get_render_platform
+        from easi.simulators.subprocess_runner import SubprocessRunner
+
+        p = get_render_platform("egl")
+        runner = SubprocessRunner(
+            python_executable="/usr/bin/python3",
+            bridge_script_path=Path("/fake/bridge.py"),
+            render_platform=p,
+            extra_env={"SIM_ROOT": "/opt/sim"},
+        )
+        env = runner._build_subprocess_env()
+        assert env["PYOPENGL_PLATFORM"] == "egl"
+        assert env["SIM_ROOT"] == "/opt/sim"
+
+    def test_backward_compat_needs_display_still_works(self):
+        """Old callers passing needs_display=True get AutoPlatform."""
+        from easi.simulators.subprocess_runner import SubprocessRunner
+
+        runner = SubprocessRunner(
+            python_executable="/usr/bin/python3",
+            bridge_script_path=Path("/fake/bridge.py"),
+            needs_display=True,
+            xvfb_screen_config="1024x768x24",
+        )
+        assert runner.render_platform.name == "auto"
+
+    def test_backward_compat_needs_display_false_gets_headless(self):
+        from easi.simulators.subprocess_runner import SubprocessRunner
+
+        runner = SubprocessRunner(
+            python_executable="/usr/bin/python3",
+            bridge_script_path=Path("/fake/bridge.py"),
+            needs_display=False,
+        )
+        assert runner.render_platform.name == "headless"
