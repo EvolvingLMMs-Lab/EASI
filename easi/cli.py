@@ -274,7 +274,7 @@ def cmd_sim_test(simulator: str, steps: int, timeout: float, render_platform_nam
             platform_name, simulator, env_manager.supported_render_platforms,
         )
         sys.exit(1)
-    render_platform = resolve_render_platform(simulator, platform_name)
+    render_platform = resolve_render_platform(simulator, platform_name, env_manager=env_manager)
 
     logger.info("Testing %s...", simulator)
     logger.info("  Python: %s", env_manager.get_python_executable())

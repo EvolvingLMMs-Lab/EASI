@@ -93,10 +93,12 @@ class TestEnvVars:
         mgr = create_env_manager("coppeliasim")
         assert "LD_LIBRARY_PATH" in mgr.get_env_vars().prepend
 
-    def test_env_vars_has_qt_platform(self):
+    def test_env_vars_no_qt_platform(self):
+        """QT_QPA_PLATFORM_PLUGIN_PATH is now handled by custom render platform classes."""
         from easi.simulators.registry import create_env_manager
         mgr = create_env_manager("coppeliasim")
-        assert "QT_QPA_PLATFORM_PLUGIN_PATH" in mgr.get_env_vars().prepend
+        ev = mgr.get_env_vars()
+        assert "QT_QPA_PLATFORM_PLUGIN_PATH" not in ev.prepend
 
     def test_env_vars_no_unresolved_templates(self):
         from easi.simulators.registry import create_env_manager
@@ -116,7 +118,6 @@ class TestEnvVars:
         mgr = create_env_manager("coppeliasim")
         ev = mgr.get_env_vars()
         assert ev.replace["COPPELIASIM_ROOT"] in ev.prepend["LD_LIBRARY_PATH"]
-        assert ev.replace["COPPELIASIM_ROOT"] == ev.prepend["QT_QPA_PLATFORM_PLUGIN_PATH"]
 
     def test_ld_library_path_includes_conda_lib(self):
         from easi.simulators.registry import create_env_manager

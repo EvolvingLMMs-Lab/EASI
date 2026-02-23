@@ -58,7 +58,11 @@ class CoppeliaSimEnvManagerV410(BaseEnvironmentManager):
         return "from pyrep import PyRep; print('PyRep OK')"
 
     def get_env_vars(self, render_platform_name: str | None = None) -> EnvVars:
-        """Return CoppeliaSim env vars for bridge subprocess."""
+        """Return platform-agnostic CoppeliaSim env vars for bridge subprocess.
+
+        Platform-specific vars (QT_QPA_PLATFORM_PLUGIN_PATH, __EGL_VENDOR_LIBRARY_FILENAMES)
+        are handled by custom render platform classes in render_platforms.py.
+        """
         binary_dir_name = self.installation_kwargs.get("binary_dir_name", "")
         if not binary_dir_name:
             return EnvVars()
@@ -69,20 +73,10 @@ class CoppeliaSimEnvManagerV410(BaseEnvironmentManager):
         # Include conda env lib dir so fontconfig/freetype/Qt deps resolve
         conda_lib = self._resolve_template("{env_dir}/lib", t)
         ld_path = f"{coppeliasim_root}:{conda_lib}"
-        replace: dict[str, str] = {
-            "COPPELIASIM_ROOT": coppeliasim_root,
-        }
-        prepend: dict[str, str] = {
-            "LD_LIBRARY_PATH": ld_path,
-            "QT_QPA_PLATFORM_PLUGIN_PATH": coppeliasim_root,
-        }
-        # Force Mesa EGL vendor for Xvfb (NVIDIA EGL crashes Xvfb on some systems).
-        # Skip when using the EGL platform — it handles __EGL_VENDOR_LIBRARY_FILENAMES itself.
-        if render_platform_name != "egl":
-            mesa_vendor = Path("/usr/share/glvnd/egl_vendor.d/50_mesa.json")
-            if mesa_vendor.exists():
-                replace["__EGL_VENDOR_LIBRARY_FILENAMES"] = str(mesa_vendor)
-        return EnvVars(replace=replace, prepend=prepend)
+        return EnvVars(
+            replace={"COPPELIASIM_ROOT": coppeliasim_root},
+            prepend={"LD_LIBRARY_PATH": ld_path},
+        )
 
     def post_install(self, context: dict) -> None:
         """Download CoppeliaSim, build PyRep, copy lua addon.

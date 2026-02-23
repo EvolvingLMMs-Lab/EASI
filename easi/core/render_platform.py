@@ -66,6 +66,9 @@ class EnvVars:
 class RenderPlatform(ABC):
     """Strategy interface for display/rendering backends."""
 
+    def __init__(self, env_manager=None):
+        self._env_manager = env_manager
+
     @property
     @abstractmethod
     def name(self) -> str:

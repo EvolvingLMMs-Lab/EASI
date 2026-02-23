@@ -135,12 +135,13 @@ def create_env_manager(key: str):
     return cls(installation_kwargs=entry.installation_kwargs)
 
 
-def resolve_render_platform(key: str, platform_name: str):
+def resolve_render_platform(key: str, platform_name: str, env_manager=None):
     """Resolve a render platform, checking simulator manifest first, then built-ins.
 
     Args:
         key: Simulator registry key (e.g. "coppeliasim:v4_1_0" or "coppeliasim").
         platform_name: Platform name (e.g. "xvfb", "isaac_headless").
+        env_manager: Optional env manager instance, passed to custom platform constructors.
 
     Returns:
         Instantiated RenderPlatform.
@@ -152,7 +153,7 @@ def resolve_render_platform(key: str, platform_name: str):
 
     if custom_class_path:
         cls = _import_class(custom_class_path)
-        instance = cls()
+        instance = cls(env_manager=env_manager)
         if instance.name != platform_name:
             raise ValueError(
                 f"Custom render platform class '{custom_class_path}' has "

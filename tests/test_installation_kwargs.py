@@ -75,7 +75,7 @@ class TestRunnerUsesFactory:
         with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr) as mock_factory, \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
              patch("easi.simulators.registry.resolve_render_platform",
-                   side_effect=lambda key, name: get_render_platform(name)), \
+                   side_effect=lambda key, name, env_manager=None: get_render_platform(name)), \
              patch("easi.simulators.subprocess_runner.SubprocessRunner") as MockRunner:
             mock_runner_instance = MockRunner.return_value
             mock_runner_instance.launch.return_value = None

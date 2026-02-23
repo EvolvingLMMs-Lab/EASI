@@ -7,6 +7,10 @@ versions:
     simulator_class: "easi.simulators.coppeliasim.v4_1_0.simulator.CoppeliaSimSimulatorV410"
     env_manager_class: "easi.simulators.coppeliasim.v4_1_0.env_manager.CoppeliaSimEnvManagerV410"
     python_version: "3.10"
+    render_platforms:
+      auto: "easi.simulators.coppeliasim.v4_1_0.render_platforms.CoppeliaSimAutoPlatform"
+      native: "easi.simulators.coppeliasim.v4_1_0.render_platforms.CoppeliaSimNativePlatform"
+      xvfb: "easi.simulators.coppeliasim.v4_1_0.render_platforms.CoppeliaSimXvfbPlatform"
     installation_kwargs:
       binary_url: "https://downloads.coppeliarobotics.com/V4_1_0/CoppeliaSim_Pro_V4_1_0_Ubuntu20_04.tar.xz"
       binary_filename: "CoppeliaSim_Pro_V4_1_0_Ubuntu20_04.tar.xz"

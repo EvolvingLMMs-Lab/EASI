@@ -412,14 +412,21 @@ class TestSimulatorRenderPlatforms:
         assert mgr.default_render_platform == "auto"
         assert mgr.screen_config == "1280x720x24"
 
-    def test_coppeliasim_egl_skips_mesa_vendor(self):
-        """When render_platform is 'egl', CoppeliaSim should NOT set __EGL_VENDOR_LIBRARY_FILENAMES."""
+    def test_coppeliasim_env_vars_are_platform_agnostic(self):
+        """CoppeliaSim env_manager should NOT set QT_QPA_PLATFORM_PLUGIN_PATH or __EGL_VENDOR_LIBRARY_FILENAMES.
+
+        Those platform-specific vars are now handled by custom render platform classes.
+        """
         from easi.simulators.coppeliasim.v4_1_0.env_manager import CoppeliaSimEnvManagerV410
 
-        mgr = CoppeliaSimEnvManagerV410()
-        ev = mgr.get_env_vars(render_platform_name="egl")
+        mgr = CoppeliaSimEnvManagerV410(installation_kwargs={"binary_dir_name": "CoppeliaSim"})
+        ev = mgr.get_env_vars()
         all_keys = set(ev.replace) | set(ev.prepend)
+        assert "QT_QPA_PLATFORM_PLUGIN_PATH" not in all_keys
         assert "__EGL_VENDOR_LIBRARY_FILENAMES" not in all_keys
+        # Should still have the platform-agnostic vars
+        assert "COPPELIASIM_ROOT" in ev.replace
+        assert "LD_LIBRARY_PATH" in ev.prepend
 
     def test_tdw(self):
         from easi.simulators.tdw.v1_11_23.env_manager import TDWEnvManager
@@ -530,6 +537,109 @@ class TestCustomRenderPlatforms:
                 assert platform.get_env_vars().replace == {"CUSTOM": "1"}
 
 
+class TestCoppeliaSimCustomPlatforms:
+    """Test CoppeliaSim-specific custom render platform classes."""
+
+    def _make_mock_env_manager(self, binary_dir_name="CoppeliaSim"):
+        from unittest.mock import MagicMock
+
+        mgr = MagicMock()
+        mgr.installation_kwargs = {"binary_dir_name": binary_dir_name}
+        mgr._get_template_variables.return_value = {
+            "env_dir": "/fake/envs/easi_coppeliasim_v4_1_0",
+            "extras_dir": "/fake/envs/easi_coppeliasim_v4_1_0/extras",
+        }
+        mgr._resolve_template.side_effect = lambda tmpl, t: tmpl.replace(
+            "{extras_dir}", t["extras_dir"]
+        ).replace("{env_dir}", t["env_dir"])
+        return mgr
+
+    def test_native_no_qt_plugin_path(self):
+        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
+            CoppeliaSimNativePlatform,
+        )
+
+        mgr = self._make_mock_env_manager()
+        p = CoppeliaSimNativePlatform(env_manager=mgr)
+        assert p.name == "native"
+        ev = p.get_env_vars()
+        assert not ev  # native platform returns empty env vars
+
+    def test_xvfb_has_qt_plugin_path(self):
+        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
+            CoppeliaSimXvfbPlatform,
+        )
+
+        mgr = self._make_mock_env_manager()
+        p = CoppeliaSimXvfbPlatform(env_manager=mgr)
+        assert p.name == "xvfb"
+        ev = p.get_env_vars()
+        assert "QT_QPA_PLATFORM_PLUGIN_PATH" in ev.prepend
+        assert "CoppeliaSim" in ev.prepend["QT_QPA_PLATFORM_PLUGIN_PATH"]
+
+    def test_xvfb_wraps_command(self):
+        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
+            CoppeliaSimXvfbPlatform,
+        )
+
+        p = CoppeliaSimXvfbPlatform()
+        cmd = ["python", "bridge.py"]
+        wrapped = p.wrap_command(cmd, "1280x720x24")
+        assert wrapped[0] == "xvfb-run"
+
+    def test_auto_native_when_display(self):
+        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
+            CoppeliaSimAutoPlatform,
+        )
+
+        mgr = self._make_mock_env_manager()
+        p = CoppeliaSimAutoPlatform(env_manager=mgr)
+        assert p.name == "auto"
+        with patch.dict(os.environ, {"DISPLAY": ":0"}):
+            ev = p.get_env_vars()
+            assert not ev  # native mode: no Qt plugin path
+
+    def test_auto_xvfb_when_no_display(self):
+        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
+            CoppeliaSimAutoPlatform,
+        )
+
+        mgr = self._make_mock_env_manager()
+        p = CoppeliaSimAutoPlatform(env_manager=mgr)
+        env = os.environ.copy()
+        env.pop("DISPLAY", None)
+        with patch.dict(os.environ, env, clear=True):
+            ev = p.get_env_vars()
+            assert "QT_QPA_PLATFORM_PLUGIN_PATH" in ev.prepend
+
+    def test_xvfb_no_env_manager_returns_empty(self):
+        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
+            CoppeliaSimXvfbPlatform,
+        )
+
+        p = CoppeliaSimXvfbPlatform()  # no env_manager
+        ev = p.get_env_vars()
+        assert not ev
+
+    def test_manifest_registers_custom_platforms(self):
+        from easi.simulators.registry import get_simulator_entry
+
+        entry = get_simulator_entry("coppeliasim:v4_1_0")
+        assert "auto" in entry.render_platforms
+        assert "native" in entry.render_platforms
+        assert "xvfb" in entry.render_platforms
+
+    def test_resolve_coppeliasim_custom_platform(self):
+        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
+            CoppeliaSimAutoPlatform,
+        )
+        from easi.simulators.registry import resolve_render_platform
+
+        platform = resolve_render_platform("coppeliasim:v4_1_0", "auto")
+        assert isinstance(platform, CoppeliaSimAutoPlatform)
+        assert platform.name == "auto"
+
+
 from unittest.mock import MagicMock
 
 
@@ -599,7 +709,7 @@ class TestRunnerRenderPlatformWiring:
         with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
              patch("easi.simulators.registry.resolve_render_platform",
-                   side_effect=lambda key, name: get_render_platform(name)), \
+                   side_effect=lambda key, name, env_manager=None: get_render_platform(name)), \
              patch("easi.simulators.subprocess_runner.SubprocessRunner") as MockRunner:
             MockRunner.return_value.launch.return_value = None
             runner._create_simulator("fake:v1")
@@ -621,7 +731,7 @@ class TestRunnerRenderPlatformWiring:
         with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
              patch("easi.simulators.registry.resolve_render_platform",
-                   side_effect=lambda key, name: get_render_platform(name)), \
+                   side_effect=lambda key, name, env_manager=None: get_render_platform(name)), \
              patch("easi.simulators.subprocess_runner.SubprocessRunner") as MockRunner:
             MockRunner.return_value.launch.return_value = None
             runner._create_simulator("fake:v1")
@@ -644,7 +754,7 @@ class TestRunnerRenderPlatformWiring:
         with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
              patch("easi.simulators.registry.resolve_render_platform",
-                   side_effect=lambda key, name: get_render_platform(name)), \
+                   side_effect=lambda key, name, env_manager=None: get_render_platform(name)), \
              patch("easi.simulators.subprocess_runner.SubprocessRunner") as MockRunner:
             MockRunner.return_value.launch.return_value = None
             runner._create_simulator("fake:v1", task=mock_task)
@@ -667,7 +777,7 @@ class TestRunnerRenderPlatformWiring:
         with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
              patch("easi.simulators.registry.resolve_render_platform",
-                   side_effect=lambda key, name: get_render_platform(name)), \
+                   side_effect=lambda key, name, env_manager=None: get_render_platform(name)), \
              patch("easi.simulators.subprocess_runner.SubprocessRunner") as MockRunner:
             MockRunner.return_value.launch.return_value = None
             runner._create_simulator("fake:v1", task=mock_task)
@@ -690,7 +800,7 @@ class TestRunnerRenderPlatformWiring:
         with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
              patch("easi.simulators.registry.resolve_render_platform",
-                   side_effect=lambda key, name: get_render_platform(name)), \
+                   side_effect=lambda key, name, env_manager=None: get_render_platform(name)), \
              pytest.raises(ValueError, match="not supported"):
             runner._create_simulator("fake:v1")
 
