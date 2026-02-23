@@ -22,8 +22,12 @@ class AI2ThorEnvManagerV210(BaseEnvironmentManager):
         return "v2_1_0"
 
     @property
-    def needs_display(self) -> bool:
-        return True  # AI2-THOR Unity requires X11
+    def default_render_platform(self) -> str:
+        return "auto"
+
+    @property
+    def supported_render_platforms(self) -> list[str]:
+        return ["auto", "xvfb", "native"]
 
     def get_conda_env_yaml_path(self) -> Path:
         return Path(__file__).parent / "conda_env.yaml"

@@ -19,8 +19,12 @@ class HabitatEnvManagerV030(BaseEnvironmentManager):
         return "v0_3_0"
 
     @property
-    def needs_display(self) -> bool:
-        return True  # habitat-sim needs a display (xvfb on headless servers)
+    def default_render_platform(self) -> str:
+        return "auto"
+
+    @property
+    def supported_render_platforms(self) -> list[str]:
+        return ["auto", "xvfb", "native", "egl"]
 
     def get_conda_env_yaml_path(self) -> Path:
         return Path(__file__).parent / "conda_env.yaml"

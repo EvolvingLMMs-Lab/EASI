@@ -33,11 +33,15 @@ class CoppeliaSimEnvManagerV410(BaseEnvironmentManager):
         return "v4_1_0"
 
     @property
-    def needs_display(self) -> bool:
-        return True  # CoppeliaSim needs X11/Xvfb
+    def default_render_platform(self) -> str:
+        return "auto"
 
     @property
-    def xvfb_screen_config(self) -> str:
+    def supported_render_platforms(self) -> list[str]:
+        return ["auto", "xvfb", "native"]
+
+    @property
+    def screen_config(self) -> str:
         return "1280x720x24"
 
     def get_conda_env_yaml_path(self) -> Path:
@@ -52,7 +56,7 @@ class CoppeliaSimEnvManagerV410(BaseEnvironmentManager):
     def get_validation_import(self) -> str:
         return "from pyrep import PyRep; print('PyRep OK')"
 
-    def get_env_vars(self) -> dict[str, str]:
+    def get_env_vars(self, render_platform_name: str | None = None) -> dict[str, str]:
         """Return CoppeliaSim env vars for bridge subprocess."""
         binary_dir_name = self.installation_kwargs.get("binary_dir_name", "")
         if not binary_dir_name:
@@ -69,10 +73,12 @@ class CoppeliaSimEnvManagerV410(BaseEnvironmentManager):
             "LD_LIBRARY_PATH": ld_path,
             "QT_QPA_PLATFORM_PLUGIN_PATH": coppeliasim_root,
         }
-        # Force Mesa EGL vendor for Xvfb (NVIDIA EGL crashes Xvfb on some systems)
-        mesa_vendor = Path("/usr/share/glvnd/egl_vendor.d/50_mesa.json")
-        if mesa_vendor.exists():
-            env["__EGL_VENDOR_LIBRARY_FILENAMES"] = str(mesa_vendor)
+        # Force Mesa EGL vendor for Xvfb (NVIDIA EGL crashes Xvfb on some systems).
+        # Skip when using the EGL platform — it handles __EGL_VENDOR_LIBRARY_FILENAMES itself.
+        if render_platform_name != "egl":
+            mesa_vendor = Path("/usr/share/glvnd/egl_vendor.d/50_mesa.json")
+            if mesa_vendor.exists():
+                env["__EGL_VENDOR_LIBRARY_FILENAMES"] = str(mesa_vendor)
         return env
 
     def post_install(self, context: dict) -> None:

@@ -317,3 +317,65 @@ class TestSubprocessRunnerRenderPlatform:
             needs_display=False,
         )
         assert runner.render_platform.name == "headless"
+
+
+class TestSimulatorRenderPlatforms:
+    """Each simulator declares render platform preferences."""
+
+    def test_ai2thor_v2(self):
+        from easi.simulators.ai2thor.v2_1_0.env_manager import AI2ThorEnvManagerV210
+
+        mgr = AI2ThorEnvManagerV210()
+        assert mgr.default_render_platform == "auto"
+        assert "xvfb" in mgr.supported_render_platforms
+        assert "native" in mgr.supported_render_platforms
+        # backward compat
+        assert mgr.needs_display is True
+
+    def test_ai2thor_v5(self):
+        from easi.simulators.ai2thor.v5_0_0.env_manager import AI2ThorEnvManagerV500
+
+        mgr = AI2ThorEnvManagerV500()
+        assert mgr.default_render_platform == "auto"
+        assert mgr.screen_config == "1280x720x24"
+
+    def test_habitat(self):
+        from easi.simulators.habitat_sim.v0_3_0.env_manager import HabitatEnvManagerV030
+
+        mgr = HabitatEnvManagerV030()
+        assert mgr.default_render_platform == "auto"
+        assert "egl" in mgr.supported_render_platforms
+
+    def test_coppeliasim(self):
+        from easi.simulators.coppeliasim.v4_1_0.env_manager import CoppeliaSimEnvManagerV410
+
+        mgr = CoppeliaSimEnvManagerV410()
+        assert mgr.default_render_platform == "auto"
+        assert mgr.screen_config == "1280x720x24"
+
+    def test_coppeliasim_egl_skips_mesa_vendor(self):
+        """When render_platform is 'egl', CoppeliaSim should NOT set __EGL_VENDOR_LIBRARY_FILENAMES."""
+        from easi.simulators.coppeliasim.v4_1_0.env_manager import CoppeliaSimEnvManagerV410
+
+        mgr = CoppeliaSimEnvManagerV410()
+        env = mgr.get_env_vars(render_platform_name="egl")
+        assert "__EGL_VENDOR_LIBRARY_FILENAMES" not in env
+
+    def test_tdw(self):
+        from easi.simulators.tdw.v1_11_23.env_manager import TDWEnvManager
+
+        mgr = TDWEnvManager()
+        assert mgr.default_render_platform == "auto"
+
+    def test_omnigibson(self):
+        from easi.simulators.omnigibson.v3_7_2.env_manager import OmniGibsonEnvManager
+
+        mgr = OmniGibsonEnvManager()
+        assert mgr.default_render_platform == "headless"
+        assert mgr.needs_display is False
+
+    def test_dummy(self):
+        from easi.simulators.dummy.v1.env_manager import DummyEnvManager
+
+        mgr = DummyEnvManager()
+        assert mgr.default_render_platform == "headless"

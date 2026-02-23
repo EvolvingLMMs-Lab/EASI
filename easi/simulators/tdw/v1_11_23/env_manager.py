@@ -30,8 +30,12 @@ class TDWEnvManager(BaseEnvironmentManager):
         return "v1_11_23"
 
     @property
-    def needs_display(self) -> bool:
-        return True  # TDW Unity build requires X11
+    def default_render_platform(self) -> str:
+        return "auto"
+
+    @property
+    def supported_render_platforms(self) -> list[str]:
+        return ["auto", "xvfb", "native"]
 
     def get_conda_env_yaml_path(self) -> Path:
         return Path(__file__).parent / "conda_env.yaml"
@@ -62,7 +66,7 @@ class TDWEnvManager(BaseEnvironmentManager):
                 return False
         return True
 
-    def get_env_vars(self) -> dict[str, str]:
+    def get_env_vars(self, render_platform_name: str | None = None) -> dict[str, str]:
         """Return TDW env vars for bridge subprocess."""
         build_dir = self.installation_kwargs.get("build_dir_name", "")
         if not build_dir:

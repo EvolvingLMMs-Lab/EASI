@@ -78,10 +78,6 @@ class OmniGibsonEnvManager(BaseEnvironmentManager):
     def version(self) -> str:
         return "v3_7_2"
 
-    @property
-    def needs_display(self) -> bool:
-        return False  # Isaac Sim headless via OMNIGIBSON_HEADLESS=1
-
     def get_conda_env_yaml_path(self) -> Path:
         return Path(__file__).parent / "conda_env.yaml"
 
@@ -132,7 +128,7 @@ class OmniGibsonEnvManager(BaseEnvironmentManager):
         )
         return str(local_python)
 
-    def get_env_vars(self) -> dict[str, str]:
+    def get_env_vars(self, render_platform_name: str | None = None) -> dict[str, str]:
         """Export env vars for headless rendering, EULA, and PYTHONHOME.
 
         PYTHONHOME is set to the conda env directory so the /tmp Python
