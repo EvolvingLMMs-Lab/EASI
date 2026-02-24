@@ -17,6 +17,9 @@ simulator_configs:
   visibility_distance: 1.5
   snap_to_grid: true
   quality: "Very Low"
+  additional_deps:
+    - "allenact>=0.5.1"
+    - "allenact_plugins[ithor]>=0.5.1"
   # Sensor toggles
   use_rgb: true
   use_depth: false
