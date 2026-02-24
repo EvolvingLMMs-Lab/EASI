@@ -1,0 +1,32 @@
+display_name: "AI2-THOR Rearrangement 2023"
+description: "AI2-THOR Rearrangement Challenge — move shuffled objects back to goal poses"
+simulator: "ai2thor:v5_0_0"
+task_class: "easi.tasks.ai2thor_rearrangement_2023.task.AI2THORRearrangement2023Task"
+max_steps: 500
+dataset:
+  source: huggingface
+  repo_id: "oscarqjh/ai2thor-rearrangement-2023_easi"
+  subset: null
+simulator_configs:
+  render_platform: auto
+  screen_height: 224
+  screen_width: 224
+  fov: 90
+  grid_size: 0.25
+  rotate_step_degrees: 90
+  visibility_distance: 1.5
+  snap_to_grid: true
+  quality: "Very Low"
+  # Sensor toggles
+  use_rgb: true
+  use_depth: false
+  use_gps: true
+agent:
+  prompt_builder: "easi.tasks.ai2thor_rearrangement_2023.prompts.AI2THORRearrangement2023PromptBuilder"
+  prompt_builder_kwargs:
+    use_feedback: true
+    chat_history: true
+    message_window_len: 10
+  generation_kwargs:
+    temperature: 0
+    max_tokens: 2048
