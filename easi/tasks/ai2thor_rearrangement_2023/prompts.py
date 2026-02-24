@@ -27,6 +27,8 @@ You are an embodied AI agent performing an object rearrangement task in a 3D ind
 ## Goal
 {instruction}
 
+**Important:** You are evaluated on the final state of ALL objects in the scene, not just the ones listed above. If you accidentally bump into or displace objects that were already in their correct positions, it counts against you. Navigate carefully.
+
 ## Observations
 At each step you receive the following sensor inputs:
 {observation_description}
@@ -49,6 +51,7 @@ At each step you receive the following sensor inputs:
 - drop_held_object_with_snap works best when the goal location is visible
 - If pickup fails, try moving closer or adjusting your view angle
 - Grid movement: 0.25m steps, 90° rotations
+- **Do NOT disturb objects already in their correct positions** — avoid bumping into furniture or pushing items while navigating. Take careful, minimal paths.
 """
 
 OUTPUT_SCHEMA = """\
