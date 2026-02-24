@@ -524,7 +524,7 @@ class TestResumeConfigLoading:
             llm_kwargs_raw=None,
             max_retries=None,
             resume_dir=str(run_dir),
-            redownload=False,
+            refresh_data=False,
         )
         cmd_start(args)
 
@@ -632,7 +632,7 @@ class TestMultiTaskRun:
             llm_kwargs_raw=None,
             max_retries=None,
             resume_dir=None,
-            redownload=False,
+            refresh_data=False,
         )
         cmd_start(args)
 
@@ -663,7 +663,7 @@ class TestMultiTaskRun:
             llm_kwargs_raw=None,
             max_retries=None,
             resume_dir="/tmp/some/path",
-            redownload=False,
+            refresh_data=False,
         )
         with pytest.raises(SystemExit):
             cmd_start(args)
