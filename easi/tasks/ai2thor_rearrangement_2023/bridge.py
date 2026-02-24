@@ -142,8 +142,13 @@ class AI2THORRearrangement2023Bridge(BaseBridge):
         return env.last_event.frame.copy()
 
     def reset(self, reset_config):
-        """Override to add initial goal image to the reset response."""
+        """Override to add initial depth + goal images to the reset response."""
         response = super().reset(reset_config)
+        if self._use_depth:
+            depth_frame = self.env.last_event.depth_frame
+            if depth_frame is not None:
+                depth_path = self._save_depth_image(depth_frame)
+                response.setdefault("info", {})["depth_path"] = depth_path
         if self._walkthrough_env is not None:
             goal_rgb = self._get_goal_frame(self.env)
             goal_path = self._save_goal_image(goal_rgb)
@@ -186,6 +191,13 @@ class AI2THORRearrangement2023Bridge(BaseBridge):
         info = self._build_info(env, action_name, action_success)
         feedback = "success" if action_success else "action failed"
         info["feedback"] = feedback
+
+        # Capture depth image (if enabled)
+        if self._use_depth:
+            depth_frame = env.last_event.depth_frame
+            if depth_frame is not None:
+                depth_path = self._save_depth_image(depth_frame)
+                info["depth_path"] = depth_path
 
         # Capture goal image (walkthrough env teleported to current agent position)
         if self._walkthrough_env is not None:
@@ -298,6 +310,26 @@ class AI2THORRearrangement2023Bridge(BaseBridge):
         goal_path = save_dir / ("step_%04d_goal.png" % self.step_count)
         Image.fromarray(image_array).save(str(goal_path))
         return str(goal_path)
+
+    def _save_depth_image(self, depth_array: np.ndarray) -> str:
+        """Save depth frame as grayscale PNG (closer = brighter), return path.
+
+        AI2-THOR's depth_frame contains float32 distance values in meters.
+        We normalise to [0, 255] clipped at the visibility distance, then
+        invert so that nearby surfaces are bright and far surfaces are dark.
+        """
+        from PIL import Image
+
+        save_dir = Path(self.episode_output_dir) if self.episode_output_dir else self.workspace
+        save_dir.mkdir(parents=True, exist_ok=True)
+        depth_path = save_dir / ("step_%04d_depth.png" % self.step_count)
+
+        max_depth = self._controller_kwargs.get("visibilityDistance", 1.5)
+        clipped = np.clip(depth_array, 0, max_depth)
+        normalised = 1.0 - (clipped / max_depth)  # invert: close=bright
+        uint8_depth = (normalised * 255).astype(np.uint8)
+        Image.fromarray(uint8_depth, mode="L").save(str(depth_path))
+        return str(depth_path)
 
     def _build_info(self, env, action_name: str, action_success: bool) -> dict:
         """Build info dict with sensor data and action feedback."""

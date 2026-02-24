@@ -32,6 +32,11 @@ agent:
     use_feedback: true
     chat_history: true
     message_window_len: 10
+    # Sensor toggles (must match simulator_configs)
+    use_rgb: true
+    use_depth: false
+    use_gps: true
+    use_goal_image: true
   generation_kwargs:
     temperature: 0
     max_tokens: 2048

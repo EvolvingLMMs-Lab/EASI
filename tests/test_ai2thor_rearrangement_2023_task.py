@@ -296,6 +296,175 @@ class TestPromptBuilder:
             # Should have 2 images (current + goal) + 1 text
             image_parts = [p for p in last_user["content"] if p.get("type") == "image_url"]
             assert len(image_parts) == 2
+            # Text should label images explicitly
+            text_parts = [p["text"] for p in last_user["content"] if p.get("type") == "text"]
+            text = " ".join(text_parts)
+            assert "Image 1: RGB current" in text
+            assert "Image 2: RGB goal" in text
+
+    def test_depth_image_in_content(self):
+        """When use_depth=True and depth_path in metadata, include depth image."""
+        from easi.core.memory import AgentMemory
+        from easi.tasks.ai2thor_rearrangement_2023.prompts import AI2THORRearrangement2023PromptBuilder
+        import tempfile, os
+        from PIL import Image
+        import numpy as np
+
+        builder = AI2THORRearrangement2023PromptBuilder(use_depth=True)
+        builder.set_action_space(["done", "move_ahead"])
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            img = Image.fromarray(np.zeros((4, 4, 3), dtype=np.uint8))
+            depth_img = Image.fromarray(np.zeros((4, 4), dtype=np.uint8), mode="L")
+            obs_path = os.path.join(tmpdir, "obs.png")
+            depth_path = os.path.join(tmpdir, "depth.png")
+            goal_path = os.path.join(tmpdir, "goal.png")
+            img.save(obs_path)
+            depth_img.save(depth_path)
+            img.save(goal_path)
+
+            memory = AgentMemory(action_space=["done", "move_ahead"])
+            memory.current_observation = Observation(
+                rgb_path=obs_path,
+                metadata={
+                    "depth_path": depth_path,
+                    "goal_rgb_path": goal_path,
+                },
+            )
+            memory.task_description = "Rearrange objects."
+
+            messages = builder.build_messages(memory)
+            last_user = messages[-1]
+            # Should have 3 images (RGB + Depth + Goal)
+            image_parts = [p for p in last_user["content"] if p.get("type") == "image_url"]
+            assert len(image_parts) == 3
+            # Text labels should reflect all three
+            text_parts = [p["text"] for p in last_user["content"] if p.get("type") == "text"]
+            text = " ".join(text_parts)
+            assert "Image 1: RGB current" in text
+            assert "Image 2: Depth" in text
+            assert "Image 3: RGB goal" in text
+
+    def test_depth_excluded_when_toggled_off(self):
+        """When use_depth=False (default), depth_path in metadata is ignored."""
+        from easi.core.memory import AgentMemory
+        from easi.tasks.ai2thor_rearrangement_2023.prompts import AI2THORRearrangement2023PromptBuilder
+        import tempfile, os
+        from PIL import Image
+        import numpy as np
+
+        builder = AI2THORRearrangement2023PromptBuilder(use_depth=False)
+        builder.set_action_space(["done", "move_ahead"])
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            img = Image.fromarray(np.zeros((4, 4, 3), dtype=np.uint8))
+            obs_path = os.path.join(tmpdir, "obs.png")
+            depth_path = os.path.join(tmpdir, "depth.png")
+            img.save(obs_path)
+            img.save(depth_path)
+
+            memory = AgentMemory(action_space=["done", "move_ahead"])
+            memory.current_observation = Observation(
+                rgb_path=obs_path,
+                metadata={"depth_path": depth_path},
+            )
+            memory.task_description = "Rearrange objects."
+
+            messages = builder.build_messages(memory)
+            last_user = messages[-1]
+            # Should have only 1 image (RGB current), depth excluded
+            image_parts = [p for p in last_user["content"] if p.get("type") == "image_url"]
+            assert len(image_parts) == 1
+
+    def test_dynamic_system_prompt_all_sensors(self):
+        """System prompt should describe all active sensors."""
+        from easi.tasks.ai2thor_rearrangement_2023.prompts import AI2THORRearrangement2023PromptBuilder
+        from easi.core.memory import AgentMemory
+
+        builder = AI2THORRearrangement2023PromptBuilder(
+            use_rgb=True, use_depth=True, use_gps=True, use_goal_image=True,
+        )
+        builder.set_action_space(["done"])
+        memory = AgentMemory(action_space=["done"])
+        memory.current_observation = Observation(rgb_path="/tmp/fake.png")
+        memory.task_description = "Test."
+
+        messages = builder.build_messages(memory)
+        system = messages[0]["content"]
+        assert "RGB Image — Current Scene" in system
+        assert "Depth Image" in system
+        assert "RGB Image — Goal Scene" in system
+        assert "GPS Data" in system
+
+    def test_dynamic_system_prompt_rgb_only(self):
+        """System prompt should only mention RGB when other sensors are off."""
+        from easi.tasks.ai2thor_rearrangement_2023.prompts import AI2THORRearrangement2023PromptBuilder
+        from easi.core.memory import AgentMemory
+
+        builder = AI2THORRearrangement2023PromptBuilder(
+            use_rgb=True, use_depth=False, use_gps=False, use_goal_image=False,
+        )
+        builder.set_action_space(["done"])
+        memory = AgentMemory(action_space=["done"])
+        memory.current_observation = Observation(rgb_path="/tmp/fake.png")
+        memory.task_description = "Test."
+
+        messages = builder.build_messages(memory)
+        system = messages[0]["content"]
+        assert "RGB Image — Current Scene" in system
+        assert "Depth Image" not in system
+        assert "RGB Image — Goal Scene" not in system
+        assert "GPS Data" not in system
+
+    def test_strategy_adapts_to_goal_image_toggle(self):
+        """Strategy section changes based on whether goal images are available."""
+        from easi.tasks.ai2thor_rearrangement_2023.prompts import AI2THORRearrangement2023PromptBuilder
+        from easi.core.memory import AgentMemory
+
+        with_goal = AI2THORRearrangement2023PromptBuilder(use_goal_image=True)
+        with_goal.set_action_space(["done"])
+        mem = AgentMemory(action_space=["done"])
+        mem.current_observation = Observation(rgb_path="/tmp/fake.png")
+        mem.task_description = "Test."
+        system_with = with_goal.build_messages(mem)[0]["content"]
+
+        without_goal = AI2THORRearrangement2023PromptBuilder(use_goal_image=False)
+        without_goal.set_action_space(["done"])
+        system_without = without_goal.build_messages(mem)[0]["content"]
+
+        assert "Compare the current and goal images" in system_with
+        assert "Compare the current and goal images" not in system_without
+        assert "Explore the environment" in system_without
+
+    def test_gps_excluded_when_toggled_off(self):
+        """GPS text should not appear when use_gps=False."""
+        from easi.core.memory import AgentMemory
+        from easi.core.episode import Action
+        from easi.tasks.ai2thor_rearrangement_2023.prompts import AI2THORRearrangement2023PromptBuilder
+
+        builder = AI2THORRearrangement2023PromptBuilder(use_gps=False)
+        builder.set_action_space(["done", "move_ahead"])
+
+        memory = AgentMemory(action_space=["done", "move_ahead"])
+        obs_with_gps = Observation(
+            rgb_path="/tmp/fake.png",
+            metadata={
+                "agent_x": 1.5, "agent_y": 0.87, "agent_z": -2.0,
+                "agent_rotation": 90.0, "agent_horizon": 0.0,
+                "held_object": "Bowl",
+            },
+        )
+        memory.record_step(obs_with_gps, Action(action_name="move_ahead"), llm_response="test")
+        memory.record_feedback("success")
+        memory.current_observation = Observation(rgb_path="/tmp/fake2.png")
+        memory.task_description = "Rearrange objects."
+
+        messages = builder.build_messages(memory)
+        last_user = messages[-1]
+        text_parts = [p["text"] for p in last_user["content"] if p.get("type") == "text"]
+        text = " ".join(text_parts)
+        assert "GPS:" not in text
+        assert "Position:" not in text
 
     def test_parse_valid_response(self):
         from easi.core.memory import AgentMemory

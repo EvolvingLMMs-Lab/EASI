@@ -3,8 +3,9 @@
 Constructs multi-modal prompts with observation images, GPS data,
 action history, and structured JSON output schema.
 
-For the 1-phase track, each step includes both the current (shuffled)
-observation and a goal (walkthrough) image from the same viewpoint.
+Sensor inputs (RGB, Depth, Goal image, GPS) are individually toggleable
+via prompt_builder_kwargs. The system prompt and per-step image labels
+adapt automatically to reflect which sensors are active.
 """
 from __future__ import annotations
 
@@ -18,6 +19,8 @@ from easi.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
+# --- System prompt template (observations section is injected dynamically) ---
+
 SYSTEM_PROMPT = """\
 You are an embodied AI agent performing an object rearrangement task in a 3D indoor environment (AI2-THOR).
 
@@ -25,11 +28,8 @@ You are an embodied AI agent performing an object rearrangement task in a 3D ind
 {instruction}
 
 ## Observations
-You receive two images at each step:
-1. **Current scene** — what the environment looks like RIGHT NOW (shuffled state)
-2. **Goal scene** — what the environment SHOULD look like from the same viewpoint (target state)
-
-Compare these two images to identify which objects are misplaced and where they should go.
+At each step you receive the following sensor inputs:
+{observation_description}
 
 ## Available Actions
 {action_list}
@@ -42,13 +42,7 @@ Compare these two images to identify which objects are misplaced and where they 
 - **Done**: Signal that all objects are in their correct positions
 
 ## Strategy
-1. Compare the current and goal images to identify misplaced objects
-2. Navigate to a misplaced object
-3. Pick it up with the matching pickup_<type> action
-4. Navigate toward where it belongs (compare with goal image)
-5. Use drop_held_object_with_snap — it snaps the object to its goal if you're close
-6. Repeat for remaining misplaced objects
-7. Say "done" when finished
+{strategy}
 
 ## Rules
 - You can hold only ONE object at a time
@@ -61,7 +55,7 @@ OUTPUT_SCHEMA = """\
 Respond in this exact JSON format:
 ```json
 {{
-  "observation": "describe what you see in current vs goal images",
+  "observation": "describe what you see in the observation images",
   "reasoning": "what to do next and why",
   "plan": [
     {{"action_name": "<name>"}},
@@ -73,18 +67,31 @@ Plan 1-5 actions. Use exact action names from the list above."""
 
 
 class AI2THORRearrangement2023PromptBuilder:
-    """Prompt builder for the rearrangement task."""
+    """Prompt builder for the rearrangement task.
+
+    Sensor toggles (use_rgb, use_depth, use_gps, use_goal_image) control
+    both what appears in the system prompt description and what sensor
+    data is included in per-step messages.
+    """
 
     def __init__(
         self,
         use_feedback: bool = True,
         chat_history: bool = True,
         message_window_len: int = 10,
+        use_rgb: bool = True,
+        use_depth: bool = False,
+        use_gps: bool = True,
+        use_goal_image: bool = True,
         **kwargs,
     ):
         self.use_feedback = use_feedback
         self.chat_history = chat_history
         self.message_window_len = message_window_len
+        self.use_rgb = use_rgb
+        self.use_depth = use_depth
+        self.use_gps = use_gps
+        self.use_goal_image = use_goal_image
         self._action_list_str = ""
         self._action_name_set: set[str] = set()
 
@@ -92,6 +99,74 @@ class AI2THORRearrangement2023PromptBuilder:
         self._action_name_set = set(actions)
         parts = [f"{i}: {a}" for i, a in enumerate(actions)]
         self._action_list_str = ", ".join(parts)
+
+    # --- System prompt helpers ---
+
+    def _build_observation_description(self) -> str:
+        """Build the observation section of the system prompt based on active sensors."""
+        sections = []
+        idx = 1
+
+        if self.use_rgb:
+            sections.append(
+                f"- **RGB Image — Current Scene** (Image {idx}): A first-person "
+                f"camera view showing the environment as it looks RIGHT NOW "
+                f"(shuffled state). Objects may be misplaced relative to the goal."
+            )
+            idx += 1
+
+        if self.use_depth:
+            sections.append(
+                f"- **Depth Image** (Image {idx}): A grayscale depth map from "
+                f"the agent's viewpoint. Brighter pixels are closer, darker "
+                f"pixels are farther away. Use this to judge distances to "
+                f"objects and obstacles."
+            )
+            idx += 1
+
+        if self.use_goal_image:
+            sections.append(
+                f"- **RGB Image — Goal Scene** (Image {idx}): A first-person "
+                f"camera view from the SAME position showing what the "
+                f"environment SHOULD look like (target state). Compare with "
+                f"the current scene to identify misplaced objects."
+            )
+            idx += 1
+
+        if self.use_gps:
+            sections.append(
+                "- **GPS Data** (text): The agent's 3D position (x, y, z) in "
+                "meters where y is the vertical axis (height). Yaw rotation in "
+                "degrees (0°–360°). Horizon angle: 0° = looking straight "
+                "ahead, positive = looking down, negative = looking up. Also "
+                "reports which object the agent is currently holding, if any."
+            )
+
+        return "\n".join(sections) if sections else "No sensor inputs configured."
+
+    def _build_strategy(self) -> str:
+        """Build the strategy section based on whether goal images are available."""
+        if self.use_goal_image:
+            return (
+                "1. Compare the current and goal images to identify misplaced objects\n"
+                "2. Navigate to a misplaced object\n"
+                "3. Pick it up with the matching pickup_<type> action\n"
+                "4. Navigate toward where it belongs (compare with goal image)\n"
+                "5. Use drop_held_object_with_snap — it snaps the object to its goal if you're close\n"
+                "6. Repeat for remaining misplaced objects\n"
+                '7. Say "done" when finished'
+            )
+        return (
+            "1. Explore the environment to identify objects that appear misplaced\n"
+            "2. Navigate to a misplaced object\n"
+            "3. Pick it up with the matching pickup_<type> action\n"
+            "4. Navigate to where it should go based on context\n"
+            "5. Use drop_held_object_with_snap — it snaps the object to its goal if you're close\n"
+            "6. Repeat for remaining misplaced objects\n"
+            '7. Say "done" when finished'
+        )
+
+    # --- Message building ---
 
     def build_messages(self, memory: AgentMemory) -> list[dict]:
         # Lazy-init action space from memory (set by agent constructor)
@@ -102,7 +177,9 @@ class AI2THORRearrangement2023PromptBuilder:
 
         system_text = SYSTEM_PROMPT.format(
             instruction=instruction,
+            observation_description=self._build_observation_description(),
             action_list=self._action_list_str,
+            strategy=self._build_strategy(),
         )
 
         messages = [{"role": "system", "content": system_text}]
@@ -125,69 +202,89 @@ class AI2THORRearrangement2023PromptBuilder:
 
         return messages
 
+    def _add_images(
+        self, content: list, rgb_path: str | None, metadata: dict,
+    ) -> str:
+        """Append sensor images to *content* list.
+
+        Returns a parenthetical label string like
+        ``" (Image 1: RGB current, Image 2: Depth, Image 3: RGB goal)"``
+        that describes the images actually added.
+        """
+        labels: list[str] = []
+        idx = 1
+
+        # 1. RGB current scene
+        if self.use_rgb and rgb_path:
+            img_url = _encode_image_base64(rgb_path)
+            if img_url:
+                content.append({
+                    "type": "image_url",
+                    "image_url": {"url": img_url},
+                })
+                labels.append(f"Image {idx}: RGB current")
+                idx += 1
+
+        # 2. Depth map
+        if self.use_depth:
+            depth_path = metadata.get("depth_path")
+            if depth_path:
+                img_url = _encode_image_base64(depth_path)
+                if img_url:
+                    content.append({
+                        "type": "image_url",
+                        "image_url": {"url": img_url},
+                    })
+                    labels.append(f"Image {idx}: Depth")
+                    idx += 1
+
+        # 3. Goal scene (walkthrough state from same viewpoint)
+        if self.use_goal_image:
+            goal_path = metadata.get("goal_rgb_path")
+            if goal_path:
+                img_url = _encode_image_base64(goal_path)
+                if img_url:
+                    content.append({
+                        "type": "image_url",
+                        "image_url": {"url": img_url},
+                    })
+                    labels.append(f"Image {idx}: RGB goal")
+                    idx += 1
+
+        return f" ({', '.join(labels)})" if labels else ""
+
     def _make_history_content(self, step) -> list[dict]:
-        content = []
+        content: list[dict] = []
         metadata = step.observation.metadata if step.observation else {}
+        rgb_path = step.observation.rgb_path if step.observation else None
 
-        # Current observation image
-        if step.observation and step.observation.rgb_path:
-            img_url = _encode_image_base64(step.observation.rgb_path)
-            if img_url:
-                content.append({
-                    "type": "image_url",
-                    "image_url": {"url": img_url},
-                })
+        img_label = self._add_images(content, rgb_path, metadata)
 
-        # Goal image (walkthrough state from same viewpoint)
-        goal_path = metadata.get("goal_rgb_path")
-        if goal_path:
-            img_url = _encode_image_base64(goal_path)
-            if img_url:
-                content.append({
-                    "type": "image_url",
-                    "image_url": {"url": img_url},
-                })
-
-        text = "Observation (image 1: current, image 2: goal)."
+        text = f"Observation{img_label}."
         if self.use_feedback and step.feedback:
             text += f"\nFeedback: {step.feedback}"
 
         # GPS overlay from observation metadata
-        gps_text = self._format_gps(metadata)
-        if gps_text:
-            text += f"\n{gps_text}"
+        if self.use_gps:
+            gps_text = self._format_gps(metadata)
+            if gps_text:
+                text += f"\n{gps_text}"
 
         content.append({"type": "text", "text": text})
         return content
 
     def _make_current_content(self, memory: AgentMemory) -> list[dict]:
-        content = []
+        content: list[dict] = []
         metadata = (
             memory.current_observation.metadata
             if memory.current_observation else {}
         )
+        rgb_path = (
+            memory.current_observation.rgb_path
+            if memory.current_observation else None
+        )
 
-        # Current observation image
-        if memory.current_observation and memory.current_observation.rgb_path:
-            img_url = _encode_image_base64(memory.current_observation.rgb_path)
-            if img_url:
-                content.append({
-                    "type": "image_url",
-                    "image_url": {"url": img_url},
-                })
-
-        # Goal image (walkthrough state from same viewpoint)
-        goal_path = metadata.get("goal_rgb_path")
-        if goal_path:
-            img_url = _encode_image_base64(goal_path)
-            if img_url:
-                content.append({
-                    "type": "image_url",
-                    "image_url": {"url": img_url},
-                })
-
-        has_goal = bool(goal_path)
-        img_label = " (image 1: current, image 2: goal)" if has_goal else ""
+        img_label = self._add_images(content, rgb_path, metadata)
 
         if memory.is_first_turn:
             text = f"First observation{img_label}. Begin the rearrangement task."
@@ -200,10 +297,14 @@ class AI2THORRearrangement2023PromptBuilder:
 
         # GPS and held-object from last step's observation metadata
         if memory.steps:
-            last_metadata = memory.steps[-1].observation.metadata if memory.steps[-1].observation else {}
-            gps_text = self._format_gps(last_metadata)
-            if gps_text:
-                text += f"\n{gps_text}"
+            last_metadata = (
+                memory.steps[-1].observation.metadata
+                if memory.steps[-1].observation else {}
+            )
+            if self.use_gps:
+                gps_text = self._format_gps(last_metadata)
+                if gps_text:
+                    text += f"\n{gps_text}"
             held = last_metadata.get("held_object", "none")
             text += f"\nHolding: {held}"
 
@@ -221,9 +322,9 @@ class AI2THORRearrangement2023PromptBuilder:
             z = float(metadata["agent_z"])
             parts.append(f"Position: ({x:.2f}, {y:.2f}, {z:.2f})")
         if "agent_rotation" in metadata:
-            parts.append(f"Rotation: {float(metadata['agent_rotation']):.0f}")
+            parts.append(f"Rotation: {float(metadata['agent_rotation']):.0f}\u00b0")
         if "agent_horizon" in metadata:
-            parts.append(f"Horizon: {float(metadata['agent_horizon']):.0f}")
+            parts.append(f"Horizon: {float(metadata['agent_horizon']):.0f}\u00b0")
         return "GPS: " + ", ".join(parts) if parts else ""
 
     def parse_response(
