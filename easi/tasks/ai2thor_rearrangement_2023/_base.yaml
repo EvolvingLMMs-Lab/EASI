@@ -20,6 +20,7 @@ simulator_configs:
   additional_deps:
     - "allenact>=0.5.1"
     - "allenact_plugins[ithor]>=0.5.1"
+    - "lru-dict"
   # Sensor toggles
   use_rgb: true
   use_depth: false

@@ -109,8 +109,9 @@ class AI2THORRearrangement2023Bridge(BaseBridge):
         self._actions_taken = []
         self._actions_taken_success = []
 
-        # No-op to get initial state
-        return env.step("Pass")
+        # No-op to get initial observation
+        env.controller.step("Pass")
+        return env.last_event.frame.copy()
 
     def _on_step(self, env, action_text):
         action_name = action_text.strip().lower()
