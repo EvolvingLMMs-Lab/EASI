@@ -39,21 +39,3 @@ def default_aggregate(records: list[EpisodeRecord]) -> dict:
         summary["avg_steps"] = summary["avg_num_steps"]
 
     return summary
-
-
-def aggregate_metrics(results: list[dict]) -> dict:
-    """Legacy aggregate function for backward compatibility.
-
-    Wraps default_aggregate() by converting plain dicts to EpisodeRecords.
-    New code should use task.aggregate_results() directly.
-    """
-    if not results:
-        return {"num_episodes": 0}
-
-    records = [
-        EpisodeRecord(episode={}, trajectory=[], episode_results=r)
-        for r in results
-    ]
-    summary = {"num_episodes": len(results)}
-    summary.update(default_aggregate(records))
-    return summary

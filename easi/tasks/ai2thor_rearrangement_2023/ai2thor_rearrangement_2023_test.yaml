@@ -1,0 +1,6 @@
+extends: _base.yaml
+name: ai2thor_rearrangement_2023_test
+display_name: "AI2-THOR Rearrangement 2023 Test"
+description: "Test split — 1000 episodes across 20 scenes"
+dataset:
+  split: "test"

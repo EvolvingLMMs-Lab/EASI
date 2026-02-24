@@ -170,27 +170,27 @@ class OmniGibsonEnvManager(BaseEnvironmentManager):
         extras_dir.mkdir(parents=True, exist_ok=True)
         python = self._get_conda_python()
 
-        # Step 1: Git clone BEHAVIOR-1K
+        # Git clone BEHAVIOR-1K
         self._clone_behavior_1k(extras_dir)
 
         behavior_1k_dir = extras_dir / "BEHAVIOR-1K"
 
-        # Step 2: Install PyTorch with CUDA
+        # Install PyTorch with CUDA
         self._install_pytorch(python)
 
-        # Step 3: Install bddl from cloned repo
+        # Install bddl from cloned repo
         self._install_bddl(python, behavior_1k_dir)
 
-        # Step 4: Install OmniGibson from cloned repo
+        # Install OmniGibson from cloned repo
         self._install_omnigibson(python, behavior_1k_dir)
 
-        # Step 5: Download + install Isaac Sim 4.5.0 wheels
+        # Download + install Isaac Sim 4.5.0 wheels
         self._install_isaac_sim(python)
 
-        # Step 6: Fix websockets conflict in Isaac Sim extscache
+        # Fix websockets conflict in Isaac Sim extscache
         self._fix_websockets_conflict(python)
 
-        # Step 7: Fix cffi compatibility
+        # Fix cffi compatibility
         self._fix_cffi(python)
 
     def _clone_behavior_1k(self, extras_dir: Path) -> None:

@@ -378,7 +378,8 @@ def cmd_start(args):
     run_kwargs.pop("task_name", None)
     num_parallel = run_kwargs.pop("num_parallel", None) or 1
 
-    from easi.evaluation.metrics import aggregate_metrics
+    from easi.core.episode import EpisodeRecord
+    from easi.evaluation.metrics import default_aggregate
 
     all_summaries: list[tuple[str, dict]] = []
 
@@ -405,7 +406,9 @@ def cmd_start(args):
         results = runner.run()
         logger.info("Completed %d episodes for %s.", len(results), task_name)
 
-        summary = aggregate_metrics(results)
+        records = [EpisodeRecord(episode={}, trajectory=[], episode_results=r) for r in results]
+        summary = {"num_episodes": len(results)}
+        summary.update(default_aggregate(records))
         all_summaries.append((task_name, summary))
         for key, value in summary.items():
             logger.info("  %s: %s", key, value)

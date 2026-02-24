@@ -202,10 +202,10 @@ class BaseEnvironmentManager(ABC):
         env_name = self.get_env_name()
         logger.info("Installing environment %s for %s %s", env_name, self.simulator_name, self.version)
 
-        # Step 1: Check system deps
+        # Check system deps
         self._dep_checker.assert_all(self.get_system_deps())
 
-        # Step 2: Create/update conda env
+        # Create/update conda env
         conda_yaml = self.get_conda_env_yaml_path()
         if conda_yaml.exists():
             with spinner(f"Creating conda environment {env_name}"):
@@ -213,12 +213,12 @@ class BaseEnvironmentManager(ABC):
         else:
             logger.warning("No conda_env.yaml found at %s, skipping conda setup", conda_yaml)
 
-        # Step 3: Install uv in the conda env
+        # Install uv in the conda env
         python_exec = self.get_python_executable()
         with spinner("Installing uv"):
             self._run_command([python_exec, "-m", "pip", "install", "uv"], "pip install uv")
 
-        # Step 4: Install Python deps via uv
+        # Install Python deps via uv
         requirements = self.get_requirements_txt_path()
         if requirements.exists():
             with spinner("Installing Python dependencies"):
@@ -229,10 +229,10 @@ class BaseEnvironmentManager(ABC):
         else:
             logger.warning("No requirements.txt found at %s, skipping uv install", requirements)
 
-        # Step 5: Run post-install hook (binary downloads, file copies, etc.)
+        # Run post-install hook (binary downloads, file copies, etc.)
         self._run_post_install()
 
-        # Step 6: Validate (with env vars so e.g. LD_LIBRARY_PATH is set)
+        # Validate (with env vars so e.g. LD_LIBRARY_PATH is set)
         env_vars = self.get_env_vars()
         validation_env = None
         if env_vars:

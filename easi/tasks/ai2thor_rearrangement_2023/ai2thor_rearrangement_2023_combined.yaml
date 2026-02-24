@@ -1,0 +1,6 @@
+extends: _base.yaml
+name: ai2thor_rearrangement_2023_combined
+display_name: "AI2-THOR Rearrangement 2023 Combined"
+description: "Official evaluation set — 2800 episodes (eval_train + val + test)"
+dataset:
+  split: "combined"

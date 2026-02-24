@@ -37,7 +37,7 @@ class AI2ThorEnvManagerV500(BaseEnvironmentManager):
         return Path(__file__).parent / "requirements.txt"
 
     def get_system_deps(self) -> list[str]:
-        return ["conda", "xvfb"]
+        return ["conda"]
 
     def get_validation_import(self) -> str:
         return "import ai2thor; assert ai2thor.__version__.startswith('5.')"

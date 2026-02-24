@@ -56,8 +56,8 @@ class ParallelRunner(EvaluationRunner):
                 "Start vLLM externally and pass --llm-url."
             )
 
-        # --- Phase 1: Load task ---
-        logger.trace("Phase 1: Loading task")
+        # --- Load task ---
+        logger.trace("Loading task")
         task = self._create_task()
         if self.refresh_data:
             task.download_dataset(force=True)
@@ -65,12 +65,12 @@ class ParallelRunner(EvaluationRunner):
         if self.max_episodes is not None:
             episodes = episodes[: self.max_episodes]
         logger.trace(
-            "Phase 1: Task loaded. %d episodes, simulator_key=%s",
+            "Task loaded. %d episodes, simulator_key=%s",
             len(episodes), task.simulator_key,
         )
 
-        # --- Phase 2: Resolve LLM backend + handle resume ---
-        logger.trace("Phase 2: Resolved LLM backend=%s, base_url=%s", backend, base_url)
+        # --- Resolve LLM backend + handle resume ---
+        logger.trace("Resolved LLM backend=%s, base_url=%s", backend, base_url)
 
         # Compute resolved generation kwargs (YAML defaults + CLI overrides)
         from easi.llm.utils import parse_llm_kwargs, split_kwargs
@@ -96,8 +96,8 @@ class ParallelRunner(EvaluationRunner):
             completed_results = []
             start_index = 0
 
-        # --- Phase 3: Create output directory and save config ---
-        logger.trace("Phase 3: Creating output directory and saving config")
+        # --- Create output directory and save config ---
+        logger.trace("Creating output directory and saving config")
         episodes_dir = run_dir / "episodes"
         episodes_dir.mkdir(parents=True, exist_ok=True)
 
@@ -118,19 +118,19 @@ class ParallelRunner(EvaluationRunner):
         if start_index >= len(episodes):
             logger.info("All %d episodes already complete, re-aggregating summary.", len(episodes))
             all_results = completed_results
-            # Skip to aggregation (Phase 7)
+            # Skip to aggregation
             wall_seconds = 0.0
             results_list = [(i, r) for i, r in enumerate(all_results)]
         else:
-            # --- Phase 4: Fill episode queue (from start_index) ---
+            # --- Fill episode queue (from start_index) ---
             episode_queue: queue.Queue[tuple[int, dict]] = queue.Queue()
             for i, episode in enumerate(episodes):
                 if i >= start_index:
                     episode_queue.put((i, episode))
             remaining = episode_queue.qsize()
-            logger.trace("Phase 4: Queued %d episodes (skipped %d completed)", remaining, start_index)
+            logger.trace("Queued %d episodes (skipped %d completed)", remaining, start_index)
 
-            # --- Phase 5: Prepare thread-safe collection ---
+            # --- Prepare thread-safe collection ---
             results_lock = threading.Lock()
             new_results: list[tuple[int, dict]] = []
             progress = {"completed": 0, "failed": 0}
@@ -274,8 +274,8 @@ class ParallelRunner(EvaluationRunner):
                         worker_id, episodes_done,
                     )
 
-            # --- Phase 6: Launch worker threads ---
-            logger.trace("Phase 6: Launching %d worker threads", num_workers)
+            # --- Launch worker threads ---
+            logger.trace("Launching %d worker threads", num_workers)
             wall_start = time.monotonic()
 
             with ThreadPoolExecutor(max_workers=num_workers) as executor:
@@ -295,14 +295,14 @@ class ParallelRunner(EvaluationRunner):
             results_list = [(i, r) for i, r in enumerate(completed_results)]
             results_list.extend(new_results)
 
-        # --- Phase 7: Sort results and aggregate ---
+        # --- Sort results and aggregate ---
         results_list.sort(key=lambda x: x[0])
         all_results = [r for _, r in results_list]
 
         num_successful = sum(1 for r in all_results if "error" not in r)
         num_failed = len(all_results) - num_successful
         logger.trace(
-            "Phase 7: Results sorted. %d successful, %d failed",
+            "Results sorted. %d successful, %d failed",
             num_successful, num_failed,
         )
 

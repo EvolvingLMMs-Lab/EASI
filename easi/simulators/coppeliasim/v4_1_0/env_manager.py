@@ -96,7 +96,7 @@ class CoppeliaSimEnvManagerV410(BaseEnvironmentManager):
         pyrep_git_url = self.installation_kwargs.get("pyrep_git_url")
         lua_addon_script = self.installation_kwargs.get("lua_addon_script")
 
-        # Step 1: Download + extract CoppeliaSim binary
+        # Download + extract CoppeliaSim binary
         if binary_url and binary_filename:
             logger.info("Downloading CoppeliaSim from %s", binary_url)
             self._download_and_extract(
@@ -105,7 +105,7 @@ class CoppeliaSimEnvManagerV410(BaseEnvironmentManager):
                 dest_dir=extras_dir,
             )
 
-        # Step 2: Create versioned symlinks (PyRep links against libcoppeliaSim.so.1)
+        # Create versioned symlinks (PyRep links against libcoppeliaSim.so.1)
         if "COPPELIASIM_ROOT" in env_vars:
             coppeliasim_root = Path(env_vars["COPPELIASIM_ROOT"])
             for lib_name in ["libcoppeliaSim.so", "libcoppeliaSimHeadless.so"]:
@@ -115,11 +115,11 @@ class CoppeliaSimEnvManagerV410(BaseEnvironmentManager):
                     symlink.symlink_to(lib_path.name)
                     logger.info("Created symlink %s -> %s", symlink.name, lib_path.name)
 
-        # Step 3: Build env dict with COPPELIASIM_ROOT for PyRep's native build
+        # Build env dict with COPPELIASIM_ROOT for PyRep's native build
         build_env = os.environ.copy()
         build_env.update(env_vars)
 
-        # Step 3: pip install PyRep (C++ extensions link against CoppeliaSim)
+        # pip install PyRep (C++ extensions link against CoppeliaSim)
         if pyrep_git_url:
             logger.info("Installing PyRep from %s", pyrep_git_url)
             self._run_command(
@@ -128,7 +128,7 @@ class CoppeliaSimEnvManagerV410(BaseEnvironmentManager):
                 env=build_env,
             )
 
-        # Step 4: Copy PyRep addon lua script into CoppeliaSim root
+        # Copy PyRep addon lua script into CoppeliaSim root
         if lua_addon_script and "COPPELIASIM_ROOT" in env_vars:
             coppeliasim_root = Path(env_vars["COPPELIASIM_ROOT"])
             lua_src = Path(__file__).parent / lua_addon_script
