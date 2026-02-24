@@ -104,23 +104,29 @@ class AI2THORRearrangement2023Task(BaseTask):
             "success_length": success_length,
         }
 
+    # The 6 official paper metrics (+ num_steps for convenience)
+    METRIC_KEYS = (
+        "success",              # SR  — Episode Success %
+        "prop_fixed_strict",    # SRwD — Ep-Success w/o Disturbance %
+        "pickup_success_rate",  # PuSR — PickUp Success %
+        "num_pickup_actions",   # PuLen — Ep-Len for PickUp
+        "success_length",       # SuLen — Ep-Len for Success
+        "num_steps",            # Len  — Ep-Len
+    )
+
     def aggregate_results(
         self, records: list[EpisodeRecord]
     ) -> dict[str, float]:
-        """Aggregate metrics across episodes.
+        """Aggregate the 6 official paper metrics plus runtime stats.
 
         Handles NaN success_length (only averages successful episodes).
         """
         if not records:
             return {}
 
-        # Collect all metric keys
-        all_keys = set()
-        for r in records:
-            all_keys.update(r.episode_results.keys())
-
+        # 1. Official paper metrics
         agg = {}
-        for key in sorted(all_keys):
+        for key in self.METRIC_KEYS:
             values = []
             for r in records:
                 v = r.episode_results.get(key)
@@ -130,6 +136,25 @@ class AI2THORRearrangement2023Task(BaseTask):
                 agg[key] = sum(values) / len(values)
             else:
                 agg[key] = float("nan")
+
+        # 2. Runtime stats
+        elapsed_values = []
+        llm_call_counts = []
+        for r in records:
+            elapsed = r.episode_results.get("elapsed_seconds")
+            if isinstance(elapsed, (int, float)):
+                elapsed_values.append(float(elapsed))
+
+            usage = r.episode_results.get("llm_usage")
+            if isinstance(usage, dict):
+                calls = usage.get("total_calls", 0)
+                llm_call_counts.append(float(calls))
+
+        if elapsed_values:
+            agg["avg_elapsed_seconds"] = sum(elapsed_values) / len(elapsed_values)
+            agg["total_elapsed_seconds"] = sum(elapsed_values)
+        if llm_call_counts:
+            agg["avg_llm_calls"] = sum(llm_call_counts) / len(llm_call_counts)
 
         return agg
 
