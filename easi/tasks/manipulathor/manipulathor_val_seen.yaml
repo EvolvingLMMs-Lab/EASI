@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: manipulathor_val_seen
+display_name: "ManipulaTHOR Val-SeenObj"
+description: "Validation split with seen objects — 5 val scenes, 6 seen objects, 1800 episodes"
+dataset:
+  split: "val_seen_obj"
+agent:
+  prompt_builder_kwargs:
+    split: "val_seen"

@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: manipulathor_test_seen
+display_name: "ManipulaTHOR Test-SeenObj"
+description: "Test split with seen objects — 5 test scenes, 6 seen objects, 1800 episodes"
+dataset:
+  split: "test_seen_obj"
+agent:
+  prompt_builder_kwargs:
+    split: "test_seen"

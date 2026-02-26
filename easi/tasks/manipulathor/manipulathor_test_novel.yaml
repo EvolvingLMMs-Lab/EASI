@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: manipulathor_test_novel
+display_name: "ManipulaTHOR Test-NovelObj"
+description: "Test split with novel objects — 5 test scenes, 6 novel objects, 1800 episodes"
+dataset:
+  split: "test_novel_obj"
+agent:
+  prompt_builder_kwargs:
+    split: "test_novel"

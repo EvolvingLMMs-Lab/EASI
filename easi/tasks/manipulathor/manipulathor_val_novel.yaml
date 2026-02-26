@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: manipulathor_val_novel
+display_name: "ManipulaTHOR Val-NovelObj"
+description: "Validation split with novel objects — 5 val scenes, 6 novel objects, 1800 episodes"
+dataset:
+  split: "val_novel_obj"
+agent:
+  prompt_builder_kwargs:
+    split: "val_novel"

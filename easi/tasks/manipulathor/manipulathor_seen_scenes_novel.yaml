@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: manipulathor_seen_scenes_novel
+display_name: "ManipulaTHOR SeenScenes-NovelObj"
+description: "Seen scenes with novel objects — 19 train scenes, 6 novel objects, 6840 episodes"
+dataset:
+  split: "seen_scenes_novel_obj"
+agent:
+  prompt_builder_kwargs:
+    split: "seen_scenes_novel"
