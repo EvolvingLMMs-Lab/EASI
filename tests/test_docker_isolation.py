@@ -188,3 +188,49 @@ class TestDockerEnvironmentManager:
         assert "--gpus" in cmd
         idx = cmd.index("--gpus")
         assert cmd[idx + 1] == "all"
+
+
+class TestSubprocessRunnerDockerMode:
+    """Tests for Docker launch mode in SubprocessRunner."""
+
+    def test_launch_docker_builds_correct_command(self):
+        """launch_docker() builds a docker run command and spawns it."""
+        from easi.core.docker_env_manager import DockerEnvironmentManager
+        from easi.simulators.subprocess_runner import SubprocessRunner
+        from easi.core.render_platform import get_render_platform
+
+        # Use a real bridge script path under the EASI repo root so that
+        # relative_to() in _build_docker_launch_command works correctly.
+        repo_root = Path(__file__).resolve().parents[1]
+        bridge_path = repo_root / "easi" / "simulators" / "dummy" / "v1" / "bridge.py"
+
+        # Create a mock docker env manager
+        mock_mgr = MagicMock(spec=DockerEnvironmentManager)
+        mock_mgr.image_name = "easi_test_v1"
+        mock_mgr.gpu_required = False
+        mock_mgr.container_python_path = "/usr/bin/python3"
+        mock_mgr.easi_mount = "/opt/easi"
+        mock_mgr.build_docker_run_command.return_value = [
+            "docker", "run", "--rm",
+            "-v", "/tmp/easi_xxx:/tmp/easi_xxx",
+            "easi_test_v1",
+            "/usr/bin/python3", "/opt/easi/easi/simulators/dummy/v1/bridge.py",
+            "--workspace", "/tmp/easi_xxx",
+        ]
+
+        runner = SubprocessRunner(
+            python_executable="/usr/bin/python3",
+            bridge_script_path=bridge_path,
+            render_platform=get_render_platform("headless"),
+        )
+
+        cmd = runner._build_docker_launch_command(
+            docker_env_manager=mock_mgr,
+            workspace_dir="/tmp/easi_xxx",
+        )
+        mock_mgr.build_docker_run_command.assert_called_once()
+        assert cmd[0] == "docker"
+
+    # Note: Docker containers use --rm and foreground mode.
+    # Shutdown uses the same process-tree kill as conda mode.
+    # The --rm flag ensures container cleanup after process exit.

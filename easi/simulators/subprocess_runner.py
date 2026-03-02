@@ -124,6 +124,63 @@ class SubprocessRunner:
                 raise SimulatorError(f"{exc}\n\nBridge output:\n{output}") from exc
             raise
 
+    def launch_docker(
+        self,
+        docker_env_manager,
+        episode_output_dir: str | None = None,
+        data_dir: str | None = None,
+    ) -> None:
+        """Launch bridge subprocess inside a Docker container."""
+        if self._process is not None:
+            raise RuntimeError("Subprocess already running")
+
+        self._workspace = create_workspace()
+        self._output_lines.clear()
+        cmd = self._build_docker_launch_command(
+            docker_env_manager=docker_env_manager,
+            workspace_dir=str(self._workspace),
+            episode_output_dir=episode_output_dir,
+            data_dir=data_dir,
+        )
+
+        logger.info("Launching Docker bridge: %s", " ".join(cmd[:6]) + " ...")
+        logger.trace("Full Docker command: %s", " ".join(cmd))
+        self._process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            preexec_fn=os.setsid,
+        )
+
+        # Start output reader thread
+        self._reader_thread = threading.Thread(
+            target=self._stream_output, daemon=True
+        )
+        self._reader_thread.start()
+
+        # Wait for bridge to signal ready
+        try:
+            status = poll_for_status(
+                self._workspace,
+                poll_interval=self.poll_interval,
+                timeout=self.startup_timeout,
+                process=self._process,
+            )
+            if not status.get("ready", False):
+                output = self._get_recent_output()
+                raise SimulatorError(
+                    f"Docker bridge reported not ready. Output:\n{output}"
+                )
+            logger.info("Docker bridge subprocess ready (PID: %d)", self._process.pid)
+        except (SimulatorError, SimulatorTimeoutError) as exc:
+            output = self._get_recent_output()
+            self.shutdown()
+            if output:
+                raise SimulatorError(f"{exc}\n\nDocker bridge output:\n{output}") from exc
+            raise
+
     def send_command(self, command: dict, timeout: float | None = None) -> dict:
         """Send a command to the bridge and wait for the response.
 
@@ -193,6 +250,31 @@ class SubprocessRunner:
         cmd.extend(self.extra_args)
 
         return self.render_platform.wrap_command(cmd, self.screen_config)
+
+    def _build_docker_launch_command(
+        self,
+        docker_env_manager,
+        workspace_dir: str,
+        episode_output_dir: str | None = None,
+        data_dir: str | None = None,
+    ) -> list[str]:
+        """Build launch command using docker run via DockerEnvironmentManager."""
+        bridge_command = [
+            docker_env_manager.container_python_path,
+            str(Path(docker_env_manager.easi_mount) / self.bridge_script_path.relative_to(
+                Path(__file__).resolve().parents[1]
+            )),
+            "--workspace",
+            workspace_dir,
+        ]
+        bridge_command.extend(self.extra_args)
+
+        return docker_env_manager.build_docker_run_command(
+            bridge_command=bridge_command,
+            workspace_dir=workspace_dir,
+            episode_output_dir=episode_output_dir,
+            data_dir=data_dir,
+        )
 
     # Pattern to extract log level from bridge output (e.g. "[WARNING]" or "[ERROR]")
     _BRIDGE_LEVEL_RE = re.compile(r"\[(\w+)\]")
