@@ -34,6 +34,15 @@ KNOWN_DEPS: dict[str, dict[str, str | list[str]]] = {
         "check_command": ["which", "conda"],
         "install_hint": "Install Miniconda: https://docs.conda.io/en/latest/miniconda.html",
     },
+    "docker": {
+        "check_command": ["docker", "--version"],
+        "install_hint": "Install Docker: https://docs.docker.com/engine/install/",
+    },
+    "nvidia-docker": {
+        "check_command": ["docker", "info"],
+        "check_grep": "nvidia",
+        "install_hint": "Install NVIDIA Container Toolkit: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html",
+    },
 }
 
 

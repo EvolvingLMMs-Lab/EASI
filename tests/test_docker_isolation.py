@@ -234,3 +234,23 @@ class TestSubprocessRunnerDockerMode:
     # Note: Docker containers use --rm and foreground mode.
     # Shutdown uses the same process-tree kill as conda mode.
     # The --rm flag ensures container cleanup after process exit.
+
+
+class TestDockerSystemDeps:
+    """Test docker system dependency checking."""
+
+    def test_docker_dep_registered(self):
+        """Docker dependency checker is registered."""
+        from easi.utils.system_deps import SystemDependencyChecker
+
+        checker = SystemDependencyChecker()
+        result = checker.check("docker")
+        assert isinstance(result, bool)
+
+    def test_nvidia_docker_dep_registered(self):
+        """nvidia-docker dependency checker is registered."""
+        from easi.utils.system_deps import SystemDependencyChecker
+
+        checker = SystemDependencyChecker()
+        result = checker.check("nvidia-docker")
+        assert isinstance(result, bool)
