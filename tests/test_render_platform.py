@@ -711,7 +711,11 @@ class TestRunnerRenderPlatformWiring:
         mock_sim_cls = MagicMock()
         mock_sim_cls.return_value._get_bridge_script_path.return_value = Path("/fake/bridge.py")
 
-        with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
+        mock_entry = MagicMock()
+        mock_entry.runtime = "conda"
+
+        with patch("easi.simulators.registry.get_simulator_entry", return_value=mock_entry), \
+             patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
              patch("easi.simulators.registry.resolve_render_platform",
                    side_effect=lambda key, name, env_manager=None: get_render_platform(name)), \
@@ -733,7 +737,11 @@ class TestRunnerRenderPlatformWiring:
         mock_sim_cls = MagicMock()
         mock_sim_cls.return_value._get_bridge_script_path.return_value = Path("/fake/bridge.py")
 
-        with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
+        mock_entry = MagicMock()
+        mock_entry.runtime = "conda"
+
+        with patch("easi.simulators.registry.get_simulator_entry", return_value=mock_entry), \
+             patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
              patch("easi.simulators.registry.resolve_render_platform",
                    side_effect=lambda key, name, env_manager=None: get_render_platform(name)), \
@@ -756,7 +764,11 @@ class TestRunnerRenderPlatformWiring:
         mock_sim_cls = MagicMock()
         mock_sim_cls.return_value._get_bridge_script_path.return_value = Path("/fake/bridge.py")
 
-        with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
+        mock_entry = MagicMock()
+        mock_entry.runtime = "conda"
+
+        with patch("easi.simulators.registry.get_simulator_entry", return_value=mock_entry), \
+             patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
              patch("easi.simulators.registry.resolve_render_platform",
                    side_effect=lambda key, name, env_manager=None: get_render_platform(name)), \
@@ -779,7 +791,11 @@ class TestRunnerRenderPlatformWiring:
         mock_sim_cls = MagicMock()
         mock_sim_cls.return_value._get_bridge_script_path.return_value = Path("/fake/bridge.py")
 
-        with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
+        mock_entry = MagicMock()
+        mock_entry.runtime = "conda"
+
+        with patch("easi.simulators.registry.get_simulator_entry", return_value=mock_entry), \
+             patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
              patch("easi.simulators.registry.resolve_render_platform",
                    side_effect=lambda key, name, env_manager=None: get_render_platform(name)), \
@@ -802,7 +818,11 @@ class TestRunnerRenderPlatformWiring:
         mock_sim_cls = MagicMock()
         mock_sim_cls.return_value._get_bridge_script_path.return_value = Path("/fake/bridge.py")
 
-        with patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
+        mock_entry = MagicMock()
+        mock_entry.runtime = "conda"
+
+        with patch("easi.simulators.registry.get_simulator_entry", return_value=mock_entry), \
+             patch("easi.simulators.registry.create_env_manager", return_value=mock_env_mgr), \
              patch("easi.simulators.registry.load_simulator_class", return_value=mock_sim_cls), \
              patch("easi.simulators.registry.resolve_render_platform",
                    side_effect=lambda key, name, env_manager=None: get_render_platform(name)), \

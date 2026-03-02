@@ -555,10 +555,12 @@ class EvaluationRunner:
 
         from easi.simulators.registry import (
             create_env_manager,
+            get_simulator_entry,
             load_simulator_class,
         )
         from easi.simulators.subprocess_runner import SubprocessRunner
 
+        entry = get_simulator_entry(simulator_key)
         env_manager = create_env_manager(simulator_key)
         SimClass = load_simulator_class(simulator_key)
         sim = SimClass()
@@ -567,10 +569,6 @@ class EvaluationRunner:
         if not env_manager.env_is_ready():
             logger.info("Simulator environment not ready, auto-installing...")
             env_manager.install()
-
-        # Install task-level additional deps
-        if task and task.additional_deps:
-            env_manager.install_additional_deps(task.additional_deps)
 
         # Task-specific bridge overrides simulator default
         bridge_path = (
@@ -589,6 +587,39 @@ class EvaluationRunner:
             runner_kwargs["command_timeout"] = float(sim_configs["command_timeout"])
         if sim_configs.get("startup_timeout"):
             runner_kwargs["startup_timeout"] = float(sim_configs["startup_timeout"])
+
+        # --- Docker runtime path ---
+        if entry.runtime == "docker":
+            from easi.core.docker_env_manager import DockerEnvironmentManager
+            from easi.core.render_platform import get_render_platform
+
+            assert isinstance(env_manager, DockerEnvironmentManager), (
+                f"Simulator {simulator_key} declares runtime=docker but env_manager "
+                f"is not a DockerEnvironmentManager"
+            )
+
+            runner = SubprocessRunner(
+                python_executable=env_manager.container_python_path,
+                bridge_script_path=bridge_path,
+                render_platform=get_render_platform("headless"),
+                extra_args=extra_args,
+                **runner_kwargs,
+            )
+            data_dir_str = str(self.data_dir) if self.data_dir else (
+                entry.data_dir.replace("~", str(Path.home())) if entry.data_dir else None
+            )
+            runner.launch_docker(
+                docker_env_manager=env_manager,
+                data_dir=data_dir_str,
+            )
+            sim.set_runner(runner)
+            return sim, runner
+
+        # --- Conda runtime path (existing) ---
+
+        # Install task-level additional deps
+        if task and task.additional_deps:
+            env_manager.install_additional_deps(task.additional_deps)
 
         # Resolve render platform: CLI > task YAML > env_manager default
         from easi.simulators.registry import resolve_render_platform

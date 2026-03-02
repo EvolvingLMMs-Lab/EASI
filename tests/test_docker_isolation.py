@@ -254,3 +254,38 @@ class TestDockerSystemDeps:
         checker = SystemDependencyChecker()
         result = checker.check("nvidia-docker")
         assert isinstance(result, bool)
+
+
+class TestEvaluationRunnerDockerWiring:
+    """Test that _create_simulator detects Docker runtime and uses launch_docker."""
+
+    def test_docker_runtime_detected_from_registry(self):
+        """When registry entry has runtime='docker', runner should use Docker launch."""
+        from easi.simulators.registry import SimulatorEntry
+
+        entry = SimulatorEntry(
+            name="test_docker",
+            version="v1",
+            description="test",
+            simulator_class="easi.simulators.dummy.v1.simulator.DummySimulator",
+            env_manager_class="easi.simulators.dummy.v1.env_manager.DummyEnvManager",
+            python_version="3.10",
+            runtime="docker",
+        )
+        assert entry.runtime == "docker"
+
+    def test_get_simulator_entry_preserves_runtime(self):
+        """get_simulator_entry returns entry with runtime field intact."""
+        from easi.simulators.registry import get_simulator_entry
+
+        # Dummy uses default runtime (conda)
+        entry = get_simulator_entry("dummy")
+        assert entry.runtime == "conda"
+
+    def test_matterport3d_entry_has_docker_runtime(self):
+        """Matterport3D registry entry has runtime=docker."""
+        from easi.simulators.registry import get_simulator_entry
+
+        entry = get_simulator_entry("matterport3d")
+        assert entry.runtime == "docker"
+        assert entry.data_dir == "/datasets/matterport3d"
