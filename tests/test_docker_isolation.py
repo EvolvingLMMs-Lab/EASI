@@ -65,3 +65,126 @@ class TestSimulatorEntryRuntime:
             data_dir="/datasets/test",
         )
         assert entry.data_dir == "/datasets/test"
+
+
+class TestDockerEnvironmentManager:
+    """Tests for DockerEnvironmentManager base class."""
+
+    def _make_manager(self, **overrides):
+        """Create a concrete DockerEnvironmentManager for testing."""
+        from easi.core.docker_env_manager import DockerEnvironmentManager
+
+        defaults = dict(
+            _simulator_name="test_docker_sim",
+            _version="v1",
+            _image_name="easi_test_docker_sim_v1",
+            _dockerfile_path=Path("/tmp/Dockerfile"),
+            _gpu_required=False,
+            _container_python_path="/usr/bin/python3",
+            _container_data_mount="/data",
+            _easi_mount="/opt/easi",
+            _system_deps=["docker"],
+        )
+        defaults.update(overrides)
+
+        class ConcreteDockerEnvManager(DockerEnvironmentManager):
+            @property
+            def simulator_name(self):
+                return defaults["_simulator_name"]
+
+            @property
+            def version(self):
+                return defaults["_version"]
+
+            @property
+            def image_name(self):
+                return defaults["_image_name"]
+
+            @property
+            def dockerfile_path(self):
+                return defaults["_dockerfile_path"]
+
+            @property
+            def gpu_required(self):
+                return defaults["_gpu_required"]
+
+            @property
+            def container_python_path(self):
+                return defaults["_container_python_path"]
+
+            @property
+            def container_data_mount(self):
+                return defaults["_container_data_mount"]
+
+            @property
+            def easi_mount(self):
+                return defaults["_easi_mount"]
+
+            def get_system_deps(self):
+                return defaults["_system_deps"]
+
+        return ConcreteDockerEnvManager()
+
+    def test_image_name(self):
+        mgr = self._make_manager()
+        assert mgr.image_name == "easi_test_docker_sim_v1"
+
+    def test_gpu_required_default_false(self):
+        mgr = self._make_manager()
+        assert mgr.gpu_required is False
+
+    def test_gpu_required_true(self):
+        mgr = self._make_manager(_gpu_required=True)
+        assert mgr.gpu_required is True
+
+    def test_system_deps_includes_docker(self):
+        mgr = self._make_manager()
+        assert "docker" in mgr.get_system_deps()
+
+    def test_system_deps_includes_nvidia_docker_when_gpu(self):
+        mgr = self._make_manager(_gpu_required=True, _system_deps=["docker", "nvidia-docker"])
+        deps = mgr.get_system_deps()
+        assert "nvidia-docker" in deps
+
+    def test_env_is_ready_false_when_no_docker(self):
+        """env_is_ready returns False when docker image doesn't exist."""
+        mgr = self._make_manager()
+        with patch("subprocess.run") as mock_run:
+            mock_run.side_effect = Exception("docker not found")
+            assert mgr.env_is_ready() is False
+
+    def test_env_is_ready_true_when_image_exists(self):
+        """env_is_ready returns True when docker image inspect succeeds."""
+        mgr = self._make_manager()
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            assert mgr.env_is_ready() is True
+
+    def test_build_docker_run_command_basic(self):
+        """Build docker run command without GPU."""
+        mgr = self._make_manager()
+        cmd = mgr.build_docker_run_command(
+            bridge_command=["/usr/bin/python3", "/opt/easi/bridge.py", "--workspace", "/tmp/easi_xxx"],
+            workspace_dir="/tmp/easi_xxx",
+            episode_output_dir="/logs/ep_0",
+            data_dir="/host/data",
+        )
+        assert "docker" in cmd[0]
+        assert "--rm" in cmd
+        assert "--gpus" not in cmd
+        # Check volume mounts
+        cmd_str = " ".join(cmd)
+        assert "/tmp/easi_xxx" in cmd_str
+        assert "/logs/ep_0" in cmd_str
+        assert "/host/data" in cmd_str
+
+    def test_build_docker_run_command_with_gpu(self):
+        """Build docker run command with GPU."""
+        mgr = self._make_manager(_gpu_required=True)
+        cmd = mgr.build_docker_run_command(
+            bridge_command=["/usr/bin/python3", "/opt/easi/bridge.py"],
+            workspace_dir="/tmp/easi_xxx",
+        )
+        assert "--gpus" in cmd
+        idx = cmd.index("--gpus")
+        assert cmd[idx + 1] == "all"
