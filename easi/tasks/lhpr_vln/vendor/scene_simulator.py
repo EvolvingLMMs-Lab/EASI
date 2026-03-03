@@ -4,6 +4,8 @@ Vendored from LH-VLN/habitat_base/simulation.py with parameterization.
 Original creates a new habitat_sim.Simulator per episode, computes geodesic
 distances, and tracks multi-subtask stage/success/oracle state.
 """
+from __future__ import annotations
+
 import math
 
 import habitat_sim
