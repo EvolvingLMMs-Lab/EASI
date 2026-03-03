@@ -1,0 +1,6 @@
+extends: _base.yaml
+name: lhpr_vln_test
+display_name: "LHPR-VLN Test"
+description: "LHPR-VLN test split (batch_7 + batch_8)"
+dataset:
+  split: "test"
