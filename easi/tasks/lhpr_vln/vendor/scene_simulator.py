@@ -5,12 +5,9 @@ Original creates a new habitat_sim.Simulator per episode, computes geodesic
 distances, and tracks multi-subtask stage/success/oracle state.
 """
 import math
-import operator
-from typing import Optional, Union
 
 import habitat_sim
 import numpy as np
-import quaternion
 
 from .scene_config import make_cfg, make_setting
 

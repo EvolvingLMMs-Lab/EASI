@@ -23,6 +23,19 @@ class NavigationMetrics:
                    subtask_path_step,
                    gt_length,
                    error_length):
+        """Adds a sample of navigation results.
+
+        Parameters:
+        - success: 1 if the task is successful, 0 otherwise.
+        - gt_step: The ground truth path steps of the episode.
+        - path_step: The path steps of the episode.
+        - oracle_success: 1 if the oracle task is successful, 0 otherwise.
+        - navigation_error: The navigation error for the task.
+        - subtask_successes: A list of 0s and 1s indicating subtask success or failure.
+        - subtask_path_step: A list for the ground truth path steps of subtasks.
+        - gt_length: Ground path length for sub-tasks,
+        - error_length: Nav error length for sub-tasks:
+        """
         self.successes.append(success)
         self.gt_steps.append(gt_step)
         self.path_steps.append(path_step)
@@ -34,25 +47,31 @@ class NavigationMetrics:
         self.error_length.append(error_length)
 
     def success_rate(self):
+        """Calculates Success Rate (SR)."""
         return sum(self.successes) / len(self.successes) if len(self.successes) > 0 else 0
 
     def oracle_success_rate(self):
+        """Calculates Oracle Success Rate (OSR)."""
         return sum(self.oracle_successes) / len(self.oracle_successes) if len(self.oracle_successes) > 0 else 0
 
     def spl(self):
+        """Calculates Success Rate Penalized by Path Length (SPL)."""
         total_spl = sum(s * (gp/max(gp, p)) if p > 0 else 0 for s, gp, p in zip(self.successes, self.gt_steps, self.path_steps))
         return total_spl / len(self.successes) if len(self.successes) > 0 else 0
 
     def navigation_error(self):
+        """Calculates average Navigation Error (NE)."""
         return sum(self.navigation_errors) / len(self.navigation_errors) if len(self.navigation_errors) > 0 else 0
 
     def independent_success_rate(self):
+        """Calculates Independent Success Rate (ISR)."""
         subtask_counts = [len(subtasks) for subtasks in self.subtask_successes]
         total_subtasks = sum(subtask_counts)
         total_successes = sum(sum(subtasks) for subtasks in self.subtask_successes)
         return total_successes / total_subtasks if total_subtasks > 0 else 0
 
     def conditional_success_rate(self):
+        """Calculates Conditional Success Rate (CSR)."""
         M = len(self.subtask_successes)
         if M == 0:
             return 0
@@ -75,6 +94,7 @@ class NavigationMetrics:
         return csr
 
     def conditional_path_length(self):
+        """Calculates Conditional Success Rate weighted by Ground Truth Path Length (CGT)."""
         M = len(self.subtask_successes)
         if M == 0:
             return 0
@@ -98,6 +118,7 @@ class NavigationMetrics:
         return cpl
 
     def TAR(self):
+        """Calculates Target Approach Rate (TAR)."""
         tars = []
         for i in range(len(self.gt_length)):
             for j in range(len(self.gt_length[i])):
@@ -117,6 +138,7 @@ class NavigationMetrics:
         return sum(tars) / len(tars) if len(tars) > 0 else 0
 
     def compute(self):
+        """Compute all metrics."""
         return {
             "success_rate": self.success_rate(),
             "oracle_success_rate": self.oracle_success_rate(),
