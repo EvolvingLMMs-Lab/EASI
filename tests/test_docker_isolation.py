@@ -289,3 +289,24 @@ class TestEvaluationRunnerDockerWiring:
         entry = get_simulator_entry("matterport3d")
         assert entry.runtime == "docker"
         assert entry.data_dir == "/datasets/matterport3d"
+
+
+class TestCLIDockerEnvSupport:
+    """CLI commands work with Docker-based simulators."""
+
+    def test_env_list_shows_runtime(self):
+        """easi env list should see all simulators including Docker ones."""
+        from easi.simulators.registry import list_simulators, get_simulator_entry
+
+        sims = list_simulators()
+        for key in sims:
+            entry = get_simulator_entry(key)
+            assert entry.runtime in ("conda", "docker")
+
+    def test_docker_env_manager_has_check_system_deps(self):
+        """DockerEnvironmentManager supports check_system_deps()."""
+        from easi.simulators.registry import create_env_manager
+
+        mgr = create_env_manager("matterport3d")
+        missing = mgr.check_system_deps()
+        assert isinstance(missing, list)

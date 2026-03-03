@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from easi.utils.logging import get_logger
+from easi.utils.system_deps import SystemDependencyChecker
 
 logger = get_logger(__name__)
 
@@ -26,6 +27,7 @@ class DockerEnvironmentManager(ABC):
 
     def __init__(self, installation_kwargs: dict | None = None):
         self.installation_kwargs = installation_kwargs or {}
+        self._dep_checker = SystemDependencyChecker()
 
     # --- Abstract properties (subclass must implement) ---
 
@@ -83,6 +85,10 @@ class DockerEnvironmentManager(ABC):
     def get_system_deps(self) -> list[str]:
         """System dependencies (e.g., ['docker'] or ['docker', 'nvidia-docker'])."""
         ...
+
+    def check_system_deps(self) -> list[str]:
+        """Check system dependencies, returning list of missing ones."""
+        return self._dep_checker.check_all(self.get_system_deps())
 
     def get_env_vars(self) -> dict[str, str]:
         """Environment variables to set inside the container. Override if needed."""

@@ -154,7 +154,8 @@ def cmd_env_list() -> None:
             continue
         seen.add(pair)
         default_marker = " (default)" if key == entry.name else ""
-        logger.info("  %s%s  -- %s", pair, default_marker, entry.description)
+        runtime_tag = f" [{entry.runtime}]" if entry.runtime != "conda" else ""
+        logger.info("  %s%s%s  -- %s", pair, default_marker, runtime_tag, entry.description)
 
 
 def cmd_env_install(simulator: str, reinstall: bool = False, with_task_deps: str | None = None) -> None:
@@ -170,20 +171,26 @@ def cmd_env_install(simulator: str, reinstall: bool = False, with_task_deps: str
     env_manager.install()
 
     if with_task_deps:
-        from easi.tasks.registry import get_task_entry, load_task_class
+        from easi.core.docker_env_manager import DockerEnvironmentManager
 
-        entry = get_task_entry(with_task_deps)
-        TaskClass = load_task_class(with_task_deps)
-        task = TaskClass(split_yaml_path=entry.config_path)
-        if task.additional_deps:
-            env_manager.install_additional_deps(task.additional_deps)
+        if isinstance(env_manager, DockerEnvironmentManager):
+            logger.warning("--with-task-deps is not supported for Docker simulators (deps baked into image).")
         else:
-            logger.info("Task %s has no additional_deps.", with_task_deps)
+            from easi.tasks.registry import get_task_entry, load_task_class
+
+            entry = get_task_entry(with_task_deps)
+            TaskClass = load_task_class(with_task_deps)
+            task = TaskClass(split_yaml_path=entry.config_path)
+            if task.additional_deps:
+                env_manager.install_additional_deps(task.additional_deps)
+            else:
+                logger.info("Task %s has no additional_deps.", with_task_deps)
 
     logger.info("Done.")
 
 
 def cmd_env_check(simulator: str) -> None:
+    from easi.core.docker_env_manager import DockerEnvironmentManager
     from easi.simulators.registry import create_env_manager
 
     env_manager = create_env_manager(simulator)
@@ -194,7 +201,10 @@ def cmd_env_check(simulator: str) -> None:
 
     if env_manager.env_is_ready():
         logger.info("Environment %s is ready.", env_manager.get_env_name())
-        logger.info("Python: %s", env_manager.get_python_executable())
+        if isinstance(env_manager, DockerEnvironmentManager):
+            logger.info("Runtime: docker (image: %s)", env_manager.image_name)
+        else:
+            logger.info("Python: %s", env_manager.get_python_executable())
     else:
         logger.info("Environment %s is NOT ready.", env_manager.get_env_name())
         logger.info("Run: easi env install %s", simulator)
@@ -254,73 +264,136 @@ def cmd_task_download(task_name: str, refresh_data: bool = False) -> None:
 
 
 def cmd_sim_test(simulator: str, steps: int, timeout: float, render_platform_name: str | None = None) -> None:
+    from pathlib import Path
+
+    from easi.core.docker_env_manager import DockerEnvironmentManager
     from easi.core.episode import Action
+    from easi.core.render_platform import get_render_platform
     from easi.simulators.registry import (
         create_env_manager,
+        get_simulator_entry,
         load_simulator_class,
         resolve_render_platform,
     )
     from easi.simulators.subprocess_runner import SubprocessRunner
 
+    entry = get_simulator_entry(simulator)
     env_manager = create_env_manager(simulator)
     SimClass = load_simulator_class(simulator)
     sim = SimClass()
 
-    # Resolve render platform
-    platform_name = render_platform_name or env_manager.default_render_platform
-    if platform_name not in env_manager.supported_render_platforms:
-        logger.error(
-            "Render platform '%s' not supported by %s. Supported: %s",
-            platform_name, simulator, env_manager.supported_render_platforms,
+    if entry.runtime == "docker":
+        # --- Docker launch path ---
+        assert isinstance(env_manager, DockerEnvironmentManager), (
+            f"runtime='docker' but env_manager is {type(env_manager).__name__}, "
+            "expected DockerEnvironmentManager subclass"
         )
-        sys.exit(1)
-    render_platform = resolve_render_platform(simulator, platform_name, env_manager=env_manager)
+        logger.info("Testing %s (Docker)...", simulator)
+        logger.info("  Image: %s", env_manager.image_name)
+        logger.info("  GPU: %s", env_manager.gpu_required)
 
-    logger.info("Testing %s...", simulator)
-    logger.info("  Python: %s", env_manager.get_python_executable())
-    logger.info("  Render platform: %s", platform_name)
+        render_platform = get_render_platform("headless")
+        bridge_path = sim._get_bridge_script_path()
 
-    env_vars = env_manager.get_env_vars(render_platform_name=platform_name)
+        runner = SubprocessRunner(
+            python_executable=env_manager.container_python_path,
+            bridge_script_path=bridge_path,
+            render_platform=render_platform,
+            startup_timeout=timeout,
+            command_timeout=timeout,
+        )
 
-    runner = SubprocessRunner(
-        python_executable=env_manager.get_python_executable(),
-        bridge_script_path=sim._get_bridge_script_path(),
-        render_platform=render_platform,
-        screen_config=env_manager.screen_config,
-        startup_timeout=timeout,
-        command_timeout=timeout,
-        extra_env=env_vars if env_vars else None,
-    )
+        data_dir_str = entry.data_dir.replace("~", str(Path.home())) if entry.data_dir else None
 
-    try:
-        runner.launch()
-        sim.set_runner(runner)
+        try:
+            runner.launch_docker(
+                docker_env_manager=env_manager,
+                data_dir=data_dir_str,
+            )
+            sim.set_runner(runner)
 
-        logger.info("  Reset...")
-        obs = sim.reset("smoke_test_001")
-        logger.info("  Reset OK (rgb: %s)", obs.rgb_path)
+            logger.info("  Reset...")
+            obs = sim.reset("smoke_test_001")
+            logger.info("  Reset OK (rgb: %s)", obs.rgb_path)
 
-        for i in range(steps):
-            action = Action(action_name="MoveAhead")
-            result = sim.step(action)
-            logger.info("  Step %d: done=%s, reward=%s", i + 1, result.done, result.reward)
-            if result.done:
-                break
+            for i in range(steps):
+                action = Action(action_name="MoveAhead")
+                result = sim.step(action)
+                logger.info("  Step %d: done=%s, reward=%s", i + 1, result.done, result.reward)
+                if result.done:
+                    break
 
-        logger.info("  Closing...")
-        sim.close()
-        logger.info("  Close OK")
-        logger.info("Smoke test passed!")
+            logger.info("  Closing...")
+            sim.close()
+            logger.info("  Close OK")
+            logger.info("Smoke test passed!")
 
-    except KeyboardInterrupt:
-        logger.info("Interrupted, shutting down bridge...")
-        sim.close()
-        logger.info("Bridge process terminated.")
-        sys.exit(130)
-    except Exception as e:
-        logger.error("Smoke test FAILED: %s", e)
-        sim.close()
-        sys.exit(1)
+        except KeyboardInterrupt:
+            logger.info("Interrupted, shutting down bridge...")
+            sim.close()
+            logger.info("Bridge process terminated.")
+            sys.exit(130)
+        except Exception as e:
+            logger.error("Smoke test FAILED: %s", e)
+            sim.close()
+            sys.exit(1)
+
+    else:
+        # --- Conda launch path ---
+        platform_name = render_platform_name or env_manager.default_render_platform
+        if platform_name not in env_manager.supported_render_platforms:
+            logger.error(
+                "Render platform '%s' not supported by %s. Supported: %s",
+                platform_name, simulator, env_manager.supported_render_platforms,
+            )
+            sys.exit(1)
+        render_platform = resolve_render_platform(simulator, platform_name, env_manager=env_manager)
+
+        logger.info("Testing %s...", simulator)
+        logger.info("  Python: %s", env_manager.get_python_executable())
+        logger.info("  Render platform: %s", platform_name)
+
+        env_vars = env_manager.get_env_vars(render_platform_name=platform_name)
+
+        runner = SubprocessRunner(
+            python_executable=env_manager.get_python_executable(),
+            bridge_script_path=sim._get_bridge_script_path(),
+            render_platform=render_platform,
+            screen_config=env_manager.screen_config,
+            startup_timeout=timeout,
+            command_timeout=timeout,
+            extra_env=env_vars if env_vars else None,
+        )
+
+        try:
+            runner.launch()
+            sim.set_runner(runner)
+
+            logger.info("  Reset...")
+            obs = sim.reset("smoke_test_001")
+            logger.info("  Reset OK (rgb: %s)", obs.rgb_path)
+
+            for i in range(steps):
+                action = Action(action_name="MoveAhead")
+                result = sim.step(action)
+                logger.info("  Step %d: done=%s, reward=%s", i + 1, result.done, result.reward)
+                if result.done:
+                    break
+
+            logger.info("  Closing...")
+            sim.close()
+            logger.info("  Close OK")
+            logger.info("Smoke test passed!")
+
+        except KeyboardInterrupt:
+            logger.info("Interrupted, shutting down bridge...")
+            sim.close()
+            logger.info("Bridge process terminated.")
+            sys.exit(130)
+        except Exception as e:
+            logger.error("Smoke test FAILED: %s", e)
+            sim.close()
+            sys.exit(1)
 
 
 def _resolve_task_list(args_ns) -> list[str]:
