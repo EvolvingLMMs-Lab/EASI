@@ -14,7 +14,7 @@ simulator_configs:
   render_platform: auto
   screen_height: 512
   screen_width: 512
-  gpu_device_id: 0
+  gpu_device_id: -1
   success_distance: 1.0
   additional_deps: []
 agent:

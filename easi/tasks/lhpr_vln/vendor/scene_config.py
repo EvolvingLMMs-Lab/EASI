@@ -32,7 +32,7 @@ def make_setting(scene_path: str, scene_dataset_path: str, robot: str,
     }
 
 
-def make_cfg(settings: dict, gpu_device_id: int = 0) -> habitat_sim.Configuration:
+def make_cfg(settings: dict, gpu_device_id: int = -1) -> habitat_sim.Configuration:
     """Build Habitat-Sim Configuration from settings dict."""
     sim_cfg = habitat_sim.SimulatorConfiguration()
     sim_cfg.gpu_device_id = gpu_device_id
