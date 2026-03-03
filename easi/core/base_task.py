@@ -277,6 +277,11 @@ class BaseTask(ABC):
 
         subset = dataset_config.get("subset")
         split_name = dataset_config.get("split")
+        # hf_data_dir restricts which subdirectory the datasets library
+        # scans for data files.  Useful when the repo also contains large
+        # non-episode files (e.g. scene meshes) that would confuse auto-
+        # detection.
+        hf_data_dir = dataset_config.get("hf_data_dir")
 
         try:
             from datasets import (
@@ -294,7 +299,7 @@ class BaseTask(ABC):
 
         # Auto-detect subset if not specified
         if subset is None:
-            configs = get_dataset_config_names(local_path)
+            configs = get_dataset_config_names(local_path, data_dir=hf_data_dir)
             if len(configs) == 1:
                 subset = configs[0]
                 logger.info("Auto-detected single subset: %s", subset)
@@ -308,7 +313,9 @@ class BaseTask(ABC):
 
         # Auto-detect split if not specified
         if split_name is None:
-            splits = get_dataset_split_names(local_path, subset)
+            splits = get_dataset_split_names(
+                local_path, subset, data_dir=hf_data_dir,
+            )
             if len(splits) == 1:
                 split_name = splits[0]
                 logger.info("Auto-detected single split: %s", split_name)
@@ -327,7 +334,7 @@ class BaseTask(ABC):
         import tempfile
         hf_cache = Path(tempfile.gettempdir()) / "easi_hf_cache"
         ds = load_dataset(local_path, subset, split=split_name,
-                          cache_dir=str(hf_cache))
+                          data_dir=hf_data_dir, cache_dir=str(hf_cache))
         episodes = [hf_row_to_episode(row) for row in ds]
 
         for ep in episodes:

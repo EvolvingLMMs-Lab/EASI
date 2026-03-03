@@ -3,4 +3,4 @@ name: lhpr_vln_val
 display_name: "LHPR-VLN Val"
 description: "LHPR-VLN validation split (batch_6)"
 dataset:
-  split: "val"
+  split: "validation"
