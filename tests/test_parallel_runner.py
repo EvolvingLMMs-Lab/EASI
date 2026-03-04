@@ -181,6 +181,45 @@ class TestRunnerGPUArgs:
         assert runner.sim_gpus is None
 
 
+class TestGPUValidation:
+    """Test GPU allocation validation."""
+
+    def test_vllm_gpus_required_when_instances_specified(self):
+        """Should raise if --vllm-instances set but --vllm-gpus not provided."""
+        from easi.evaluation.parallel_runner import ParallelRunner
+        import pytest
+
+        with pytest.raises(ValueError, match="--vllm-gpus"):
+            ParallelRunner(
+                task_name="dummy_task", agent_type="dummy",
+                num_parallel=4, backend="vllm", model="test",
+                vllm_instances=2, vllm_gpus=None,
+            )
+
+    def test_vllm_gpus_sim_gpus_no_overlap(self):
+        """Should raise if vllm_gpus and sim_gpus overlap."""
+        from easi.evaluation.parallel_runner import ParallelRunner
+        import pytest
+
+        with pytest.raises(ValueError, match="overlap"):
+            ParallelRunner(
+                task_name="dummy_task", agent_type="dummy",
+                num_parallel=4, backend="vllm", model="test",
+                vllm_instances=2, vllm_gpus=[0, 1], sim_gpus=[1, 2],
+            )
+
+    def test_valid_gpu_config_passes(self):
+        """Valid GPU config should not raise."""
+        from easi.evaluation.parallel_runner import ParallelRunner
+
+        runner = ParallelRunner(
+            task_name="dummy_task", agent_type="dummy",
+            num_parallel=4, backend="vllm", model="test",
+            vllm_instances=2, vllm_gpus=[0, 1], sim_gpus=[2, 3],
+        )
+        assert runner.vllm_instances == 2
+
+
 class TestCLIParallelArg:
     """Test --num-parallel CLI argument parsing."""
 

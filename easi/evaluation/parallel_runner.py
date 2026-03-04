@@ -34,12 +34,28 @@ class ParallelRunner(EvaluationRunner):
     def __init__(self, *, num_parallel: int = 2, **kwargs):
         super().__init__(**kwargs)
         self.num_parallel = num_parallel
+        self._validate_gpu_args()
 
     def _serialize_cli_options(self) -> dict:
         """Add num_parallel to the serialized config."""
         base = super()._serialize_cli_options()
         base["num_parallel"] = self.num_parallel
         return base
+
+    def _validate_gpu_args(self):
+        """Validate GPU allocation arguments."""
+        if self.vllm_instances and self.vllm_instances > 1 and not self.vllm_gpus:
+            raise ValueError(
+                "--vllm-gpus is required when --vllm-instances > 1. "
+                "Specify which GPUs to use for vLLM inference."
+            )
+        if self.vllm_gpus and self.sim_gpus:
+            overlap = set(self.vllm_gpus) & set(self.sim_gpus)
+            if overlap:
+                raise ValueError(
+                    f"--vllm-gpus and --sim-gpus must not overlap. "
+                    f"Overlapping GPU IDs: {overlap}"
+                )
 
     def _parse_base_urls(self) -> list[str | None]:
         """Parse base URL(s) into list for round-robin assignment."""
