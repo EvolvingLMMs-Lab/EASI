@@ -129,7 +129,8 @@ class TestMultiServerManager:
         from unittest.mock import patch, MagicMock
         from easi.llm.server_manager import MultiServerManager
 
-        with patch("easi.llm.server_manager.ServerManager") as MockSM:
+        with patch("easi.llm.server_manager.ServerManager") as MockSM, \
+             patch("easi.llm.server_manager._port_is_available", return_value=True):
             mock_instance = MagicMock()
             mock_instance.start.return_value = "http://localhost:8000/v1"
             MockSM.return_value = mock_instance
@@ -157,7 +158,8 @@ class TestMultiServerManager:
         from unittest.mock import patch, MagicMock
         from easi.llm.server_manager import MultiServerManager
 
-        with patch("easi.llm.server_manager.ServerManager") as MockSM:
+        with patch("easi.llm.server_manager.ServerManager") as MockSM, \
+             patch("easi.llm.server_manager._port_is_available", return_value=True):
             mock_instance = MagicMock()
             mock_instance.start.return_value = "http://localhost:8000/v1"
             MockSM.return_value = mock_instance
@@ -179,7 +181,8 @@ class TestMultiServerManager:
         from unittest.mock import patch, MagicMock
         from easi.llm.server_manager import MultiServerManager
 
-        with patch("easi.llm.server_manager.ServerManager") as MockSM:
+        with patch("easi.llm.server_manager.ServerManager") as MockSM, \
+             patch("easi.llm.server_manager._port_is_available", return_value=True):
             mock_instance = MagicMock()
             mock_instance.start.return_value = "http://localhost:8000/v1"
             MockSM.return_value = mock_instance
@@ -196,3 +199,55 @@ class TestMultiServerManager:
 
         with pytest.raises(ValueError, match="divide.*evenly"):
             MultiServerManager(model="m", num_instances=3, gpu_ids=[0, 1])
+
+    def test_port_skips_taken(self):
+        """Should auto-increment past taken ports."""
+        from unittest.mock import patch, MagicMock
+        from easi.llm.server_manager import MultiServerManager
+
+        # Port 8000 available, 8001 taken, 8002 available
+        port_map = {8000: True, 8001: False, 8002: True}
+
+        with patch("easi.llm.server_manager.ServerManager") as MockSM, \
+             patch("easi.llm.server_manager._port_is_available",
+                   side_effect=lambda p: port_map.get(p, True)):
+            mock_instance = MagicMock()
+            mock_instance.start.return_value = "http://localhost:8000/v1"
+            MockSM.return_value = mock_instance
+
+            mgr = MultiServerManager(
+                model="test-model",
+                num_instances=2,
+                gpu_ids=[0, 1],
+                base_port=8000,
+            )
+            mgr.start()
+
+            calls = MockSM.call_args_list
+            assert calls[0].kwargs["port"] == 8000
+            assert calls[1].kwargs["port"] == 8002  # skipped 8001
+
+    def test_partial_failure_cleanup(self):
+        """If instance N fails, instances 0..N-1 should be stopped."""
+        from unittest.mock import patch, MagicMock, call
+        from easi.llm.server_manager import MultiServerManager
+
+        instance_0 = MagicMock()
+        instance_0.start.return_value = "http://localhost:8000/v1"
+        instance_1 = MagicMock()
+        instance_1.start.side_effect = RuntimeError("startup failed")
+
+        with patch("easi.llm.server_manager.ServerManager",
+                   side_effect=[instance_0, instance_1]), \
+             patch("easi.llm.server_manager._port_is_available", return_value=True):
+            mgr = MultiServerManager(
+                model="test-model",
+                num_instances=2,
+                gpu_ids=[0, 1],
+                base_port=8000,
+            )
+            with pytest.raises(RuntimeError, match="startup failed"):
+                mgr.start()
+
+            # Instance 0 should have been stopped during cleanup
+            instance_0.stop.assert_called_once()

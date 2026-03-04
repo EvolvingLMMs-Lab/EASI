@@ -26,6 +26,18 @@ _DEFAULT_VLLM_FLAGS = {
 }
 
 
+def _port_is_available(port: int) -> bool:
+    """Check if a TCP port is available on localhost."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.bind(("127.0.0.1", port))
+        return True
+    except OSError:
+        return False
+    finally:
+        sock.close()
+
+
 class ServerManager:
     """Manages a local inference server subprocess."""
 
@@ -106,18 +118,12 @@ class ServerManager:
     def _check_port(self) -> None:
         """Raise if port is already in use."""
         logger.trace("Checking if port %d is available...", self.port)
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            sock.bind(("127.0.0.1", self.port))
-            logger.trace("Port %d is available", self.port)
-        except OSError:
+        if not _port_is_available(self.port):
             raise RuntimeError(
                 f"Port {self.port} is already in use. "
                 f"Use --port <N> to specify a different port, "
                 f"or --llm-url to connect to an existing server."
             )
-        finally:
-            sock.close()
 
     def _build_command(self) -> tuple[list[str], dict]:
         """Build the server launch command and environment overrides.
@@ -236,25 +242,50 @@ class MultiServerManager:
         self._managers: list[ServerManager] = []
 
     def start(self) -> list[str]:
-        """Start all instances, return list of base_urls."""
+        """Start all instances, return list of base_urls.
+
+        Ports are assigned by probing from *base_port* upward, skipping
+        any that are already in use.  If any instance fails to start,
+        all previously started instances are stopped before re-raising.
+        """
         gpus_per = len(self.gpu_ids) // self.num_instances
         urls = []
-        for i in range(self.num_instances):
-            instance_gpus = self.gpu_ids[i * gpus_per : (i + 1) * gpus_per]
-            port = self.base_port + i
-            mgr = ServerManager(
-                backend="vllm",
-                model=self.model,
-                port=port,
-                server_kwargs=self.server_kwargs,
-                startup_timeout=self.startup_timeout,
-                log_dir=self.log_dir,
-                cuda_visible_devices=",".join(str(g) for g in instance_gpus),
+        next_port = self.base_port
+        try:
+            for i in range(self.num_instances):
+                instance_gpus = self.gpu_ids[i * gpus_per : (i + 1) * gpus_per]
+                port = self._find_available_port(next_port)
+                next_port = port + 1
+                mgr = ServerManager(
+                    backend="vllm",
+                    model=self.model,
+                    port=port,
+                    server_kwargs=self.server_kwargs,
+                    startup_timeout=self.startup_timeout,
+                    log_dir=self.log_dir,
+                    cuda_visible_devices=",".join(str(g) for g in instance_gpus),
+                )
+                url = mgr.start()
+                urls.append(url)
+                self._managers.append(mgr)
+        except Exception:
+            logger.warning(
+                "Instance %d failed to start, stopping %d already-running instances",
+                i, len(self._managers),
             )
-            url = mgr.start()
-            urls.append(url)
-            self._managers.append(mgr)
+            self.stop()
+            raise
         return urls
+
+    @staticmethod
+    def _find_available_port(start: int, max_probe: int = 100) -> int:
+        """Find the first available port starting from *start*."""
+        for port in range(start, start + max_probe):
+            if _port_is_available(port):
+                return port
+        raise RuntimeError(
+            f"No available port found in range {start}-{start + max_probe - 1}"
+        )
 
     def stop(self):
         """Stop all managed instances."""
