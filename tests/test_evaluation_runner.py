@@ -97,6 +97,7 @@ class TestCliOptionsCapture:
             "max_episodes", "llm_base_url", "agent_seed", "backend",
             "model", "port", "llm_kwargs_raw", "max_retries",
             "render_platform",
+            "vllm_instances", "vllm_gpus", "sim_gpus",
         }
         assert set(opts.keys()) == expected_keys
 
