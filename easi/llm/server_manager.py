@@ -47,6 +47,11 @@ class ServerManager:
         self.cuda_visible_devices = cuda_visible_devices
         self._process: subprocess.Popen | None = None
         self._log_thread: threading.Thread | None = None
+        logger.trace(
+            "ServerManager init: backend=%s, model=%s, port=%d, "
+            "server_kwargs=%s, cuda_visible_devices=%s",
+            backend, model, port, self.server_kwargs, cuda_visible_devices,
+        )
 
     def start(self) -> str:
         """Start the server, wait for health, return base_url."""
@@ -100,9 +105,11 @@ class ServerManager:
 
     def _check_port(self) -> None:
         """Raise if port is already in use."""
+        logger.trace("Checking if port %d is available...", self.port)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             sock.bind(("127.0.0.1", self.port))
+            logger.trace("Port %d is available", self.port)
         except OSError:
             raise RuntimeError(
                 f"Port {self.port} is already in use. "
@@ -127,12 +134,20 @@ class ServerManager:
             ]
             # Merge defaults with user overrides (user wins)
             merged_kwargs = {**_DEFAULT_VLLM_FLAGS, **self.server_kwargs}
+            overridden = {
+                k: v for k, v in self.server_kwargs.items()
+                if k in _DEFAULT_VLLM_FLAGS and v != _DEFAULT_VLLM_FLAGS[k]
+            }
+            if overridden:
+                logger.trace("User overrides for default vLLM flags: %s", overridden)
+            logger.trace("Merged vLLM kwargs: %s", merged_kwargs)
             for key, value in merged_kwargs.items():
                 flag = "--" + key.replace("_", "-")
                 if isinstance(value, bool):
                     if value:
                         cmd.append(flag)
-                    # Skip False booleans (don't add the flag)
+                    else:
+                        logger.trace("Skipping disabled bool flag: %s", flag)
                 else:
                     cmd.extend([flag, str(value)])
         else:
@@ -142,6 +157,8 @@ class ServerManager:
         if self.cuda_visible_devices is not None:
             env["CUDA_VISIBLE_DEVICES"] = self.cuda_visible_devices
 
+        logger.trace("Built command: %s", cmd)
+        logger.trace("Extra env: %s", env)
         return cmd, env
 
     @staticmethod
@@ -157,6 +174,9 @@ class ServerManager:
         """Poll /health until the server responds or timeout."""
         health_url = base_url.replace("/v1", "") + "/health"
         deadline = time.monotonic() + self.startup_timeout
+        logger.trace(
+            "Waiting for health at %s (timeout=%.0fs)", health_url, self.startup_timeout,
+        )
 
         while time.monotonic() < deadline:
             if self._process and self._process.poll() is not None:
@@ -167,9 +187,11 @@ class ServerManager:
             try:
                 resp = requests.get(health_url, timeout=5)
                 if resp.status_code == 200:
+                    logger.trace("Health check passed (status=%d)", resp.status_code)
                     return
+                logger.trace("Health check returned status %d, retrying...", resp.status_code)
             except requests.ConnectionError:
-                pass
+                logger.trace("Health check connection refused, retrying...")
 
             time.sleep(_HEALTH_POLL_INTERVAL)
 
