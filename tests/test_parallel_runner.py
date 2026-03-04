@@ -28,18 +28,46 @@ class TestParallelRunnerInit:
         assert runner.num_parallel == 2
 
 
-class TestParallelRunnerValidation:
-    """Test that unsupported configs are rejected."""
+class TestParseBaseUrls:
+    """Tests for _parse_base_urls() method."""
 
-    def test_local_vllm_raises_not_implemented(self, tmp_path):
+    def test_parses_comma_separated_urls(self):
         from easi.evaluation.parallel_runner import ParallelRunner
         runner = ParallelRunner(
-            task_name="dummy_task", num_parallel=2,
-            agent_type="react", backend="vllm",
-            model="some-model", output_dir=str(tmp_path),
+            task_name="dummy_task",
+            agent_type="dummy",
+            num_parallel=4,
+            llm_base_url="http://localhost:8000/v1,http://localhost:8001/v1",
+            backend="vllm",
+            model="test",
         )
-        with pytest.raises(NotImplementedError, match="does not support local vLLM"):
-            runner.run()
+        urls = runner._parse_base_urls()
+        assert urls == ["http://localhost:8000/v1", "http://localhost:8001/v1"]
+
+    def test_single_url(self):
+        from easi.evaluation.parallel_runner import ParallelRunner
+        runner = ParallelRunner(
+            task_name="dummy_task",
+            agent_type="dummy",
+            num_parallel=4,
+            llm_base_url="http://localhost:8000/v1",
+            backend="openai",
+            model="gpt-4o",
+        )
+        urls = runner._parse_base_urls()
+        assert urls == ["http://localhost:8000/v1"]
+
+    def test_no_url(self):
+        from easi.evaluation.parallel_runner import ParallelRunner
+        runner = ParallelRunner(
+            task_name="dummy_task",
+            agent_type="dummy",
+            num_parallel=4,
+            backend="openai",
+            model="gpt-4o",
+        )
+        urls = runner._parse_base_urls()
+        assert urls == [None]
 
 
 class TestParallelRunnerWithDummy:
