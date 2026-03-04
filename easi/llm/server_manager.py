@@ -20,6 +20,10 @@ logger = get_logger(__name__)
 
 _HEALTH_POLL_INTERVAL = 5.0
 _DEFAULT_STARTUP_TIMEOUT = 300.0
+_DEFAULT_VLLM_FLAGS = {
+    "enable_prefix_caching": True,
+    "disable_log_requests": True,
+}
 
 
 class ServerManager:
@@ -121,7 +125,9 @@ class ServerManager:
                 "--model", self.model,
                 "--port", str(self.port),
             ]
-            for key, value in self.server_kwargs.items():
+            # Merge defaults with user overrides (user wins)
+            merged_kwargs = {**_DEFAULT_VLLM_FLAGS, **self.server_kwargs}
+            for key, value in merged_kwargs.items():
                 flag = "--" + key.replace("_", "-")
                 if isinstance(value, bool):
                     if value:

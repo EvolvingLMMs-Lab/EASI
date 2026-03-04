@@ -88,6 +88,27 @@ class TestIsRunning:
         assert sm.is_running() is False
 
 
+class TestDefaultVllmFlags:
+    def test_server_manager_default_vllm_flags(self):
+        """ServerManager should include default vLLM flags (prefix caching, quiet logs)."""
+        from easi.llm.server_manager import ServerManager
+        mgr = ServerManager(backend="vllm", model="test-model", port=9999)
+        cmd, _ = mgr._build_command()
+        assert "--enable-prefix-caching" in cmd
+        assert "--disable-log-requests" in cmd
+
+    def test_server_manager_user_can_override_defaults(self):
+        """User-provided server_kwargs should override defaults."""
+        from easi.llm.server_manager import ServerManager
+        mgr = ServerManager(
+            backend="vllm", model="test-model", port=9999,
+            server_kwargs={"enable_prefix_caching": False},
+        )
+        cmd, _ = mgr._build_command()
+        # False bool flags should NOT appear in command
+        assert "--enable-prefix-caching" not in cmd
+
+
 class TestCudaVisibleDevices:
     def test_server_manager_sets_cuda_visible_devices(self):
         from easi.llm.server_manager import ServerManager
