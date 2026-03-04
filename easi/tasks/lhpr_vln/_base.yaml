@@ -25,9 +25,10 @@ agent:
     use_subtask_progress: true      # Show subtask stage/total + current target name
     use_agent_position: false       # Show agent 3D position (x, y, z)
     use_target_coordinate: false    # Show target 3D coordinate (x, y, z)
+    action_history_len: -1          # Action history entries: 0=off, -1=unlimited, N=last N
     chat_history: false             # Stateless (false) or accumulated messages (true)
     message_window_len: 5           # Sliding window for chat history mode
   generation_kwargs:
     temperature: 0
-    max_tokens: 1024
+    max_tokens: 4096
     top_p: 0.95

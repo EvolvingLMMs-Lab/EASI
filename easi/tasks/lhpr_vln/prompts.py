@@ -128,6 +128,7 @@ class LHPRVLNPromptBuilder:
         use_subtask_progress: bool = True,
         use_agent_position: bool = False,
         use_target_coordinate: bool = False,
+        action_history_len: int = -1,
         chat_history: bool = False,
         message_window_len: int = 5,
         **kwargs,
@@ -137,6 +138,7 @@ class LHPRVLNPromptBuilder:
         self.use_subtask_progress = use_subtask_progress
         self.use_agent_position = use_agent_position
         self.use_target_coordinate = use_target_coordinate
+        self.action_history_len = action_history_len
         self.chat_history = chat_history
         self.message_window_len = message_window_len
 
@@ -252,7 +254,9 @@ class LHPRVLNPromptBuilder:
         if len(action_history) == 0:
             prompt += self._make_first_prompt_suffix(max_id)
         else:
-            prompt += self._format_action_history(action_history)
+            history_text = self._format_action_history(action_history)
+            if history_text:
+                prompt += history_text
             prompt += f"\n\n{self._make_following_prompt_suffix(max_id)}"
 
         return prompt
@@ -325,7 +329,9 @@ class LHPRVLNPromptBuilder:
         if env_feedback:
             prompt += env_feedback
 
-        prompt += self._format_action_history(action_history)
+        history_text = self._format_action_history(action_history)
+        if history_text:
+            prompt += history_text
         prompt += f"\n\n{self._make_following_prompt_suffix(max_id)}"
 
         return prompt
@@ -393,6 +399,10 @@ class LHPRVLNPromptBuilder:
         )
 
     def _format_action_history(self, action_history: list[tuple[str, str]]) -> str:
+        if self.action_history_len == 0:
+            return ""
+        if self.action_history_len > 0:
+            action_history = action_history[-self.action_history_len:]
         text = '\n\n The action history:'
         for i, (action_name, feedback) in enumerate(action_history):
             action_id = self._action_id_map.get(action_name, -1)
