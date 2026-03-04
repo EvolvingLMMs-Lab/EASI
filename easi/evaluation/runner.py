@@ -655,6 +655,11 @@ class EvaluationRunner:
         if task and task.extra_env_vars:
             env_vars = EnvVars.merge(env_vars, EnvVars(replace=task.extra_env_vars))
 
+        # Apply simulator GPU isolation
+        if self.sim_gpus is not None:
+            gpu_str = ",".join(str(g) for g in self.sim_gpus)
+            env_vars = EnvVars.merge(env_vars, EnvVars(replace={"CUDA_VISIBLE_DEVICES": gpu_str}))
+
         runner = SubprocessRunner(
             python_executable=env_manager.get_python_executable(),
             bridge_script_path=bridge_path,
