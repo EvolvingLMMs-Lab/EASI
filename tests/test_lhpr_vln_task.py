@@ -145,7 +145,7 @@ class TestLHPRVLNTask:
     def test_aggregate_results_all_metrics(self, task):
         records = [
             EpisodeRecord(
-                episode={}, trajectory=[],
+                episode={"robot": "spot"}, trajectory=[],
                 episode_results={
                     "task_success": 1.0,
                     "_subtask_successes": "[1, 1]",
@@ -158,13 +158,52 @@ class TestLHPRVLNTask:
             ),
         ]
         summary = task.aggregate_results(records)
-        # All 8 metrics present
+        # Nested structure with "base" group
+        assert "base" in summary
+        base = summary["base"]
         for key in ["SR", "OSR", "SPL", "NE", "ISR", "CSR", "CGT", "TAR"]:
-            assert key in summary, f"Missing metric: {key}"
-        assert "contest_score" in summary
-        assert "num_episodes" in summary
-        assert summary["num_episodes"] == 1
-        assert summary["SR"] == 1.0
+            assert key in base, f"Missing metric: {key}"
+        assert "contest_score" in base
+        assert base["num_episodes"] == 1
+        assert base["SR"] == 1.0
+
+    def test_aggregate_results_grouped_by_robot(self, task):
+        """Metrics should be nested by robot type (spot, stretch)."""
+        spot_results = {
+            "_subtask_successes": "[1, 1]",
+            "_subtask_oracle_successes": "[1, 1]",
+            "_subtask_nav_errors": "[0.5, 0.3]",
+            "_subtask_nav_steps": "[40, 55]",
+            "_gt_steps": "[40, 55]",
+            "_gt_paths": "[5.0, 8.0]",
+        }
+        stretch_results = {
+            "_subtask_successes": "[0, 0]",
+            "_subtask_oracle_successes": "[0, 0]",
+            "_subtask_nav_errors": "[5.0, 4.0]",
+            "_subtask_nav_steps": "[100, 100]",
+            "_gt_steps": "[40, 55]",
+            "_gt_paths": "[5.0, 8.0]",
+        }
+        records = [
+            EpisodeRecord(episode={"robot": "spot"}, trajectory=[], episode_results=spot_results),
+            EpisodeRecord(episode={"robot": "stretch"}, trajectory=[], episode_results=stretch_results),
+        ]
+        summary = task.aggregate_results(records)
+
+        # Base group (all episodes)
+        assert summary["base"]["num_episodes"] == 2
+
+        # Robot-specific nested groups
+        assert summary["spot"]["num_episodes"] == 1
+        assert summary["stretch"]["num_episodes"] == 1
+        assert summary["spot"]["SR"] == 1.0
+        assert summary["stretch"]["SR"] == 0.0
+
+        # All 8 metrics present in each group
+        for group in ["base", "spot", "stretch"]:
+            for key in ["SR", "OSR", "SPL", "NE", "ISR", "CSR", "CGT", "TAR", "contest_score"]:
+                assert key in summary[group], f"Missing {group}.{key}"
 
 
 class TestPromptBuilder:

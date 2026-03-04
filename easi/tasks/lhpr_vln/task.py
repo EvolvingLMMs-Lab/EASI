@@ -108,25 +108,46 @@ class LHPRVLNTask(BaseTask):
             "_gt_paths": json.dumps(gt_paths),
         }
 
-    def aggregate_results(
-        self, records: list[EpisodeRecord]
-    ) -> dict[str, float]:
+    def aggregate_results(self, records: list[EpisodeRecord]) -> dict:
         """Compute all 8 LHPR-VLN metrics using vendored NavigationMetrics.
 
+        Returns nested dict grouped by robot type:
+        - base: all episodes
+        - spot: Spot robot episodes only
+        - stretch: Stretch robot episodes only
+
         Metric definitions (from CVPR-25 paper):
-        - SR: Success Rate (all subtasks completed)
-        - OSR: Oracle Success Rate (agent ever passed within 1m of all targets)
-        - SPL: Success weighted by Path Length
-        - NE: Navigation Error (avg geodesic distance at stop)
-        - ISR: Independent Success Rate (fraction of subtasks succeeded)
-        - CSR: Conditional Success Rate (sequential dependency weighting)
-        - CGT: CSR weighted by GT path length
-        - TAR: Target Approach Rate (continuous approach measure)
-        - contest_score: 0.4*TAR + 0.2*ISR + 0.2*CSR + 0.2*CGT
+        - SR, OSR, SPL, NE, ISR, CSR, CGT, TAR, contest_score
         """
         if not records:
             return {}
 
+        # Group records by robot type
+        groups: dict[str, list[EpisodeRecord]] = {}
+        for r in records:
+            robot = r.episode.get("robot", "spot")
+            groups.setdefault(robot, []).append(r)
+
+        output: dict = {}
+
+        # Base group: all episodes
+        base = self._compute_group_metrics(records)
+        base["num_episodes"] = len(records)
+        base["success_rate"] = base["SR"]
+        output["base"] = base
+
+        # Per-robot groups
+        for robot_type, group_records in sorted(groups.items()):
+            group = self._compute_group_metrics(group_records)
+            group["num_episodes"] = len(group_records)
+            output[robot_type] = group
+
+        return output
+
+    def _compute_group_metrics(
+        self, records: list[EpisodeRecord]
+    ) -> dict[str, float]:
+        """Compute LHPR-VLN metrics for a group of records."""
         metrics = NavigationMetrics()
 
         for r in records:
@@ -138,15 +159,10 @@ class LHPRVLNTask(BaseTask):
             gt_steps = json.loads(er.get("_gt_steps", "[]"))
             gt_paths = json.loads(er.get("_gt_paths", "[]"))
 
-            # Overall success
             success = 1 if successes and all(s == 1 for s in successes) else 0
             oracle_success = 1 if oracle_successes and all(s == 1 for s in oracle_successes) else 0
-
-            # Total steps
             total_gt = sum(gt_steps) if gt_steps else 0
             total_actual = sum(nav_steps) if nav_steps else 0
-
-            # Avg navigation error
             avg_ne = sum(nav_errors) / len(nav_errors) if nav_errors else 0.0
 
             metrics.add_sample(
@@ -163,7 +179,6 @@ class LHPRVLNTask(BaseTask):
 
         result = metrics.compute()
 
-        # Add contest ranking score
         tar = result.get("tar", 0)
         isr = result.get("independent_success_rate", 0)
         csr = result.get("conditional_success_rate", 0)
@@ -180,9 +195,6 @@ class LHPRVLNTask(BaseTask):
             "CGT": round(result["conditional_path_length"], 4),
             "TAR": round(result["tar"], 4),
             "contest_score": round(contest_score, 4),
-            "num_episodes": len(records),
-            # Convenience alias for EASI dashboard
-            "success_rate": round(result["success_rate"], 4),
         }
 
     def _empty_metrics(self) -> dict[str, float]:
