@@ -112,8 +112,22 @@ def build_parser() -> argparse.ArgumentParser:
     start_parser.add_argument("--max-retries", type=int, default=None,
                               help="Max LLM retry attempts on transient errors (default: 3)")
     start_parser.add_argument("--num-parallel", type=int, default=None, dest="num_parallel",
-                              help="Number of parallel simulator instances (default: 1, sequential). "
-                                   "Only supported with proprietary API backends (openai, anthropic, gemini).")
+                              help="Number of parallel simulator instances (default: 1, sequential).")
+    start_parser.add_argument(
+        "--vllm-instances", type=int, default=None, dest="vllm_instances",
+        help="Number of vLLM server instances to start (default: 1). "
+             "Each instance runs on a subset of --vllm-gpus.",
+    )
+    start_parser.add_argument(
+        "--vllm-gpus", type=str, default=None, dest="vllm_gpus",
+        help="Comma-separated GPU IDs for vLLM inference (e.g., '0,1'). "
+             "GPUs are split evenly across --vllm-instances.",
+    )
+    start_parser.add_argument(
+        "--sim-gpus", type=str, default=None, dest="sim_gpus",
+        help="Comma-separated GPU IDs for simulator rendering (e.g., '2,3'). "
+             "If not set, simulators use CPU rendering.",
+    )
     start_parser.add_argument("--resume", type=str, default=None, dest="resume_dir",
                               help="Path to a previous run directory to resume from")
     start_parser.add_argument("--refresh-data", action="store_true", dest="refresh_data",
