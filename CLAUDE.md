@@ -76,7 +76,7 @@ easi/
 │
 ├── evaluation/        # Evaluation orchestration
 │   ├── runner.py             # EvaluationRunner (sequential)
-│   ├── parallel_runner.py    # ParallelRunner (thread-pool, API backends)
+│   ├── parallel_runner.py    # ParallelRunner (thread-pool, any backend)
 │   └── metrics.py            # default_aggregate + legacy aggregate_metrics
 │
 ├── llm/               # LLM client infrastructure
@@ -144,11 +144,24 @@ easi start <task> \
   --agent {dummy|react} \
   --backend {vllm|openai|anthropic|gemini} \
   --model <name> \
-  --num-parallel <n> \        # Thread-pool parallelism (API backends only)
+  --num-parallel <n> \        # Thread-pool parallelism
   --max-episodes <n> \
   --resume <run_dir> \
   --output-dir ./logs \
-  --llm-kwargs '{"temperature": 0.7}'
+  --llm-kwargs '{"temperature": 0.7}' \
+  --vllm-instances <n> \      # Number of vLLM server instances (default: 1)
+  --vllm-gpus 0,1,2,3 \      # GPUs for vLLM (split across instances)
+  --sim-gpus 4,5              # GPUs for simulator rendering
+```
+
+**Parallel vLLM example** (2 instances with TP=2, 8 workers, simulators on separate GPUs):
+```bash
+easi start ebalfred_base \
+  --agent react --backend vllm \
+  --model Qwen/Qwen2.5-VL-72B-Instruct \
+  --num-parallel 8 --vllm-instances 2 \
+  --vllm-gpus 0,1,2,3 --sim-gpus 4,5 \
+  --llm-kwargs '{"tensor_parallel_size": 2}'
 ```
 
 ## Output Structure

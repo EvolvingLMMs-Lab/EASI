@@ -61,10 +61,26 @@ easi start [TASK ...] [options]
 
 | Option | Description |
 |---|---|
-| `--num-parallel N` | Parallel simulator instances (default: 1). API backends only. |
+| `--num-parallel N` | Parallel simulator instances (default: 1). Works with any backend. |
 | `--max-episodes N` | Max episodes to run (default: all) |
 | `--seed SEED` | Random seed for agent reproducibility |
 | `--render-platform PLATFORM` | Rendering platform override (default: simulator's preference). See [Render Platforms](#render-platforms). |
+
+### GPU Allocation (vLLM backend)
+
+| Option | Description |
+|---|---|
+| `--vllm-instances N` | Number of vLLM server instances to start (default: 1). Each runs on a subset of `--vllm-gpus`. |
+| `--vllm-gpus IDS` | Comma-separated GPU IDs for vLLM inference (e.g., `0,1,2,3`). GPUs are split evenly across instances. |
+| `--sim-gpus IDS` | Comma-separated GPU IDs for simulator rendering (e.g., `4,5`). Sets `CUDA_VISIBLE_DEVICES` for simulator subprocesses. |
+
+**Notes:**
+- `--vllm-gpus` is required when `--vllm-instances > 1`.
+- `--vllm-gpus` and `--sim-gpus` must not overlap.
+- GPU IDs are validated against hardware at startup (via `nvidia-smi`).
+- All vLLM instances start in parallel (processes spawned first, then health-checked concurrently).
+- Workers are assigned to vLLM instances via round-robin (e.g., 8 workers across 2 instances → 4 workers per instance).
+- These options are ignored with a warning if `--backend` is not `vllm`.
 
 ### Data & Output
 
@@ -109,9 +125,25 @@ easi start ebalfred_base --agent react --backend openai --model gpt-4o \
 # Limit episodes
 easi start ebalfred_base --agent dummy --max-episodes 5 --seed 42
 
-# Parallel evaluation (API backends only)
+# Parallel evaluation (API backend)
 easi start ebalfred_base --agent react --backend openai --model gpt-4o \
     --num-parallel 4
+
+# Parallel evaluation with local vLLM (1 instance, all GPUs)
+easi start ebalfred_base --agent react --backend vllm \
+    --model Qwen/Qwen2.5-VL-7B-Instruct --num-parallel 8
+
+# Parallel vLLM with 2 instances (TP=2 each) + separate sim GPUs
+easi start ebalfred_base --agent react --backend vllm \
+    --model Qwen/Qwen2.5-VL-72B-Instruct \
+    --num-parallel 8 --vllm-instances 2 \
+    --vllm-gpus 0,1,2,3 --sim-gpus 4,5 \
+    --llm-kwargs '{"tensor_parallel_size": 2}'
+
+# External multi-URL vLLM (pre-started servers, no auto-management)
+easi start ebalfred_base --agent react --backend vllm \
+    --model Qwen/Qwen2.5-VL-72B-Instruct --num-parallel 8 \
+    --llm-url http://localhost:8000/v1,http://localhost:8001/v1
 
 # Multiple tasks
 easi start ebalfred_base ebnavigation_base --agent react \
