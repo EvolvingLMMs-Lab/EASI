@@ -77,6 +77,18 @@ class ParallelRunner(EvaluationRunner):
                     f"--vllm-gpus and --sim-gpus must not overlap. "
                     f"Overlapping GPU IDs: {overlap}"
                 )
+        # Warn if vLLM-specific args are set but backend is not vllm
+        if self.backend and self.backend != "vllm":
+            ignored = []
+            if self.vllm_instances:
+                ignored.append("--vllm-instances")
+            if self.vllm_gpus:
+                ignored.append("--vllm-gpus")
+            if ignored:
+                logger.warning(
+                    "%s will be ignored because --backend is '%s' (not 'vllm').",
+                    ", ".join(ignored), self.backend,
+                )
         # Validate GPU IDs against hardware
         all_gpu_ids = set()
         if self.vllm_gpus:
