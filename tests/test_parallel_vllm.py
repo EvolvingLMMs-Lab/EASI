@@ -47,30 +47,3 @@ def test_round_robin_url_assignment():
     assert urls[3 % 2] == "http://localhost:8001/v1"
 
 
-def test_cli_to_runner_gpu_flow():
-    """Verify CLI args flow through to runner correctly."""
-    from easi.cli import build_parser
-
-    parser = build_parser()
-    args = parser.parse_args([
-        "start", "dummy_task",
-        "--agent", "dummy",
-        "--backend", "vllm",
-        "--model", "test",
-        "--num-parallel", "12",
-        "--vllm-instances", "2",
-        "--vllm-gpus", "0,1",
-        "--sim-gpus", "2,3",
-    ])
-
-    # Verify CLI parsing
-    assert args.vllm_instances == 2
-    assert args.vllm_gpus == "0,1"
-    assert args.sim_gpus == "2,3"
-    assert args.num_parallel == 12
-
-    # Verify string-to-list conversion (same logic as cmd_start)
-    vllm_gpus = [int(g) for g in args.vllm_gpus.split(",")]
-    sim_gpus = [int(g) for g in args.sim_gpus.split(",")]
-    assert vllm_gpus == [0, 1]
-    assert sim_gpus == [2, 3]

@@ -161,117 +161,118 @@ class EvaluationRunner:
         # 2. Resolve LLM backend and optionally start server
         backend, base_url = self._resolve_llm_backend()
         server = None
-        if backend == "vllm" and base_url is None:
-            from easi.llm.server_manager import ServerManager
+
+        try:
+            if backend == "vllm" and base_url is None:
+                from easi.llm.server_manager import ServerManager
+                from easi.llm.utils import parse_llm_kwargs, split_kwargs
+
+                all_kwargs = parse_llm_kwargs(self.llm_kwargs_raw)
+                server_kwargs, _ = split_kwargs(all_kwargs)
+                server = ServerManager(
+                    "vllm", self.model, port=self.port,
+                    server_kwargs=server_kwargs,
+                )
+                base_url = server.start()
+
+            # Compute resolved generation kwargs (YAML defaults + CLI overrides)
             from easi.llm.utils import parse_llm_kwargs, split_kwargs
+            agent_config = task._config.get("agent", {})
+            yaml_gen_kwargs = agent_config.get("generation_kwargs", {})
+            all_llm_kwargs = parse_llm_kwargs(self.llm_kwargs_raw)
+            _, cli_gen_kwargs = split_kwargs(all_llm_kwargs)
+            resolved_gen_kwargs = {**yaml_gen_kwargs, **cli_gen_kwargs}
 
-            all_kwargs = parse_llm_kwargs(self.llm_kwargs_raw)
-            server_kwargs, _ = split_kwargs(all_kwargs)
-            server = ServerManager(
-                "vllm", self.model, port=self.port,
-                server_kwargs=server_kwargs, log_dir=run_dir,
+            # Save run config
+            config = {
+                "run_id": self.run_id,
+                "total_episodes": len(episodes),
+                "cli_options": self._serialize_cli_options(),
+                "resolved_backend": backend,
+                "resolved_base_url": base_url,
+                "resolved_generation_kwargs": resolved_gen_kwargs,
+                "task_config": task._config,
+            }
+            (run_dir / "config.json").write_text(json.dumps(config, indent=2))
+            logger.trace(
+                "Run config:\n%s", json.dumps(config, indent=2, default=str)
             )
-            base_url = server.start()
 
-        # Compute resolved generation kwargs (YAML defaults + CLI overrides)
-        from easi.llm.utils import parse_llm_kwargs, split_kwargs
-        agent_config = task._config.get("agent", {})
-        yaml_gen_kwargs = agent_config.get("generation_kwargs", {})
-        all_llm_kwargs = parse_llm_kwargs(self.llm_kwargs_raw)
-        _, cli_gen_kwargs = split_kwargs(all_llm_kwargs)
-        resolved_gen_kwargs = {**yaml_gen_kwargs, **cli_gen_kwargs}
+            # Skip simulator/agent if all episodes already complete (resume)
+            if start_index >= len(episodes):
+                logger.info("All %d episodes already complete, re-aggregating summary.", len(episodes))
+            else:
+                # 3. Create agent
+                agent = self._create_agent(task.action_space, task._config,
+                                           backend=backend, base_url=base_url)
 
-        # Save run config
-        config = {
-            "run_id": self.run_id,
-            "total_episodes": len(episodes),
-            "cli_options": self._serialize_cli_options(),
-            "resolved_backend": backend,
-            "resolved_base_url": base_url,
-            "resolved_generation_kwargs": resolved_gen_kwargs,
-            "task_config": task._config,
-        }
-        (run_dir / "config.json").write_text(json.dumps(config, indent=2))
-        logger.trace(
-            "Run config:\n%s", json.dumps(config, indent=2, default=str)
-        )
+                # 4. Start simulator
+                sim, sim_runner = self._create_simulator(task.simulator_key, task=task)
 
-        # Skip simulator/agent if all episodes already complete (resume)
-        if start_index >= len(episodes):
-            logger.info("All %d episodes already complete, re-aggregating summary.", len(episodes))
+                try:
+                    for i, episode in enumerate(episodes):
+                        if i < start_index:
+                            continue
+                        episode_id = episode.get("episode_id", f"ep_{i}")
+                        logger.info(
+                            "Episode %d/%d: %s", i + 1, len(episodes), episode_id,
+                        )
+
+                        episode_dir = episodes_dir / f"{i:03d}_{_sanitize_dirname(episode_id)}"
+                        episode_dir.mkdir(exist_ok=True)
+
+                        result = None
+                        for attempt in range(1, self.max_retries + 1):
+                            try:
+                                result = self._run_episode(
+                                    sim, agent, task, episode, i, episode_dir,
+                                )
+                                break
+                            except Exception as exc:
+                                logger.warning(
+                                    "Episode %s attempt %d/%d failed: %s",
+                                    episode_id, attempt, self.max_retries, exc,
+                                )
+                                self._clear_episode_dir(episode_dir)
+                                if attempt < self.max_retries:
+                                    logger.info("Re-launching simulator for retry...")
+                                    try:
+                                        sim.close()
+                                    except Exception:
+                                        pass
+                                    sim, sim_runner = self._create_simulator(
+                                        task.simulator_key, task=task,
+                                    )
+                                else:
+                                    logger.error(
+                                        "Episode %s failed after %d attempts, skipping",
+                                        episode_id, self.max_retries,
+                                    )
+                                    result = {
+                                        "episode_id": episode_id,
+                                        "instruction": task.get_instruction(episode),
+                                        "success": 0.0,
+                                        "num_steps": 0,
+                                        "elapsed_seconds": 0.0,
+                                        "error": str(exc),
+                                    }
+
+                        all_results.append(result)
+
+                        # Save per-episode result (strip internal keys)
+                        result_to_save = {
+                            k: v for k, v in result.items()
+                            if not k.startswith("_")
+                        }
+                        (episode_dir / "result.json").write_text(
+                            json.dumps(result_to_save, indent=2)
+                        )
+
+                finally:
+                    sim.close()
+        finally:
             if server:
                 server.stop()
-        else:
-            # 3. Create agent
-            agent = self._create_agent(task.action_space, task._config,
-                                       backend=backend, base_url=base_url)
-
-            # 4. Start simulator
-            sim, sim_runner = self._create_simulator(task.simulator_key, task=task)
-
-            try:
-                for i, episode in enumerate(episodes):
-                    if i < start_index:
-                        continue
-                    episode_id = episode.get("episode_id", f"ep_{i}")
-                    logger.info(
-                        "Episode %d/%d: %s", i + 1, len(episodes), episode_id,
-                    )
-
-                    episode_dir = episodes_dir / f"{i:03d}_{_sanitize_dirname(episode_id)}"
-                    episode_dir.mkdir(exist_ok=True)
-
-                    result = None
-                    for attempt in range(1, self.max_retries + 1):
-                        try:
-                            result = self._run_episode(
-                                sim, agent, task, episode, i, episode_dir,
-                            )
-                            break
-                        except Exception as exc:
-                            logger.warning(
-                                "Episode %s attempt %d/%d failed: %s",
-                                episode_id, attempt, self.max_retries, exc,
-                            )
-                            self._clear_episode_dir(episode_dir)
-                            if attempt < self.max_retries:
-                                logger.info("Re-launching simulator for retry...")
-                                try:
-                                    sim.close()
-                                except Exception:
-                                    pass
-                                sim, sim_runner = self._create_simulator(
-                                    task.simulator_key, task=task,
-                                )
-                            else:
-                                logger.error(
-                                    "Episode %s failed after %d attempts, skipping",
-                                    episode_id, self.max_retries,
-                                )
-                                result = {
-                                    "episode_id": episode_id,
-                                    "instruction": task.get_instruction(episode),
-                                    "success": 0.0,
-                                    "num_steps": 0,
-                                    "elapsed_seconds": 0.0,
-                                    "error": str(exc),
-                                }
-
-                    all_results.append(result)
-
-                    # Save per-episode result (strip internal keys)
-                    result_to_save = {
-                        k: v for k, v in result.items()
-                        if not k.startswith("_")
-                    }
-                    (episode_dir / "result.json").write_text(
-                        json.dumps(result_to_save, indent=2)
-                    )
-
-            finally:
-                sim.close()
-                if server:
-                    server.stop()
 
         # 5. Build EpisodeRecords for aggregate_results
         records = []

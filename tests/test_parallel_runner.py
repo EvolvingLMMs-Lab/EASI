@@ -219,6 +219,56 @@ class TestGPUValidation:
         )
         assert runner.vllm_instances == 2
 
+    def test_invalid_gpu_ids_raises(self):
+        """Should raise if GPU IDs exceed hardware count."""
+        from unittest.mock import patch
+        from easi.evaluation.parallel_runner import ParallelRunner
+
+        with patch("easi.evaluation.parallel_runner._get_gpu_count", return_value=2):
+            with pytest.raises(ValueError, match="do not exist.*2 GPU"):
+                ParallelRunner(
+                    task_name="dummy_task", agent_type="dummy",
+                    num_parallel=4, backend="vllm", model="test",
+                    vllm_instances=2, vllm_gpus=[0, 1, 2, 3],
+                )
+
+    def test_invalid_sim_gpu_ids_raises(self):
+        """Should raise if sim GPU IDs exceed hardware count."""
+        from unittest.mock import patch
+        from easi.evaluation.parallel_runner import ParallelRunner
+
+        with patch("easi.evaluation.parallel_runner._get_gpu_count", return_value=4):
+            with pytest.raises(ValueError, match="do not exist.*4 GPU"):
+                ParallelRunner(
+                    task_name="dummy_task", agent_type="dummy",
+                    num_parallel=4, sim_gpus=[5, 6],
+                )
+
+    def test_negative_gpu_id_raises(self):
+        """Should raise for negative GPU IDs."""
+        from unittest.mock import patch
+        from easi.evaluation.parallel_runner import ParallelRunner
+
+        with patch("easi.evaluation.parallel_runner._get_gpu_count", return_value=4):
+            with pytest.raises(ValueError, match="do not exist"):
+                ParallelRunner(
+                    task_name="dummy_task", agent_type="dummy",
+                    num_parallel=4, vllm_gpus=[-1, 0],
+                )
+
+    def test_gpu_validation_skipped_when_detection_fails(self):
+        """Should not raise when nvidia-smi is unavailable."""
+        from unittest.mock import patch
+        from easi.evaluation.parallel_runner import ParallelRunner
+
+        with patch("easi.evaluation.parallel_runner._get_gpu_count", return_value=None):
+            # Should not raise even with absurd GPU IDs
+            runner = ParallelRunner(
+                task_name="dummy_task", agent_type="dummy",
+                num_parallel=4, vllm_gpus=[99, 100],
+            )
+            assert runner.vllm_gpus == [99, 100]
+
 
 class TestCLIParallelArg:
     """Test --num-parallel CLI argument parsing."""

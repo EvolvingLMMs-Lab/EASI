@@ -24,6 +24,27 @@ from easi.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
+def _get_gpu_count() -> int | None:
+    """Detect the number of GPUs via nvidia-smi.
+
+    Returns the GPU count, or None if detection fails (e.g., no GPUs,
+    nvidia-smi not installed).
+    """
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=index", "--format=csv,noheader"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode == 0:
+            lines = [l.strip() for l in result.stdout.strip().splitlines() if l.strip()]
+            return len(lines)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return None
+
+
 class ParallelRunner(EvaluationRunner):
     """Thread-pool based parallel evaluation runner.
 
@@ -56,11 +77,27 @@ class ParallelRunner(EvaluationRunner):
                     f"--vllm-gpus and --sim-gpus must not overlap. "
                     f"Overlapping GPU IDs: {overlap}"
                 )
+        # Validate GPU IDs against hardware
+        all_gpu_ids = set()
+        if self.vllm_gpus:
+            all_gpu_ids.update(self.vllm_gpus)
+        if self.sim_gpus:
+            all_gpu_ids.update(self.sim_gpus)
+        if all_gpu_ids:
+            gpu_count = _get_gpu_count()
+            if gpu_count is not None:
+                invalid = {g for g in all_gpu_ids if g < 0 or g >= gpu_count}
+                if invalid:
+                    raise ValueError(
+                        f"GPU IDs {sorted(invalid)} do not exist. "
+                        f"This machine has {gpu_count} GPU(s) "
+                        f"(valid IDs: 0-{gpu_count - 1})."
+                    )
 
     def _parse_base_urls(self) -> list[str | None]:
         """Parse base URL(s) into list for round-robin assignment."""
         if self.llm_base_url:
-            return [u.strip() for u in self.llm_base_url.split(",")]
+            return [u.strip() for u in self.llm_base_url.split(",") if u.strip()]
         return [None]
 
     def run(self) -> list[dict]:
@@ -74,31 +111,31 @@ class ParallelRunner(EvaluationRunner):
         backend, base_url = self._resolve_llm_backend()
         server_mgr = None
 
-        if backend == "vllm" and base_url is None:
-            # Auto-manage vLLM instances
-            from easi.llm.server_manager import MultiServerManager
-            from easi.llm.utils import parse_llm_kwargs, split_kwargs as _split
-
-            all_kw = parse_llm_kwargs(self.llm_kwargs_raw)
-            srv_kw, _ = _split(all_kw)
-
-            num_instances = self.vllm_instances or 1
-            gpu_ids = self.vllm_gpus or list(range(num_instances))
-
-            server_mgr = MultiServerManager(
-                model=self.model,
-                num_instances=num_instances,
-                gpu_ids=gpu_ids,
-                base_port=self.port or 8000,
-                server_kwargs=srv_kw,
-            )
-            vllm_urls = server_mgr.start()
-        elif base_url:
-            vllm_urls = self._parse_base_urls()
-        else:
-            vllm_urls = [None]
-
         try:
+            if backend == "vllm" and base_url is None:
+                # Auto-manage vLLM instances
+                from easi.llm.server_manager import MultiServerManager
+                from easi.llm.utils import parse_llm_kwargs, split_kwargs as _split
+
+                all_kw = parse_llm_kwargs(self.llm_kwargs_raw)
+                srv_kw, _ = _split(all_kw)
+
+                num_instances = self.vllm_instances or 1
+                gpu_ids = self.vllm_gpus
+
+                server_mgr = MultiServerManager(
+                    model=self.model,
+                    num_instances=num_instances,
+                    gpu_ids=gpu_ids,
+                    base_port=self.port,
+                    server_kwargs=srv_kw,
+                )
+                base_urls = server_mgr.start()
+            elif base_url:
+                base_urls = self._parse_base_urls()
+            else:
+                base_urls = [None]
+
             # --- Load task ---
             logger.trace("Loading task")
             task = self._create_task()
@@ -202,7 +239,7 @@ class ParallelRunner(EvaluationRunner):
                     # Create agent
                     logger.trace("[Worker %d] Creating agent", worker_id)
                     # Round-robin URL assignment
-                    worker_url = vllm_urls[worker_id % len(vllm_urls)]
+                    worker_url = base_urls[worker_id % len(base_urls)]
                     agent = self._create_agent(
                         task.action_space, task._config,
                         backend=backend, base_url=worker_url,

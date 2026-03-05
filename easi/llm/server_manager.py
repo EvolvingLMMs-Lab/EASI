@@ -19,7 +19,7 @@ from easi.utils.logging import get_logger
 logger = get_logger(__name__)
 
 _HEALTH_POLL_INTERVAL = 5.0
-_DEFAULT_STARTUP_TIMEOUT = 300.0
+_DEFAULT_STARTUP_TIMEOUT = 600.0
 _DEFAULT_VLLM_FLAGS = {
     "enable_prefix_caching": True,
     "disable_log_requests": True,
@@ -48,8 +48,8 @@ class ServerManager:
         port: int = 8080,
         server_kwargs: dict | None = None,
         startup_timeout: float = _DEFAULT_STARTUP_TIMEOUT,
-        log_dir: Path | None = None,  # Deprecated: server output now goes to logger
         cuda_visible_devices: str | None = None,
+        label: str = "server",
     ):
         self.backend = backend
         self.model = model
@@ -57,20 +57,26 @@ class ServerManager:
         self.server_kwargs = server_kwargs or {}
         self.startup_timeout = startup_timeout
         self.cuda_visible_devices = cuda_visible_devices
+        self.label = label
         self._process: subprocess.Popen | None = None
         self._log_thread: threading.Thread | None = None
         logger.trace(
-            "ServerManager init: backend=%s, model=%s, port=%d, "
+            "[%s] ServerManager init: backend=%s, model=%s, port=%d, "
             "server_kwargs=%s, cuda_visible_devices=%s",
-            backend, model, port, self.server_kwargs, cuda_visible_devices,
+            label, backend, model, port, self.server_kwargs, cuda_visible_devices,
         )
 
     def start(self) -> str:
         """Start the server, wait for health, return base_url."""
+        self.launch()
+        return self.wait_until_ready()
+
+    def launch(self) -> None:
+        """Spawn the server process without waiting for health."""
         self._check_port()
 
         cmd, extra_env = self._build_command()
-        logger.info("Starting %s server: %s", self.backend, " ".join(cmd))
+        logger.info("[%s] Starting %s server: %s", self.label, self.backend, " ".join(cmd))
 
         spawn_env = os.environ.copy()
         spawn_env.update(extra_env)
@@ -83,25 +89,27 @@ class ServerManager:
         )
         self._log_thread = threading.Thread(
             target=self._stream_output,
-            args=(self._process,),
+            args=(self._process, self.label),
             daemon=True,
         )
         self._log_thread.start()
 
+    def wait_until_ready(self) -> str:
+        """Poll health endpoint until the server is ready. Returns base_url."""
         base_url = f"http://localhost:{self.port}/v1"
         self._wait_for_health(base_url)
-        logger.info("Server ready at %s", base_url)
+        logger.info("[%s] Server ready at %s", self.label, base_url)
         return base_url
 
     def stop(self) -> None:
         """Terminate the server process."""
         if self._process is not None:
-            logger.info("Stopping %s server (pid=%d)", self.backend, self._process.pid)
+            logger.info("[%s] Stopping %s server (pid=%d)", self.label, self.backend, self._process.pid)
             self._process.terminate()
             try:
                 self._process.wait(timeout=30)
             except subprocess.TimeoutExpired:
-                logger.warning("Server did not terminate, killing...")
+                logger.warning("[%s] Server did not terminate, killing...", self.label)
                 self._process.kill()
                 self._process.wait(timeout=10)
             self._process = None
@@ -117,7 +125,7 @@ class ServerManager:
 
     def _check_port(self) -> None:
         """Raise if port is already in use."""
-        logger.trace("Checking if port %d is available...", self.port)
+        logger.trace("[%s] Checking if port %d is available...", self.label, self.port)
         if not _port_is_available(self.port):
             raise RuntimeError(
                 f"Port {self.port} is already in use. "
@@ -145,15 +153,15 @@ class ServerManager:
                 if k in _DEFAULT_VLLM_FLAGS and v != _DEFAULT_VLLM_FLAGS[k]
             }
             if overridden:
-                logger.trace("User overrides for default vLLM flags: %s", overridden)
-            logger.trace("Merged vLLM kwargs: %s", merged_kwargs)
+                logger.trace("[%s] User overrides for default vLLM flags: %s", self.label, overridden)
+            logger.trace("[%s] Merged vLLM kwargs: %s", self.label, merged_kwargs)
             for key, value in merged_kwargs.items():
                 flag = "--" + key.replace("_", "-")
                 if isinstance(value, bool):
                     if value:
                         cmd.append(flag)
                     else:
-                        logger.trace("Skipping disabled bool flag: %s", flag)
+                        logger.trace("[%s] Skipping disabled bool flag: %s", self.label, flag)
                 else:
                     cmd.extend([flag, str(value)])
         else:
@@ -163,17 +171,17 @@ class ServerManager:
         if self.cuda_visible_devices is not None:
             env["CUDA_VISIBLE_DEVICES"] = self.cuda_visible_devices
 
-        logger.trace("Built command: %s", cmd)
-        logger.trace("Extra env: %s", env)
+        logger.trace("[%s] Built command: %s", self.label, cmd)
+        logger.trace("[%s] Extra env: %s", self.label, env)
         return cmd, env
 
     @staticmethod
-    def _stream_output(proc: subprocess.Popen) -> None:
+    def _stream_output(proc: subprocess.Popen, label: str = "server") -> None:
         """Read server stdout/stderr line by line and log at TRACE level."""
         for raw_line in proc.stdout:
             line = raw_line.decode("utf-8", errors="replace").rstrip()
             if line:
-                logger.trace("[server] %s", line)
+                logger.trace("[%s] %s", label, line)
         proc.stdout.close()
 
     def _wait_for_health(self, base_url: str) -> None:
@@ -181,29 +189,31 @@ class ServerManager:
         health_url = base_url.replace("/v1", "") + "/health"
         deadline = time.monotonic() + self.startup_timeout
         logger.trace(
-            "Waiting for health at %s (timeout=%.0fs)", health_url, self.startup_timeout,
+            "[%s] Waiting for health at %s (timeout=%.0fs)",
+            self.label, health_url, self.startup_timeout,
         )
 
         while time.monotonic() < deadline:
             if self._process and self._process.poll() is not None:
                 raise RuntimeError(
-                    f"{self.backend} server exited with code {self._process.returncode}. "
+                    f"[{self.label}] {self.backend} server exited with code "
+                    f"{self._process.returncode}. "
                     f"Run with --verbosity TRACE to see server output."
                 )
             try:
                 resp = requests.get(health_url, timeout=5)
                 if resp.status_code == 200:
-                    logger.trace("Health check passed (status=%d)", resp.status_code)
+                    logger.trace("[%s] Health check passed (status=%d)", self.label, resp.status_code)
                     return
-                logger.trace("Health check returned status %d, retrying...", resp.status_code)
+                logger.trace("[%s] Health check returned status %d, retrying...", self.label, resp.status_code)
             except requests.ConnectionError:
-                logger.trace("Health check connection refused, retrying...")
+                logger.trace("[%s] Health check connection refused, retrying...", self.label)
 
             time.sleep(_HEALTH_POLL_INTERVAL)
 
         self.stop()
         raise RuntimeError(
-            f"{self.backend} server failed to start within "
+            f"[{self.label}] {self.backend} server failed to start within "
             f"{self.startup_timeout}s. Run with --verbosity TRACE to see server output."
         )
 
@@ -221,13 +231,12 @@ class MultiServerManager:
         self,
         model: str,
         num_instances: int,
-        gpu_ids: list[int],
+        gpu_ids: list[int] | None = None,
         base_port: int = 8000,
         server_kwargs: dict | None = None,
         startup_timeout: float = 300.0,
-        log_dir: Path | str | None = None,
     ):
-        if len(gpu_ids) % num_instances != 0:
+        if gpu_ids is not None and len(gpu_ids) % num_instances != 0:
             raise ValueError(
                 f"Cannot divide {len(gpu_ids)} GPUs evenly across "
                 f"{num_instances} instances"
@@ -238,22 +247,29 @@ class MultiServerManager:
         self.base_port = base_port
         self.server_kwargs = server_kwargs or {}
         self.startup_timeout = startup_timeout
-        self.log_dir = Path(log_dir) if log_dir else None
         self._managers: list[ServerManager] = []
 
     def start(self) -> list[str]:
-        """Start all instances, return list of base_urls.
+        """Start all instances in parallel, return list of base_urls.
 
-        Ports are assigned by probing from *base_port* upward, skipping
-        any that are already in use.  If any instance fails to start,
-        all previously started instances are stopped before re-raising.
+        All server processes are spawned first, then health checks run
+        concurrently via threads.  Ports are assigned by probing from
+        *base_port* upward, skipping any that are already in use.  If
+        any instance fails, all are stopped before re-raising.
         """
-        gpus_per = len(self.gpu_ids) // self.num_instances
-        urls = []
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        gpus_per = len(self.gpu_ids) // self.num_instances if self.gpu_ids else None
         next_port = self.base_port
+
         try:
+            # Phase 1: Spawn all processes (fast, no blocking)
             for i in range(self.num_instances):
-                instance_gpus = self.gpu_ids[i * gpus_per : (i + 1) * gpus_per]
+                if gpus_per is not None:
+                    instance_gpus = self.gpu_ids[i * gpus_per : (i + 1) * gpus_per]
+                    cuda_devices = ",".join(str(g) for g in instance_gpus)
+                else:
+                    cuda_devices = None
                 port = self._find_available_port(next_port)
                 next_port = port + 1
                 mgr = ServerManager(
@@ -262,19 +278,35 @@ class MultiServerManager:
                     port=port,
                     server_kwargs=self.server_kwargs,
                     startup_timeout=self.startup_timeout,
-                    log_dir=self.log_dir,
-                    cuda_visible_devices=",".join(str(g) for g in instance_gpus),
+                    cuda_visible_devices=cuda_devices,
+                    label=f"vllm-{i}",
                 )
-                url = mgr.start()
-                urls.append(url)
+                mgr.launch()
                 self._managers.append(mgr)
+
+            # Phase 2: Wait for all health checks concurrently
+            logger.info(
+                "All %d vLLM processes spawned, waiting for health checks...",
+                self.num_instances,
+            )
+            urls = [None] * len(self._managers)
+            with ThreadPoolExecutor(max_workers=len(self._managers)) as pool:
+                future_to_idx = {
+                    pool.submit(mgr.wait_until_ready): idx
+                    for idx, mgr in enumerate(self._managers)
+                }
+                for future in as_completed(future_to_idx):
+                    idx = future_to_idx[future]
+                    urls[idx] = future.result()
+
         except Exception:
             logger.warning(
-                "Instance %d failed to start, stopping %d already-running instances",
-                i, len(self._managers),
+                "vLLM startup failed, stopping %d spawned instances",
+                len(self._managers),
             )
             self.stop()
             raise
+
         return urls
 
     @staticmethod
