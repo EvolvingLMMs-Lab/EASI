@@ -135,9 +135,12 @@ class VLNCERxRPromptBuilder:
                 geo = obs.metadata.get("geo_distance")
                 if geo is not None and geo != "null":
                     feedback_lines.append(f"Distance to goal: {float(geo):.1f}m")
-            feedback = obs.metadata.get("feedback", "")
-            if feedback:
-                feedback_lines.append(feedback)
+            else:
+                # Only use generic feedback when geo_distance is not shown
+                # (bridge puts distance into both fields, avoid duplication)
+                feedback = obs.metadata.get("feedback", "")
+                if feedback:
+                    feedback_lines.append(feedback)
             if feedback_lines:
                 text_parts.append("## Environment Feedback\n" + "\n".join(feedback_lines))
 
