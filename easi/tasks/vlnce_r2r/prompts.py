@@ -95,7 +95,7 @@ class VLNCEPromptBuilder:
         content = []
 
         # Current observation image
-        obs = memory.last_observation
+        obs = memory.current_observation
         if obs and obs.rgb_path:
             img_url = _encode_image_base64(obs.rgb_path)
             if img_url:
@@ -105,7 +105,7 @@ class VLNCEPromptBuilder:
         text_parts = []
 
         # Instruction
-        text_parts.append(f"## Navigation Instruction\n{memory.instruction}")
+        text_parts.append(f"## Navigation Instruction\n{memory.task_description}")
 
         # Environmental feedback
         if self.use_feedback and obs and obs.info:
