@@ -108,14 +108,14 @@ class VLNCEPromptBuilder:
         text_parts.append(f"## Navigation Instruction\n{memory.task_description}")
 
         # Environmental feedback
-        if self.use_feedback and obs and obs.info:
-            feedback = obs.info.get("feedback", "")
+        if self.use_feedback and obs and obs.metadata:
+            feedback = obs.metadata.get("feedback", "")
             if feedback:
                 text_parts.append(f"\n## Environmental Feedback\n{feedback}")
 
         # Geodesic distance
-        if self.use_geo_distance and obs and obs.info:
-            geo = obs.info.get("geo_distance")
+        if self.use_geo_distance and obs and obs.metadata:
+            geo = obs.metadata.get("geo_distance")
             if geo is not None and geo != "null":
                 text_parts.append(f"Geodesic distance to goal: {float(geo):.1f}m")
 
@@ -123,11 +123,11 @@ class VLNCEPromptBuilder:
         if memory.action_history and self.action_history_len > 0:
             history = memory.action_history[-self.action_history_len:]
             history_lines = []
-            for i, (action, step_result) in enumerate(history):
+            for i, (action_name, feedback) in enumerate(history):
                 fb = ""
-                if self.use_feedback and step_result and step_result.info:
-                    fb = f", feedback: {step_result.info.get('feedback', '')}"
-                history_lines.append(f"Step {i}: {action.action_name}{fb}")
+                if self.use_feedback and feedback:
+                    fb = f", feedback: {feedback}"
+                history_lines.append(f"Step {i}: {action_name}{fb}")
             if history_lines:
                 text_parts.append(f"\n## Action History (last {len(history_lines)} steps)\n" + "\n".join(history_lines))
 
