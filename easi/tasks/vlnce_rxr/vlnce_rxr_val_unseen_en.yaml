@@ -1,0 +1,6 @@
+extends: _base.yaml
+name: vlnce_rxr_val_unseen_en
+display_name: "VLN-CE RxR Val Unseen (English)"
+description: "VLN-CE RxR validation split (unseen environments, English)"
+dataset:
+  split: "val_unseen_en"

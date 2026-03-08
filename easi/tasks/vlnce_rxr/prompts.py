@@ -1,0 +1,163 @@
+# easi/tasks/vlnce_rxr/prompts.py
+"""VLN-CE RxR prompt builder.
+
+Single front camera, 6 actions (move_forward, turn_left, turn_right,
+look_up, look_down, stop). 30° turns and tilts.
+"""
+from __future__ import annotations
+
+import base64
+import json
+from pathlib import Path
+
+from easi.core.episode import Action
+from easi.core.memory import AgentMemory
+from easi.utils.json_repair import fix_json
+from easi.utils.logging import get_logger
+
+logger = get_logger(__name__)
+
+SYSTEM_PROMPT = """You are a robot navigating in a 3D indoor environment. You observe the environment through a front-facing camera and must follow natural language instructions to navigate to a goal location.
+
+## Available Actions
+- move_forward: Move forward by 0.25 meters
+- turn_left: Turn left by 30 degrees
+- turn_right: Turn right by 30 degrees
+- look_up: Tilt camera up by 30 degrees
+- look_down: Tilt camera down by 30 degrees
+- stop: Stop and end navigation (use ONLY when you believe you have reached the destination described in the instruction)
+
+## Strategy
+1. Carefully read the navigation instruction
+2. Observe your surroundings in the image
+3. Follow the instruction step by step, matching landmarks and directions mentioned
+4. Use move_forward to advance and turn_left/turn_right to change direction
+5. Use look_up/look_down to observe objects above or below your current view
+6. Use stop ONLY when you are confident you have reached the described destination
+
+## Response Format
+Output a JSON object with exactly these 4 fields:
+{
+    "visual_state_description": "Describe what you see in the current image",
+    "reasoning_and_reflection": "Reason about where you are relative to the instruction",
+    "language_plan": "Describe your next navigation plan in natural language",
+    "executable_plan": [{"action": "<action_name>"}]
+}
+
+You may include multiple actions in executable_plan to plan ahead. Actions are executed sequentially."""
+
+
+def _encode_image_base64(image_path: str) -> str | None:
+    """Encode image file to base64 data URL."""
+    p = Path(image_path)
+    if not p.exists():
+        return None
+    data = p.read_bytes()
+    b64 = base64.b64encode(data).decode("utf-8")
+    return f"data:image/png;base64,{b64}"
+
+
+def _validate_action(name: str, action_space: list[str]) -> str | None:
+    """Validate and normalize action name."""
+    if name in action_space:
+        return name
+    lower = name.lower().strip()
+    for a in action_space:
+        if a.lower() == lower:
+            return a
+    return None
+
+
+class VLNCERxRPromptBuilder:
+    """Prompt builder for VLN-CE RxR benchmark."""
+
+    def __init__(
+        self,
+        use_feedback: bool = True,
+        use_geo_distance: bool = True,
+        action_history_len: int = 20,
+        chat_history: bool = False,
+        message_window_len: int = 5,
+    ):
+        self.use_feedback = use_feedback
+        self.use_geo_distance = use_geo_distance
+        self.action_history_len = action_history_len
+        self.chat_history = chat_history
+        self.message_window_len = message_window_len
+        self._actions = []
+
+    def set_action_space(self, actions: list[str]) -> None:
+        self._actions = list(actions)
+
+    def build_messages(self, memory: AgentMemory) -> list[dict]:
+        if self._actions != memory.action_space:
+            self.set_action_space(memory.action_space)
+
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+
+        content = []
+
+        obs = memory.current_observation
+        if obs and obs.rgb_path:
+            img_url = _encode_image_base64(obs.rgb_path)
+            if img_url:
+                content.append({"type": "image_url", "image_url": {"url": img_url}})
+
+        text_parts = []
+
+        text_parts.append(f"## Navigation Instruction\n{memory.task_description}")
+
+        if self.use_feedback and obs and obs.metadata:
+            feedback = obs.metadata.get("feedback", "")
+            if feedback:
+                text_parts.append(f"\n## Environmental Feedback\n{feedback}")
+
+        if self.use_geo_distance and obs and obs.metadata:
+            geo = obs.metadata.get("geo_distance")
+            if geo is not None and geo != "null":
+                text_parts.append(f"Geodesic distance to goal: {float(geo):.1f}m")
+
+        if memory.action_history and self.action_history_len > 0:
+            history = memory.action_history[-self.action_history_len:]
+            history_lines = []
+            for i, (action_name, feedback) in enumerate(history):
+                fb = ""
+                if self.use_feedback and feedback:
+                    fb = f", feedback: {feedback}"
+                history_lines.append(f"Step {i}: {action_name}{fb}")
+            if history_lines:
+                text_parts.append(f"\n## Action History (last {len(history_lines)} steps)\n" + "\n".join(history_lines))
+
+        content.append({"type": "text", "text": "\n".join(text_parts)})
+        messages.append({"role": "user", "content": content})
+
+        return messages
+
+    def parse_response(self, llm_response: str, memory: AgentMemory) -> list[Action]:
+        """Parse LLM JSON response into validated Actions."""
+        llm_response = fix_json(llm_response)
+
+        try:
+            data = json.loads(llm_response)
+        except json.JSONDecodeError as e:
+            logger.warning("Failed to parse LLM response as JSON: %s", e)
+            return []
+
+        plan = data.get("executable_plan", [])
+        if not isinstance(plan, list) or not plan:
+            logger.warning("No executable_plan in LLM response")
+            return []
+
+        actions = []
+        for entry in plan:
+            if not isinstance(entry, dict):
+                continue
+            action_name = entry.get("action", entry.get("action_name", ""))
+            validated = _validate_action(action_name, memory.action_space)
+            if validated:
+                actions.append(Action(action_name=validated))
+            else:
+                logger.warning("Skipping invalid action: '%s'", action_name)
+                break
+
+        return actions
