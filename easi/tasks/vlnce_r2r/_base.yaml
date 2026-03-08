@@ -18,7 +18,7 @@ simulator_configs:
   screen_width: 480
   hfov: 90
   sensor_height: 1.25
-  gpu_device_id: -1
+  gpu_device_id: 0
   success_distance: 3.0
   forward_step_size: 0.25
   turn_angle: 15

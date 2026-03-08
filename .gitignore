@@ -10,3 +10,5 @@ __pycache__/
 .worktrees/
 /docs/plans
 yolo11n.pt
+.tmp*
+/scripts
