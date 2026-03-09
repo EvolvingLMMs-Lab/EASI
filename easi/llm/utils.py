@@ -11,6 +11,7 @@ _BACKEND_PREFIX = {
     "anthropic": "anthropic",
     "gemini": "gemini",
     "vllm": "openai",
+    "custom": "openai",
     "dummy": "openai",
 }
 

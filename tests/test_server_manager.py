@@ -109,6 +109,61 @@ class TestDefaultVllmFlags:
         assert "--enable-prefix-caching" not in cmd
 
 
+class TestCustomBackendCommand:
+    def test_custom_backend_builds_command(self):
+        from easi.llm.server_manager import ServerManager
+        mgr = ServerManager(
+            backend="custom",
+            model="my_model",
+            port=8001,
+            server_kwargs={"model_path": "/path/to/weights"},
+        )
+        cmd, env = mgr._build_command()
+        assert "easi.llm.models.http_server" in cmd
+        assert "--model-name" in cmd
+        assert "my_model" in cmd
+        assert "--port" in cmd
+
+    def test_custom_backend_passes_model_path(self):
+        from easi.llm.server_manager import ServerManager
+        mgr = ServerManager(
+            backend="custom",
+            model="my_model",
+            port=8001,
+            server_kwargs={"model_path": "/weights"},
+        )
+        cmd, _ = mgr._build_command()
+        idx = cmd.index("--model-path")
+        assert cmd[idx + 1] == "/weights"
+
+    def test_custom_backend_default_device(self):
+        from easi.llm.server_manager import ServerManager
+        mgr = ServerManager(
+            backend="custom",
+            model="my_model",
+            port=8001,
+        )
+        cmd, _ = mgr._build_command()
+        idx = cmd.index("--device")
+        assert cmd[idx + 1] == "cuda:0"
+
+    def test_custom_backend_extra_kwargs_as_json(self):
+        from easi.llm.server_manager import ServerManager
+        mgr = ServerManager(
+            backend="custom",
+            model="my_model",
+            port=8001,
+            server_kwargs={"model_path": "/w", "torch_dtype": "bfloat16"},
+        )
+        cmd, _ = mgr._build_command()
+        assert "--kwargs" in cmd
+        import json
+        idx = cmd.index("--kwargs")
+        parsed = json.loads(cmd[idx + 1])
+        assert parsed["torch_dtype"] == "bfloat16"
+        assert "model_path" not in parsed
+
+
 class TestCudaVisibleDevices:
     def test_server_manager_sets_cuda_visible_devices(self):
         from easi.llm.server_manager import ServerManager

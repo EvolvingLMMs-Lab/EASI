@@ -82,6 +82,10 @@ class TestBuildLitellmModel:
         from easi.llm.utils import build_litellm_model
         assert build_litellm_model("dummy", "default") == "openai/default"
 
+    def test_custom_uses_openai_prefix(self):
+        from easi.llm.utils import build_litellm_model
+        assert build_litellm_model("custom", "my_model") == "openai/my_model"
+
     def test_unknown_backend_falls_back(self):
         from easi.llm.utils import build_litellm_model
         assert build_litellm_model("lmdeploy", "some-model") == "openai/some-model"

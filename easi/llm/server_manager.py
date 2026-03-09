@@ -164,6 +164,20 @@ class ServerManager:
                         logger.trace("[%s] Skipping disabled bool flag: %s", self.label, flag)
                 else:
                     cmd.extend([flag, str(value)])
+        elif self.backend == "custom":
+            model_path = self.server_kwargs.get("model_path", self.model)
+            extra_kwargs = {k: v for k, v in self.server_kwargs.items() if k != "model_path"}
+            device = "cuda:0"  # CUDA_VISIBLE_DEVICES handles GPU remapping
+            cmd = [
+                sys.executable, "-m", "easi.llm.models.http_server",
+                "--model-name", self.model,
+                "--model-path", str(model_path),
+                "--device", device,
+                "--port", str(self.port),
+            ]
+            if extra_kwargs:
+                import json as _json
+                cmd.extend(["--kwargs", _json.dumps(extra_kwargs)])
         else:
             raise ValueError(f"Unsupported server backend: {self.backend}")
 
