@@ -544,6 +544,10 @@ class EvaluationRunner:
                 yaml_gen_kwargs = agent_config.get("generation_kwargs", {})
                 merged_kwargs = {**yaml_gen_kwargs, **client_kwargs}
 
+                # Local backends need longer timeout (generation is slower than API)
+                if base_url and "timeout" not in merged_kwargs:
+                    merged_kwargs["timeout"] = 600.0
+
                 llm = LLMClient(
                     model=litellm_model,
                     base_url=base_url,
