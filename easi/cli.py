@@ -466,12 +466,19 @@ def cmd_start(args):
     num_parallel = run_kwargs.pop("num_parallel", None) or 1
 
     # Parse comma-separated GPU strings into lists of ints
-    vllm_gpus_str = run_kwargs.pop("vllm_gpus", None)
-    sim_gpus_str = run_kwargs.pop("sim_gpus", None)
-    if vllm_gpus_str:
-        run_kwargs["vllm_gpus"] = [int(g) for g in vllm_gpus_str.split(",")]
-    if sim_gpus_str:
-        run_kwargs["sim_gpus"] = [int(g) for g in sim_gpus_str.split(",")]
+    # When resuming, values from config.json may already be list[int]
+    vllm_gpus_val = run_kwargs.pop("vllm_gpus", None)
+    sim_gpus_val = run_kwargs.pop("sim_gpus", None)
+    if vllm_gpus_val:
+        if isinstance(vllm_gpus_val, list):
+            run_kwargs["vllm_gpus"] = [int(g) for g in vllm_gpus_val]
+        else:
+            run_kwargs["vllm_gpus"] = [int(g) for g in vllm_gpus_val.split(",")]
+    if sim_gpus_val:
+        if isinstance(sim_gpus_val, list):
+            run_kwargs["sim_gpus"] = [int(g) for g in sim_gpus_val]
+        else:
+            run_kwargs["sim_gpus"] = [int(g) for g in sim_gpus_val.split(",")]
 
     from easi.core.episode import EpisodeRecord
     from easi.evaluation.metrics import default_aggregate

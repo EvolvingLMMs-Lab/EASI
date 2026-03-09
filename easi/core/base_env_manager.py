@@ -409,11 +409,14 @@ class BaseEnvironmentManager(ABC):
             env=env,
         )
         output_lines = []
-        for line in process.stdout:
-            line = line.rstrip()
-            output_lines.append(line)
-            logger.trace("  %s", line)
-        process.wait()
+        try:
+            for line in process.stdout:
+                line = line.rstrip()
+                output_lines.append(line)
+                logger.trace("  %s", line)
+        finally:
+            process.stdout.close()
+            process.wait()
         if process.returncode != 0:
             raise EnvironmentSetupError(
                 f"{description} failed (exit {process.returncode}):\n"

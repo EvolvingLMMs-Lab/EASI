@@ -95,14 +95,14 @@ with you when held.
 
 ## Response Format
 Output a JSON object with exactly these 4 fields:
-{{{{
+{{
     "visual_state_description": "Describe what you see in the image and \
 the GPS state",
     "reasoning_and_reflection": "Your reasoning about the current state \
 and what to do next",
     "language_plan": "Your plan in natural language",
-    "executable_plan": [{{{{"action": "<action_name>"}}}}]
-}}}}
+    "executable_plan": [{{"action": "<action_name>"}}]
+}}
 
 You may include multiple actions in executable_plan. Actions execute \
 sequentially."""
