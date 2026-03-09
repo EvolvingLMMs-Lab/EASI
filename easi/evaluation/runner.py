@@ -209,6 +209,14 @@ class EvaluationRunner:
                 # 4. Start simulator
                 sim, sim_runner = self._create_simulator(task.simulator_key, task=task)
 
+                # 5. Progress bar
+                from easi.utils.progress import ProgressBar
+
+                progress_bar = ProgressBar(
+                    total=len(episodes), num_workers=1, start_index=start_index,
+                )
+                progress_bar.start()
+
                 try:
                     for i, episode in enumerate(episodes):
                         if i < start_index:
@@ -259,6 +267,13 @@ class EvaluationRunner:
 
                         all_results.append(result)
 
+                        # Update progress bar
+                        failed_count = sum(1 for r in all_results if "error" in r)
+                        progress_bar.update(
+                            completed=len(all_results) + start_index,
+                            failed=failed_count,
+                        )
+
                         # Save per-episode result (strip internal keys)
                         result_to_save = {
                             k: v for k, v in result.items()
@@ -269,6 +284,7 @@ class EvaluationRunner:
                         )
 
                 finally:
+                    progress_bar.stop()
                     sim.close()
         finally:
             if server:

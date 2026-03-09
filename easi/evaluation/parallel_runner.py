@@ -232,6 +232,16 @@ class ParallelRunner(EvaluationRunner):
 
                 num_workers = min(self.num_parallel, remaining)
 
+                # --- Progress bar ---
+                from easi.utils.progress import ProgressBar
+
+                progress_bar = ProgressBar(
+                    total=total_episodes,
+                    num_workers=num_workers,
+                    start_index=start_index,
+                )
+                progress_bar.start()
+
                 def _worker(worker_id: int) -> None:
                     """Worker thread: owns a simulator + agent, pulls episodes from queue."""
                     logger.trace("[Worker %d] Starting up", worker_id)
@@ -354,9 +364,10 @@ class ParallelRunner(EvaluationRunner):
                                 current_completed = progress["completed"] + start_index
                                 current_failed = progress["failed"]
 
-                            logger.info(
-                                "[Progress] %d/%d episodes completed (%d failed)",
-                                current_completed, total_episodes, current_failed,
+                            progress_bar.update(
+                                completed=current_completed,
+                                failed=current_failed,
+                                active_workers=num_workers,
                             )
 
                             episodes_done += 1
@@ -387,6 +398,7 @@ class ParallelRunner(EvaluationRunner):
                         future.result()
 
                 wall_seconds = round(time.monotonic() - wall_start, 2)
+                progress_bar.stop()
 
                 # Merge completed results from resume with new results
                 new_results.sort(key=lambda x: x[0])
