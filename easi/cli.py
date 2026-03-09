@@ -136,6 +136,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--render-platform", type=str, default=None, dest="render_platform",
         help="Rendering platform: auto, native, xvfb, egl, headless (default: simulator's preference)")
 
+    # --- model command ---
+    model_parser = subparsers.add_parser("model", help="Manage custom models", parents=[common])
+    model_sub = model_parser.add_subparsers(dest="model_action")
+    model_sub.add_parser("list", help="List available custom models", parents=[common])
+    model_info_parser = model_sub.add_parser("info", help="Show model details", parents=[common])
+    model_info_parser.add_argument("model_name", help="Model name")
+
     # --- llm-server command ---
     llm_parser = subparsers.add_parser("llm-server", help="Start dummy LLM server", parents=[common])
     llm_parser.add_argument("--port", type=int, default=8000)
@@ -531,6 +538,31 @@ def cmd_llm_server(host: str, port: int, mode: str, action_space: list[str]) -> 
     run_server(host=host, port=port, mode=mode, action_space=action_space)
 
 
+def cmd_model(args) -> None:
+    from easi.llm.models.registry import get_model_entry, list_models
+
+    if args.model_action == "list":
+        names = list_models()
+        if not names:
+            logger.info("No custom models found.")
+            return
+        for name in names:
+            entry = get_model_entry(name)
+            logger.info("  %s  -- %s", name, entry.display_name)
+
+    elif args.model_action == "info":
+        entry = get_model_entry(args.model_name)
+        logger.info("Model: %s", entry.display_name)
+        logger.info("  Name:          %s", entry.name)
+        logger.info("  Description:   %s", entry.description)
+        logger.info("  Model class:   %s", entry.model_class)
+        logger.info("  Default kwargs: %s", entry.default_kwargs)
+
+    else:
+        from easi.cli import build_parser
+        build_parser().parse_args(["model", "--help"])
+
+
 # --- Main ---
 
 def main() -> None:
@@ -574,6 +606,9 @@ def main() -> None:
 
     elif args.command == "start":
         cmd_start(args)
+
+    elif args.command == "model":
+        cmd_model(args)
 
     elif args.command == "llm-server":
         cmd_llm_server(args.host, args.port, args.mode, args.action_space)

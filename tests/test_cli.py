@@ -33,3 +33,20 @@ def test_cli_parses_comma_separated_llm_url():
         "--llm-url", "http://localhost:8000/v1,http://localhost:8001/v1",
     ])
     assert args.llm_base_url == "http://localhost:8000/v1,http://localhost:8001/v1"
+
+
+def test_cli_model_list_subcommand():
+    from easi.cli import build_parser
+    parser = build_parser()
+    args = parser.parse_args(["model", "list"])
+    assert args.command == "model"
+    assert args.model_action == "list"
+
+
+def test_cli_model_info_subcommand():
+    from easi.cli import build_parser
+    parser = build_parser()
+    args = parser.parse_args(["model", "info", "cambrian"])
+    assert args.command == "model"
+    assert args.model_action == "info"
+    assert args.model_name == "cambrian"
