@@ -242,7 +242,9 @@ class ParallelRunner(EvaluationRunner):
                         "[Worker %d] Creating simulator (key=%s)",
                         worker_id, task.simulator_key,
                     )
-                    sim, sim_runner = self._create_simulator(task.simulator_key, task=task)
+                    sim, sim_runner = self._create_simulator(
+                        task.simulator_key, task=task, label=f"bridge-{worker_id}",
+                    )
                     logger.trace(
                         "[Worker %d] Simulator ready (PID=%s)",
                         worker_id,
@@ -315,6 +317,7 @@ class ParallelRunner(EvaluationRunner):
                                             pass
                                         sim, sim_runner = self._create_simulator(
                                             task.simulator_key, task=task,
+                                            label=f"bridge-{worker_id}",
                                         )
                                     else:
                                         logger.error(

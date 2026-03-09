@@ -557,7 +557,7 @@ class EvaluationRunner:
         else:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 
-    def _create_simulator(self, simulator_key: str, task=None):
+    def _create_simulator(self, simulator_key: str, task=None, label: str = "bridge"):
         import json as _json
 
         from easi.simulators.registry import (
@@ -610,6 +610,7 @@ class EvaluationRunner:
                 bridge_script_path=bridge_path,
                 render_platform=get_render_platform("headless"),
                 extra_args=extra_args,
+                label=label,
                 **runner_kwargs,
             )
             data_dir_str = str(self.data_dir) if self.data_dir else (
@@ -668,6 +669,7 @@ class EvaluationRunner:
             screen_config=env_manager.screen_config,
             extra_args=extra_args,
             extra_env=env_vars if env_vars else None,
+            label=label,
             **runner_kwargs,
         )
         runner.launch()

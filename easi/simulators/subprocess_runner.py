@@ -48,6 +48,7 @@ class SubprocessRunner:
         poll_interval: float = 0.1,
         extra_args: list[str] | None = None,
         extra_env: EnvVars | None = None,
+        label: str = "bridge",
     ):
         self.python_executable = python_executable
         self.bridge_script_path = bridge_script_path
@@ -58,6 +59,7 @@ class SubprocessRunner:
         self.poll_interval = poll_interval
         self.extra_args = extra_args or []
         self.extra_env = extra_env
+        self.label = label
 
         self._process: subprocess.Popen | None = None
         self._workspace: Path | None = None
@@ -306,7 +308,7 @@ class SubprocessRunner:
                 line = line.rstrip()
                 self._output_lines.append(line)
                 level = self._parse_bridge_level(line)
-                logger.log(level, "[bridge] %s", line)
+                logger.log(level, "[%s] %s", self.label, line)
         except (ValueError, OSError):
             pass  # pipe closed
 
