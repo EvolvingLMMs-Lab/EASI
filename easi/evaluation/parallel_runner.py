@@ -141,6 +141,7 @@ class ParallelRunner(EvaluationRunner):
                     gpu_ids=gpu_ids,
                     base_port=self.port,
                     server_kwargs=srv_kw,
+                    backend=backend,
                 )
                 base_urls = server_mgr.start()
             elif base_url:

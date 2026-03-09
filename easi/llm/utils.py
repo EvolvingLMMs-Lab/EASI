@@ -22,7 +22,8 @@ _REQUIRED_ENV_VARS = {
     "gemini": "GOOGLE_API_KEY",
 }
 
-# kwargs that belong to the inference server (vLLM CLI flags), not the API call.
+# kwargs that belong to the inference server, not the API call.
+# Includes vLLM CLI flags and custom server params (model_path).
 _SERVER_KWARGS = {
     "tensor_parallel_size",
     "gpu_memory_utilization",
@@ -37,6 +38,7 @@ _SERVER_KWARGS = {
     "max_num_seqs",
     "disable_log_requests",
     "limit_mm_per_prompt",
+    "model_path",
 }
 
 

@@ -170,7 +170,7 @@ class EvaluationRunner:
                 all_kwargs = parse_llm_kwargs(self.llm_kwargs_raw)
                 server_kwargs, _ = split_kwargs(all_kwargs)
                 server = ServerManager(
-                    "vllm", self.model, port=self.port,
+                    backend, self.model, port=self.port,
                     server_kwargs=server_kwargs,
                 )
                 base_url = server.start()
