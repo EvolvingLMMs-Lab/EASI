@@ -96,6 +96,15 @@ class EvaluationRunner:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         if self.model:
             safe_model = self.model.replace("/", "_")
+            # For custom backend, append model_path to distinguish variants
+            if self.backend == "custom" and self.llm_kwargs_raw:
+                from easi.llm.utils import parse_llm_kwargs
+                model_path = parse_llm_kwargs(self.llm_kwargs_raw).get("model_path", "")
+                if model_path:
+                    # Use last 2 path components (e.g. Qwen_Qwen3-VL-8B-Instruct)
+                    path_suffix = "_".join(model_path.rstrip("/").split("/")[-2:])
+                    path_suffix = path_suffix.replace("/", "_")
+                    safe_model = f"{safe_model}_{path_suffix}"
             self.run_id = f"{timestamp}_{safe_model}"
         else:
             self.run_id = timestamp
