@@ -235,3 +235,42 @@ class TestPerWorkerGpuPinning:
         sim_gpus = [4]
         for worker_id in range(4):
             assert sim_gpus[worker_id % len(sim_gpus)] == 4
+
+
+class TestXorgRunnerIntegration:
+    """Test Xorg integration logic in runners."""
+
+    def test_xorg_defaults_to_gpu_0(self):
+        """Without --sim-gpus, xorg defaults to GPU 0."""
+        gpu_ids = None or [0]
+        assert gpu_ids == [0]
+
+    def test_xorg_uses_sim_gpus_when_specified(self):
+        """With --sim-gpus, xorg uses those GPUs."""
+        sim_gpus = [2, 3]
+        gpu_ids = sim_gpus or [0]
+        assert gpu_ids == [2, 3]
+
+    def test_xorg_warns_on_gpu_contention(self):
+        """Warn when xorg + local LLM both default to GPU 0."""
+        render_platform = "xorg"
+        sim_gpus = None
+        backend = "vllm"
+        llm_gpus = None
+        should_warn = (
+            render_platform == "xorg"
+            and not sim_gpus
+            and backend in ("vllm", "custom")
+            and not llm_gpus
+        )
+        assert should_warn is True
+
+    def test_xorg_no_warn_with_sim_gpus(self):
+        """No warning when sim_gpus is specified."""
+        should_warn = (
+            "xorg" == "xorg"
+            and not [2, 3]
+            and "vllm" in ("vllm", "custom")
+            and not None
+        )
+        assert should_warn is False

@@ -60,6 +60,7 @@ class TestRunnerUsesFactory:
         runner.data_dir = Path("/tmp/fake")
         runner.render_platform_name = None
         runner.sim_gpus = None
+        runner._xorg_instances = None
 
         mock_env_mgr = MagicMock()
         mock_env_mgr.env_is_ready.return_value = True

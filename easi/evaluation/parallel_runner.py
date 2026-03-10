@@ -122,6 +122,7 @@ class ParallelRunner(EvaluationRunner):
         # --- Resolve LLM backend and vLLM URLs ---
         backend, base_url = self._resolve_llm_backend()
         server_mgr = None
+        xorg_mgr = None
 
         try:
             if backend in ("vllm", "custom") and base_url is None:
@@ -148,6 +149,18 @@ class ParallelRunner(EvaluationRunner):
                 base_urls = self._parse_base_urls()
             else:
                 base_urls = [None]
+
+            # Start Xorg servers if needed
+            if self.render_platform_name == "xorg":
+                from easi.core.xorg_manager import XorgManager
+                gpu_ids = self.sim_gpus or [0]
+                if not self.sim_gpus and backend in ("vllm", "custom") and not self.llm_gpus:
+                    logger.warning(
+                        "Xorg and LLM server will both use GPU 0. "
+                        "Use --llm-gpus and --sim-gpus to separate them."
+                    )
+                xorg_mgr = XorgManager(gpu_ids=gpu_ids)
+                self._xorg_instances = xorg_mgr.start()
 
             # --- Load task ---
             logger.trace("Loading task")
@@ -478,3 +491,5 @@ class ParallelRunner(EvaluationRunner):
         finally:
             if server_mgr is not None:
                 server_mgr.stop()
+            if xorg_mgr is not None:
+                xorg_mgr.stop()

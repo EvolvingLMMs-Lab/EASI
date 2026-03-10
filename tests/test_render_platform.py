@@ -707,6 +707,7 @@ class TestRunnerRenderPlatformWiring:
         runner.data_dir = Path("/tmp/fake")
         runner.render_platform_name = None
         runner.sim_gpus = None
+        runner._xorg_instances = None
 
         mock_env_mgr = self._make_mock_env_mgr()
         mock_sim_cls = MagicMock()
@@ -734,6 +735,7 @@ class TestRunnerRenderPlatformWiring:
         runner.data_dir = Path("/tmp/fake")
         runner.render_platform_name = "xvfb"
         runner.sim_gpus = None
+        runner._xorg_instances = None
 
         mock_env_mgr = self._make_mock_env_mgr()
         mock_sim_cls = MagicMock()
@@ -761,6 +763,7 @@ class TestRunnerRenderPlatformWiring:
         runner.data_dir = Path("/tmp/fake")
         runner.render_platform_name = None
         runner.sim_gpus = None
+        runner._xorg_instances = None
 
         mock_env_mgr = self._make_mock_env_mgr()
         mock_task = self._make_mock_task(render_platform="egl")
@@ -789,6 +792,7 @@ class TestRunnerRenderPlatformWiring:
         runner.data_dir = Path("/tmp/fake")
         runner.render_platform_name = "xvfb"
         runner.sim_gpus = None
+        runner._xorg_instances = None
 
         mock_env_mgr = self._make_mock_env_mgr()
         mock_task = self._make_mock_task(render_platform="egl")
@@ -817,6 +821,7 @@ class TestRunnerRenderPlatformWiring:
         runner.data_dir = Path("/tmp/fake")
         runner.render_platform_name = "egl"
         runner.sim_gpus = None
+        runner._xorg_instances = None
 
         mock_env_mgr = self._make_mock_env_mgr()
         mock_env_mgr.supported_render_platforms = ["auto", "xvfb"]  # no egl

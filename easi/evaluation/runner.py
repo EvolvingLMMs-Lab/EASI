@@ -93,6 +93,7 @@ class EvaluationRunner:
         self.llm_instances = llm_instances
         self.llm_gpus = llm_gpus
         self.sim_gpus = sim_gpus
+        self._xorg_instances: list | None = None
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         if self.model:
             safe_model = self.model.replace("/", "_")
@@ -171,6 +172,7 @@ class EvaluationRunner:
         # 2. Resolve LLM backend and optionally start server
         backend, base_url = self._resolve_llm_backend()
         server = None
+        xorg_mgr = None
 
         try:
             if backend in ("vllm", "custom") and base_url is None:
@@ -184,6 +186,18 @@ class EvaluationRunner:
                     server_kwargs=server_kwargs,
                 )
                 base_url = server.start()
+
+            # Start Xorg servers if needed
+            if self.render_platform_name == "xorg":
+                from easi.core.xorg_manager import XorgManager
+                gpu_ids = self.sim_gpus or [0]
+                if not self.sim_gpus and backend in ("vllm", "custom") and not self.llm_gpus:
+                    logger.warning(
+                        "Xorg and LLM server will both use GPU 0. "
+                        "Use --llm-gpus and --sim-gpus to separate them."
+                    )
+                xorg_mgr = XorgManager(gpu_ids=gpu_ids)
+                self._xorg_instances = xorg_mgr.start()
 
             # Compute resolved generation kwargs (YAML defaults + CLI overrides)
             from easi.llm.utils import parse_llm_kwargs, split_kwargs
@@ -320,6 +334,8 @@ class EvaluationRunner:
         finally:
             if server:
                 server.stop()
+            if xorg_mgr is not None:
+                xorg_mgr.stop()
 
         # 5. Build EpisodeRecords for aggregate_results
         effective = sum(1 for r in all_results if "error" not in r)
@@ -751,8 +767,14 @@ class EvaluationRunner:
         if task and task.extra_env_vars:
             env_vars = EnvVars.merge(env_vars, EnvVars(replace=task.extra_env_vars))
 
-        # Apply simulator GPU isolation
-        if self.sim_gpus is not None:
+        # Apply per-worker GPU pinning
+        if self._xorg_instances:
+            # Xorg platform owns both DISPLAY and GPU assignment
+            from easi.core.xorg_platform import XorgPlatform
+            instance = self._xorg_instances[worker_id % len(self._xorg_instances)]
+            render_platform = XorgPlatform(display_num=instance.display, gpu_id=instance.gpu_id)
+        elif self.sim_gpus is not None:
+            # Non-xorg: per-worker GPU pinning via round-robin
             gpu_id = self.sim_gpus[worker_id % len(self.sim_gpus)]
             env_vars = EnvVars.merge(env_vars, EnvVars(replace={"CUDA_VISIBLE_DEVICES": str(gpu_id)}))
 
