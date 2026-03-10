@@ -80,7 +80,7 @@ def build_parser() -> argparse.ArgumentParser:
                           help="Bridge startup timeout in seconds (default: 200)")
     sim_test.add_argument(
         "--render-platform", type=str, default=None, dest="render_platform",
-        help="Rendering platform override (auto, native, xvfb, egl, headless)")
+        help="Rendering platform override (auto, native, xvfb, egl, headless, xorg)")
 
     # --- start command ---
     start_parser = subparsers.add_parser("start", help="Run a full evaluation", parents=[common])
@@ -134,7 +134,8 @@ def build_parser() -> argparse.ArgumentParser:
                               help="Delete cached dataset and re-download from source")
     start_parser.add_argument(
         "--render-platform", type=str, default=None, dest="render_platform",
-        help="Rendering platform: auto, native, xvfb, egl, headless (default: simulator's preference)")
+        help="Rendering platform: auto, native, xvfb, egl, headless, xorg (default: simulator's preference). "
+             "xorg starts a GPU X server (defaults to GPU 0, use --sim-gpus to specify).")
 
     # --- model command ---
     model_parser = subparsers.add_parser("model", help="Manage custom models", parents=[common])

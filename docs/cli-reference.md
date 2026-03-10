@@ -592,6 +592,7 @@ Render platforms control how a simulator gets a display for rendering. Each simu
 | `xvfb` | Wrap with `xvfb-run` (virtual X11 framebuffer) |
 | `egl` | GPU-accelerated headless rendering via EGL (no X11) |
 | `headless` | No display at all (simulator has native headless support) |
+| `xorg` | Auto-managed Xorg server per GPU (GPU-accelerated X11, defaults to GPU 0, use `--sim-gpus` to specify) |
 
 ### Custom Platforms
 
