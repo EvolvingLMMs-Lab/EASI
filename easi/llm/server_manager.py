@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import socket
 import subprocess
 import sys
@@ -87,6 +88,7 @@ class ServerManager:
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             env=spawn_env,
+            preexec_fn=os.setsid,
         )
         self._log_thread = threading.Thread(
             target=self._stream_output,
@@ -103,15 +105,27 @@ class ServerManager:
         return base_url
 
     def stop(self) -> None:
-        """Terminate the server process."""
+        """Terminate the server process and all its children.
+
+        Uses process-group kill (SIGTERM → SIGKILL) to ensure child
+        processes (e.g., vLLM tensor-parallel workers) are cleaned up.
+        """
         if self._process is not None:
-            logger.info("[%s] Stopping %s server (pid=%d)", self.label, self.backend, self._process.pid)
-            self._process.terminate()
+            pid = self._process.pid
+            logger.info("[%s] Stopping %s server (pid=%d)", self.label, self.backend, pid)
+            try:
+                pgid = os.getpgid(pid)
+                os.killpg(pgid, signal.SIGTERM)
+            except (ProcessLookupError, PermissionError):
+                pass  # already dead
             try:
                 self._process.wait(timeout=30)
             except subprocess.TimeoutExpired:
-                logger.warning("[%s] Server did not terminate, killing...", self.label)
-                self._process.kill()
+                logger.warning("[%s] Server did not terminate, killing process group...", self.label)
+                try:
+                    os.killpg(os.getpgid(pid), signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    self._process.kill()
                 self._process.wait(timeout=10)
             self._process = None
         if self._log_thread is not None:

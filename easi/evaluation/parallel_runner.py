@@ -180,6 +180,7 @@ class ParallelRunner(EvaluationRunner):
                 completed_results, start_index = self._load_completed_results(
                     run_dir, len(episodes),
                 )
+                self._reattach_resume_data(completed_results, episodes, run_dir)
                 logger.info(
                     "Resuming from %s — %d completed, starting from index %d",
                     run_dir, len(completed_results), start_index,
@@ -244,32 +245,32 @@ class ParallelRunner(EvaluationRunner):
                     """Worker thread: owns a simulator + agent, pulls episodes from queue."""
                     logger.trace("[Worker %d] Starting up", worker_id)
                     episodes_done = 0
-
-                    # Create simulator
-                    logger.trace(
-                        "[Worker %d] Creating simulator (key=%s)",
-                        worker_id, task.simulator_key,
-                    )
-                    sim, sim_runner = self._create_simulator(
-                        task.simulator_key, task=task, label=f"bridge-{worker_id}",
-                    )
-                    logger.trace(
-                        "[Worker %d] Simulator ready (PID=%s)",
-                        worker_id,
-                        getattr(sim_runner, 'pid', 'unknown'),
-                    )
-
-                    # Create agent
-                    logger.trace("[Worker %d] Creating agent", worker_id)
-                    # Round-robin URL assignment
-                    worker_url = base_urls[worker_id % len(base_urls)]
-                    agent = self._create_agent(
-                        task.action_space, task._config,
-                        backend=backend, base_url=worker_url,
-                    )
-                    logger.trace("[Worker %d] Agent ready", worker_id)
+                    sim = None
 
                     try:
+                        # Create simulator
+                        logger.trace(
+                            "[Worker %d] Creating simulator (key=%s)",
+                            worker_id, task.simulator_key,
+                        )
+                        sim, sim_runner = self._create_simulator(
+                            task.simulator_key, task=task, label=f"bridge-{worker_id}",
+                        )
+                        logger.trace(
+                            "[Worker %d] Simulator ready (PID=%s)",
+                            worker_id,
+                            getattr(sim_runner, 'pid', 'unknown'),
+                        )
+
+                        # Create agent
+                        logger.trace("[Worker %d] Creating agent", worker_id)
+                        # Round-robin URL assignment
+                        worker_url = base_urls[worker_id % len(base_urls)]
+                        agent = self._create_agent(
+                            task.action_space, task._config,
+                            backend=backend, base_url=worker_url,
+                        )
+                        logger.trace("[Worker %d] Agent ready", worker_id)
                         while True:
                             # Pull next episode
                             try:
@@ -372,10 +373,11 @@ class ParallelRunner(EvaluationRunner):
 
                     finally:
                         logger.trace("[Worker %d] Shutting down simulator", worker_id)
-                        try:
-                            sim.close()
-                        except Exception:
-                            pass
+                        if sim is not None:
+                            try:
+                                sim.close()
+                            except Exception:
+                                pass
                         logger.trace(
                             "[Worker %d] Shutdown complete (%d episodes done)",
                             worker_id, episodes_done,
@@ -425,8 +427,12 @@ class ParallelRunner(EvaluationRunner):
                 ))
 
             # Aggregate and save summary
-            metric_results = task.aggregate_results(records)
             effective = sum(1 for r in all_results if "error" not in r)
+            try:
+                metric_results = task.aggregate_results(records)
+            except Exception as exc:
+                logger.error("aggregate_results() failed: %s", exc, exc_info=True)
+                metric_results = {"aggregation_error": str(exc)}
             summary = {
                 "num_episodes": len(all_results),
                 "effective_episodes": effective,

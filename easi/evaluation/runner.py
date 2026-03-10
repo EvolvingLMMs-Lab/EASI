@@ -159,6 +159,7 @@ class EvaluationRunner:
         # Handle resume: load completed results and find start point
         if self.resume_dir:
             all_results, start_index = self._load_completed_results(run_dir, len(episodes))
+            self._reattach_resume_data(all_results, episodes, run_dir)
             logger.info(
                 "Resuming from %s — %d completed episodes, starting from index %d",
                 run_dir, len(all_results), start_index,
@@ -311,8 +312,12 @@ class EvaluationRunner:
             ))
 
         # 6. Aggregate and save summary
-        metric_results = task.aggregate_results(records)
         effective = sum(1 for r in all_results if "error" not in r)
+        try:
+            metric_results = task.aggregate_results(records)
+        except Exception as exc:
+            logger.error("aggregate_results() failed: %s", exc, exc_info=True)
+            metric_results = {"aggregation_error": str(exc)}
         summary = {
             "num_episodes": len(all_results),
             "effective_episodes": effective,
@@ -385,6 +390,39 @@ class EvaluationRunner:
                 shutil.rmtree(d)
 
         return completed_results, start_index
+
+    @staticmethod
+    def _reattach_resume_data(
+        completed_results: list[dict],
+        episodes: list[dict],
+        run_dir: Path,
+    ) -> None:
+        """Re-attach trajectory and episode data to resumed results.
+
+        On resume, result.json lacks ``_trajectory`` and ``_episode`` (they are
+        stripped on save).  This method reads ``trajectory.jsonl`` from each
+        episode dir and pairs results with the original episode dicts so that
+        ``aggregate_results()`` has access to the full data.
+        """
+        episodes_dir = run_dir / "episodes"
+        episode_dirs = sorted(
+            [d for d in episodes_dir.iterdir() if d.is_dir()],
+            key=lambda d: d.name,
+        )
+        for idx, result in enumerate(completed_results):
+            # Attach episode from the loaded episode list
+            if idx < len(episodes):
+                result["_episode"] = episodes[idx]
+
+            # Read trajectory from trajectory.jsonl
+            if idx < len(episode_dirs):
+                traj_file = episode_dirs[idx] / "trajectory.jsonl"
+                if traj_file.exists():
+                    try:
+                        lines = traj_file.read_text().strip().splitlines()
+                        result["_trajectory"] = [json.loads(l) for l in lines]
+                    except (json.JSONDecodeError, OSError):
+                        result["_trajectory"] = []
 
     def _run_episode(
         self, sim, agent, task, episode: dict, index: int, episode_dir: Path,
