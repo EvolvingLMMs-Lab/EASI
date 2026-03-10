@@ -85,7 +85,7 @@ class OmniGibsonEnvManager(BaseEnvironmentManager):
 
     @property
     def supported_render_platforms(self) -> list[str]:
-        return ["native", "auto"]
+        return ["native", "auto", "xorg"]
 
     def get_conda_env_yaml_path(self) -> Path:
         return Path(__file__).parent / "conda_env.yaml"

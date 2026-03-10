@@ -605,11 +605,11 @@ Custom platforms are resolved automatically — when you pass `--render-platform
 | Simulator | Default | Supported |
 |---|---|---|
 | `dummy:v1` | `headless` | `headless` |
-| `ai2thor:v2_1_0` | `auto` | `auto`, `native`, `xvfb` |
-| `ai2thor:v5_0_0` | `auto` | `auto`, `native`, `xvfb` |
-| `habitat_sim:v0_3_0` | `auto` | `auto`, `native`, `xvfb`, `egl` |
-| `coppeliasim:v4_1_0` | `auto` | `auto`, `native`, `xvfb` |
-| `tdw:v1_11_23` | `auto` | `auto`, `native`, `xvfb` |
+| `ai2thor:v2_1_0` | `auto` | `auto`, `native`, `xvfb`, `xorg` |
+| `ai2thor:v5_0_0` | `auto` | `auto`, `native`, `xvfb`, `xorg` |
+| `habitat_sim:v0_3_0` | `auto` | `auto`, `native`, `xvfb`, `egl`, `xorg` |
+| `coppeliasim:v4_1_0` | `auto` | `auto`, `native`, `xvfb`, `xorg` |
+| `tdw:v1_11_23` | `auto` | `auto`, `native`, `xvfb`, `xorg` |
 
 ---
 

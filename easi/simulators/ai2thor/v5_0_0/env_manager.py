@@ -24,7 +24,7 @@ class AI2ThorEnvManagerV500(BaseEnvironmentManager):
 
     @property
     def supported_render_platforms(self) -> list[str]:
-        return ["auto", "xvfb", "native"]
+        return ["auto", "xvfb", "native", "xorg"]
 
     @property
     def screen_config(self) -> str:

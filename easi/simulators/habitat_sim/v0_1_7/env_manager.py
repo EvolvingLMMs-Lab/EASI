@@ -24,7 +24,7 @@ class HabitatEnvManagerV017(BaseEnvironmentManager):
 
     @property
     def supported_render_platforms(self) -> list[str]:
-        return ["auto", "xvfb", "native", "egl"]
+        return ["auto", "xvfb", "native", "egl", "xorg"]
 
     def get_conda_env_yaml_path(self) -> Path:
         return Path(__file__).parent / "conda_env.yaml"
