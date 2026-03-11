@@ -122,6 +122,7 @@ class ParallelRunner(EvaluationRunner):
         # --- Resolve LLM backend and vLLM URLs ---
         backend, base_url = self._resolve_llm_backend()
         server_mgr = None
+        self._render_platform = None
 
         try:
             if backend in ("vllm", "custom") and base_url is None:
