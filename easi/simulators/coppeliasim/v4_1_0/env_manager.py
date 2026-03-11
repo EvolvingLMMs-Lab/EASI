@@ -61,15 +61,13 @@ class CoppeliaSimEnvManagerV410(BaseEnvironmentManager):
         """Return platform-agnostic CoppeliaSim env vars for bridge subprocess.
 
         Platform-specific vars (QT_QPA_PLATFORM_PLUGIN_PATH, __EGL_VENDOR_LIBRARY_FILENAMES)
-        are handled by custom render platform classes in render_platforms.py.
+        are handled by the CoppeliaSimRenderAdapter in render_platforms.py.
         """
         binary_dir_name = self.installation_kwargs.get("binary_dir_name", "")
         if not binary_dir_name:
             return EnvVars()
         t = self._get_template_variables()
-        coppeliasim_root = self._resolve_template(
-            "{extras_dir}/" + binary_dir_name, t
-        )
+        coppeliasim_root = self._resolve_template("{extras_dir}/" + binary_dir_name, t)
         # Include conda env lib dir so fontconfig/freetype/Qt deps resolve
         conda_lib = self._resolve_template("{env_dir}/lib", t)
         ld_path = f"{coppeliasim_root}:{conda_lib}"
@@ -136,6 +134,4 @@ class CoppeliaSimEnvManagerV410(BaseEnvironmentManager):
                 logger.info("Copying %s to %s", lua_addon_script, coppeliasim_root)
                 shutil.copy(str(lua_src), str(coppeliasim_root / lua_addon_script))
             else:
-                logger.warning(
-                    "Lua addon script not found at %s", lua_src
-                )
+                logger.warning("Lua addon script not found at %s", lua_src)

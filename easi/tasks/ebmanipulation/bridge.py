@@ -16,6 +16,7 @@ These are passed to the prompt builder via observation metadata.
 Usage:
     python bridge.py --workspace /tmp/easi_xxx [--simulator-kwargs '{}']
 """
+
 from __future__ import annotations
 
 import json
@@ -83,7 +84,7 @@ class EBManipulationBridge(BaseBridge):
         scene_bounds = simulator_kwargs.get(
             "scene_bounds", [-0.3, -0.5, 0.6, 0.7, 0.5, 1.6]
         )
-        # COPPELIASIM_HEADLESS is set by CoppeliaSim's custom render platform classes.
+        # COPPELIASIM_HEADLESS is set by CoppeliaSim's render adapter.
         # Falls back to simulator_kwargs, then defaults to True (EBManEnv default).
         headless_env = os.environ.get("COPPELIASIM_HEADLESS")
         if headless_env is not None:
@@ -143,9 +144,11 @@ class EBManipulationBridge(BaseBridge):
             voxel_size = self.simulator_kwargs.get("voxel_size", 100)
             rotation_resolution = self.simulator_kwargs.get("rotation_resolution", 3)
             rotation_bins = int(360 / rotation_resolution)
-            action = [np.random.randint(0, voxel_size) for _ in range(3)] + [
-                np.random.randint(0, rotation_bins) for _ in range(3)
-            ] + [1.0]
+            action = (
+                [np.random.randint(0, voxel_size) for _ in range(3)]
+                + [np.random.randint(0, rotation_bins) for _ in range(3)]
+                + [1.0]
+            )
         return env.step(action)
 
     def _extract_image(self, obs):
@@ -158,9 +161,7 @@ class EBManipulationBridge(BaseBridge):
             "action_success": float(info.get("action_success", 0.0)),
             "feedback": str(info.get("env_feedback", "")),
             "env_step": int(info.get("env_step", 0)),
-            "episode_elapsed_seconds": float(
-                info.get("episode_elapsed_seconds", 0.0)
-            ),
+            "episode_elapsed_seconds": float(info.get("episode_elapsed_seconds", 0.0)),
         }
 
     def _make_response(self, obs, reward=0.0, done=False, info=None):
@@ -196,9 +197,7 @@ class EBManipulationBridge(BaseBridge):
                 coord_result = form_object_coord_for_input(
                     obs, task_class, self._camera_types
                 )
-                avg_coord, all_avg_point_list, cam_ext_list, cam_int_list = (
-                    coord_result
-                )
+                avg_coord, all_avg_point_list, cam_ext_list, cam_int_list = coord_result
                 avg_obj_coord = str(avg_coord)
 
                 # Annotate the saved image

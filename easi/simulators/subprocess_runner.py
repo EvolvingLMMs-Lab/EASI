@@ -28,7 +28,8 @@ from easi.communication.filesystem import (
     write_command,
 )
 from easi.core.exceptions import SimulatorError, SimulatorTimeoutError
-from easi.core.render_platforms import EnvVars, RenderPlatform
+from easi.core.render_platforms import EnvVars, RenderPlatform, WorkerBinding
+from easi.core.render_platforms.base import SimulatorRenderAdapter
 from easi.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -48,6 +49,8 @@ class SubprocessRunner:
         poll_interval: float = 0.1,
         extra_args: list[str] | None = None,
         extra_env: EnvVars | None = None,
+        render_adapter: SimulatorRenderAdapter | None = None,
+        worker_binding: WorkerBinding | None = None,
         label: str = "bridge",
     ):
         self.python_executable = python_executable
@@ -59,6 +62,8 @@ class SubprocessRunner:
         self.poll_interval = poll_interval
         self.extra_args = extra_args or []
         self.extra_env = extra_env
+        self.render_adapter = render_adapter
+        self.worker_binding = worker_binding
         self.label = label
 
         self._process: subprocess.Popen | None = None
@@ -114,9 +119,7 @@ class SubprocessRunner:
             )
             if not status.get("ready", False):
                 output = self._get_recent_output()
-                raise SimulatorError(
-                    f"Bridge reported not ready. Output:\n{output}"
-                )
+                raise SimulatorError(f"Bridge reported not ready. Output:\n{output}")
             logger.info("Bridge subprocess ready (PID: %d)", self._process.pid)
         except (SimulatorError, SimulatorTimeoutError) as exc:
             # Collect output before shutdown destroys the process
@@ -157,9 +160,7 @@ class SubprocessRunner:
         )
 
         # Start output reader thread
-        self._reader_thread = threading.Thread(
-            target=self._stream_output, daemon=True
-        )
+        self._reader_thread = threading.Thread(target=self._stream_output, daemon=True)
         self._reader_thread.start()
 
         # Wait for bridge to signal ready
@@ -180,7 +181,9 @@ class SubprocessRunner:
             output = self._get_recent_output()
             self.shutdown()
             if output:
-                raise SimulatorError(f"{exc}\n\nDocker bridge output:\n{output}") from exc
+                raise SimulatorError(
+                    f"{exc}\n\nDocker bridge output:\n{output}"
+                ) from exc
             raise
 
     def send_command(self, command: dict, timeout: float | None = None) -> dict:
@@ -234,7 +237,11 @@ class SubprocessRunner:
         Returns None if no env vars to set (subprocess inherits parent env).
         """
         platform_env = self.render_platform.get_env_vars()
-        combined = EnvVars.merge(platform_env, self.extra_env) if self.extra_env else platform_env
+        combined = (
+            EnvVars.merge(platform_env, self.extra_env)
+            if self.extra_env
+            else platform_env
+        )
 
         if not combined:
             return None
@@ -250,8 +257,10 @@ class SubprocessRunner:
             str(self._workspace),
         ]
         cmd.extend(self.extra_args)
-
-        return self.render_platform.wrap_command(cmd, self.screen_config)
+        cmd = self.render_platform.wrap_command(cmd, self.screen_config)
+        if self.render_adapter is not None and self.worker_binding is not None:
+            cmd = self.render_adapter.wrap_command(cmd, self.worker_binding)
+        return cmd
 
     def _build_docker_launch_command(
         self,
@@ -263,9 +272,12 @@ class SubprocessRunner:
         """Build launch command using docker run via DockerEnvironmentManager."""
         bridge_command = [
             docker_env_manager.container_python_path,
-            str(Path(docker_env_manager.easi_mount) / self.bridge_script_path.relative_to(
-                Path(__file__).resolve().parents[1]
-            )),
+            str(
+                Path(docker_env_manager.easi_mount)
+                / self.bridge_script_path.relative_to(
+                    Path(__file__).resolve().parents[1]
+                )
+            ),
             "--workspace",
             workspace_dir,
         ]

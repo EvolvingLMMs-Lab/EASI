@@ -1,35 +1,38 @@
-"""Custom render platforms for OmniGibson v3.7.2.
+"""Render adapter for OmniGibson v3.7.2.
 
-Each platform sets OMNIGIBSON_HEADLESS so Isaac Sim starts in the correct mode:
-- native: OMNIGIBSON_HEADLESS=0 (user has a real display, Isaac Sim GUI opens)
-- auto:   OMNIGIBSON_HEADLESS=0 if DISPLAY is set, 1 otherwise
+OmniGibson-specific render behavior is expressed through
+``OmniGibsonRenderAdapter`` so contributors can reuse core render backends
+without adding backend-specific platform subclasses.
 """
 
 from __future__ import annotations
 
 import os
 
-from easi.core.render_platforms import AutoPlatform, EnvVars, NativePlatform
+from easi.core.render_platforms import (
+    EnvVars,
+    SimulatorRenderAdapter,
+    WorkerBinding,
+)
 
 
-class OmniGibsonNativePlatform(NativePlatform):
-    """Native display for OmniGibson — Isaac Sim GUI window, OMNIGIBSON_HEADLESS=0."""
+class OmniGibsonRenderAdapter(SimulatorRenderAdapter):
+    """Adapter for OmniGibson — sets OMNIGIBSON_HEADLESS from a WorkerBinding.
 
-    @property
-    def name(self) -> str:
-        return "native"
+    Dispatches based on binding metadata ``backend`` key, then falls back to
+    ``cuda_visible_devices`` (present on xorg bindings) as a headless heuristic,
+    and finally reads ``$DISPLAY`` for the auto path.
+    """
 
-    def get_env_vars(self) -> EnvVars:
-        return EnvVars(replace={"OMNIGIBSON_HEADLESS": "0"})
-
-
-class OmniGibsonAutoPlatform(AutoPlatform):
-    """Auto-detect for OmniGibson — native mode if $DISPLAY is set, headless otherwise."""
-
-    @property
-    def name(self) -> str:
-        return "auto"
-
-    def get_env_vars(self) -> EnvVars:
+    def get_env_vars(self, binding: WorkerBinding) -> EnvVars:
+        backend = binding.metadata.get("backend", "")
+        if backend in ("native", "xorg"):
+            return EnvVars(replace={"OMNIGIBSON_HEADLESS": "0"})
+        if backend == "xvfb":
+            return EnvVars(replace={"OMNIGIBSON_HEADLESS": "1"})
+        # xorg bindings always carry a GPU assignment; treat as display-attached
+        if binding.cuda_visible_devices is not None:
+            return EnvVars(replace={"OMNIGIBSON_HEADLESS": "0"})
+        # Auto path: check runtime display availability
         has_display = bool(os.environ.get("DISPLAY", ""))
         return EnvVars(replace={"OMNIGIBSON_HEADLESS": "0" if has_display else "1"})

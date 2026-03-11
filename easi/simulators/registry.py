@@ -32,8 +32,11 @@ class SimulatorEntry:
     simulator_class: str  # fully qualified class name
     env_manager_class: str  # fully qualified class name
     python_version: str
-    installation_kwargs: dict = field(default_factory=dict)
-    render_platforms: dict[str, str] = field(default_factory=dict)  # platform_name -> FQN class
+    installation_kwargs: dict[str, object] = field(default_factory=dict)
+    render_platforms: dict[str, str] = field(
+        default_factory=dict
+    )  # platform_name -> FQN class
+    render_adapter: str | None = None  # FQN class for SimulatorRenderAdapter, or None
     runtime: str = "conda"  # "conda" or "docker"
     data_dir: str = ""  # default data directory (from manifest top-level)
 
@@ -67,6 +70,7 @@ def _discover_simulators() -> dict[str, SimulatorEntry]:
                 python_version=ver_info.get("python_version", "3.10"),
                 installation_kwargs=ver_info.get("installation_kwargs", {}),
                 render_platforms=ver_info.get("render_platforms", {}),
+                render_adapter=ver_info.get("render_adapter"),
                 runtime=ver_info.get("runtime", "conda"),
                 data_dir=manifest.get("data_dir", ""),
             )
@@ -109,9 +113,7 @@ def get_simulator_entry(key: str) -> SimulatorEntry:
     registry = _get_registry()
     if key not in registry:
         available = list_simulators()
-        raise KeyError(
-            f"Simulator '{key}' not found. Available: {available}"
-        )
+        raise KeyError(f"Simulator '{key}' not found. Available: {available}")
     return registry[key]
 
 
@@ -167,6 +169,40 @@ def resolve_render_platform(key: str, platform_name: str, env_manager=None):
         return instance
 
     return get_render_platform(platform_name)
+
+
+def resolve_render_adapter(key: str, env_manager=None):
+    """Resolve the SimulatorRenderAdapter for a simulator, if one is registered.
+
+    Looks up the ``render_adapter`` manifest key for the given simulator and
+    returns an instantiated adapter.  Returns ``None`` when no adapter is
+    registered so callers can fall back to no-op behaviour without importing
+    the base class.
+
+    Args:
+        key: Simulator registry key (e.g. "coppeliasim:v4_1_0" or "coppeliasim").
+        env_manager: Optional env manager instance passed to the adapter constructor.
+
+    Returns:
+        Instantiated SimulatorRenderAdapter, or None if no adapter is registered.
+    """
+    entry = get_simulator_entry(key)
+    adapter_class_path = entry.render_adapter
+    if not isinstance(adapter_class_path, str):
+        return None
+    adapter_class_path = adapter_class_path.strip()
+    if not adapter_class_path or "." not in adapter_class_path:
+        return None
+    cls = _import_class(adapter_class_path)
+    if env_manager is not None:
+        try:
+            instance = cls(env_manager=env_manager)
+        except TypeError:
+            instance = cls()
+    else:
+        instance = cls()
+    logger.trace("Using render adapter '%s' from %s", adapter_class_path, key)
+    return instance
 
 
 def refresh() -> None:

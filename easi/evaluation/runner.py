@@ -38,7 +38,7 @@ logger = get_logger(__name__)
 
 def _sanitize_dirname(name: str) -> str:
     """Replace characters unsafe for directory names."""
-    return re.sub(r'[^\w\-.]', '_', name)
+    return re.sub(r"[^\w\-.]", "_", name)
 
 
 class EvaluationRunner:
@@ -71,7 +71,8 @@ class EvaluationRunner:
         # Auto-capture all init args for config.json (before any mutation)
         frame = inspect.currentframe()
         self._cli_options = {
-            k: v for k, v in inspect.getargvalues(frame).locals.items()
+            k: v
+            for k, v in inspect.getargvalues(frame).locals.items()
             if k not in ("self", "frame") and k not in self._EXCLUDE_FROM_CONFIG
         }
 
@@ -99,6 +100,7 @@ class EvaluationRunner:
             # For custom backend, append model_path to distinguish variants
             if self.backend == "custom" and self.llm_kwargs_raw:
                 from easi.llm.utils import parse_llm_kwargs
+
                 model_path = parse_llm_kwargs(self.llm_kwargs_raw).get("model_path", "")
                 if model_path:
                     # Use last 2 path components (e.g. Qwen_Qwen3-VL-8B-Instruct)
@@ -184,15 +186,19 @@ class EvaluationRunner:
             task.download_dataset(force=True)
         episodes = task.load_episodes()
         if self.max_episodes is not None:
-            episodes = episodes[:self.max_episodes]
+            episodes = episodes[: self.max_episodes]
 
         # Handle resume: load completed results and find start point
         if self.resume_dir:
-            all_results, start_index = self._load_completed_results(run_dir, len(episodes))
+            all_results, start_index = self._load_completed_results(
+                run_dir, len(episodes)
+            )
             self._reattach_resume_data(all_results, episodes, run_dir)
             logger.info(
                 "Resuming from %s — %d completed episodes, starting from index %d",
-                run_dir, len(all_results), start_index,
+                run_dir,
+                len(all_results),
+                start_index,
             )
         else:
             all_results = []
@@ -211,7 +217,9 @@ class EvaluationRunner:
                 all_kwargs = parse_llm_kwargs(self.llm_kwargs_raw)
                 server_kwargs, _ = split_kwargs(all_kwargs)
                 server = ServerManager(
-                    backend, self.model, port=self.port,
+                    backend,
+                    self.model,
+                    port=self.port,
                     server_kwargs=server_kwargs,
                 )
                 base_url = server.start()
@@ -221,6 +229,7 @@ class EvaluationRunner:
 
             # Compute resolved generation kwargs (YAML defaults + CLI overrides)
             from easi.llm.utils import parse_llm_kwargs, split_kwargs
+
             agent_config = task._config.get("agent", {})
             yaml_gen_kwargs = agent_config.get("generation_kwargs", {})
             all_llm_kwargs = parse_llm_kwargs(self.llm_kwargs_raw)
@@ -238,17 +247,19 @@ class EvaluationRunner:
                 "task_config": task._config,
             }
             (run_dir / "config.json").write_text(json.dumps(config, indent=2))
-            logger.trace(
-                "Run config:\n%s", json.dumps(config, indent=2, default=str)
-            )
+            logger.trace("Run config:\n%s", json.dumps(config, indent=2, default=str))
 
             # Skip simulator/agent if all episodes already complete (resume)
             if start_index >= len(episodes):
-                logger.info("All %d episodes already complete, re-aggregating summary.", len(episodes))
+                logger.info(
+                    "All %d episodes already complete, re-aggregating summary.",
+                    len(episodes),
+                )
             else:
                 # 3. Create agent
-                agent = self._create_agent(task.action_space, task._config,
-                                           backend=backend, base_url=base_url)
+                agent = self._create_agent(
+                    task.action_space, task._config, backend=backend, base_url=base_url
+                )
 
                 # 4. Start simulator
                 sim, sim_runner = self._create_simulator(task.simulator_key, task=task)
@@ -257,7 +268,9 @@ class EvaluationRunner:
                 from easi.utils.progress import ProgressBar
 
                 progress_bar = ProgressBar(
-                    total=len(episodes), num_workers=1, start_index=start_index,
+                    total=len(episodes),
+                    num_workers=1,
+                    start_index=start_index,
                 )
                 progress_bar.start()
 
@@ -267,23 +280,36 @@ class EvaluationRunner:
                             continue
                         episode_id = episode.get("episode_id", f"ep_{i}")
                         logger.info(
-                            "Episode %d/%d: %s", i + 1, len(episodes), episode_id,
+                            "Episode %d/%d: %s",
+                            i + 1,
+                            len(episodes),
+                            episode_id,
                         )
 
-                        episode_dir = episodes_dir / f"{i:03d}_{_sanitize_dirname(episode_id)}"
+                        episode_dir = (
+                            episodes_dir / f"{i:03d}_{_sanitize_dirname(episode_id)}"
+                        )
                         episode_dir.mkdir(exist_ok=True)
 
                         result = None
                         for attempt in range(1, self.max_retries + 1):
                             try:
                                 result = self._run_episode(
-                                    sim, agent, task, episode, i, episode_dir,
+                                    sim,
+                                    agent,
+                                    task,
+                                    episode,
+                                    i,
+                                    episode_dir,
                                 )
                                 break
                             except Exception as exc:
                                 logger.warning(
                                     "Episode %s attempt %d/%d failed: %s",
-                                    episode_id, attempt, self.max_retries, exc,
+                                    episode_id,
+                                    attempt,
+                                    self.max_retries,
+                                    exc,
                                 )
                                 self._clear_episode_dir(episode_dir)
                                 if attempt < self.max_retries:
@@ -294,15 +320,19 @@ class EvaluationRunner:
                                         pass
                                     try:
                                         sim, sim_runner = self._create_simulator(
-                                            task.simulator_key, task=task,
+                                            task.simulator_key,
+                                            task=task,
                                         )
                                     except Exception as restart_exc:
                                         logger.error(
-                                            "Simulator restart failed: %s", restart_exc,
+                                            "Simulator restart failed: %s",
+                                            restart_exc,
                                         )
                                         result = {
                                             "episode_id": episode_id,
-                                            "instruction": task.get_instruction(episode),
+                                            "instruction": task.get_instruction(
+                                                episode
+                                            ),
                                             "success": 0.0,
                                             "num_steps": 0,
                                             "elapsed_seconds": 0.0,
@@ -313,7 +343,8 @@ class EvaluationRunner:
                                 else:
                                     logger.error(
                                         "Episode %s failed after %d attempts, skipping",
-                                        episode_id, self.max_retries,
+                                        episode_id,
+                                        self.max_retries,
                                     )
                                     result = {
                                         "episode_id": episode_id,
@@ -335,8 +366,7 @@ class EvaluationRunner:
 
                         # Save per-episode result (strip internal keys)
                         result_to_save = {
-                            k: v for k, v in result.items()
-                            if not k.startswith("_")
+                            k: v for k, v in result.items() if not k.startswith("_")
                         }
                         (episode_dir / "result.json").write_text(
                             json.dumps(result_to_save, indent=2)
@@ -344,7 +374,9 @@ class EvaluationRunner:
 
                         # If simulator restart failed, stop evaluation
                         if sim is None:
-                            logger.error("No simulator available, stopping evaluation early.")
+                            logger.error(
+                                "No simulator available, stopping evaluation early."
+                            )
                             break
 
                 finally:
@@ -364,11 +396,13 @@ class EvaluationRunner:
             trajectory = r.pop("_trajectory", [])
             episode = r.pop("_episode", {})
             episode_results = {k: v for k, v in r.items() if not k.startswith("_")}
-            records.append(EpisodeRecord(
-                episode=episode,
-                trajectory=trajectory,
-                episode_results=episode_results,
-            ))
+            records.append(
+                EpisodeRecord(
+                    episode=episode,
+                    trajectory=trajectory,
+                    episode_results=episode_results,
+                )
+            )
 
         # 6. Aggregate and save summary
         try:
@@ -391,7 +425,9 @@ class EvaluationRunner:
 
         return all_results
 
-    def _load_completed_results(self, run_dir: Path, total_episodes: int) -> tuple[list[dict], int]:
+    def _load_completed_results(
+        self, run_dir: Path, total_episodes: int
+    ) -> tuple[list[dict], int]:
         """Scan episode dirs to find the first incomplete episode.
 
         Walks episode directories in ascending order (by index prefix).
@@ -433,7 +469,9 @@ class EvaluationRunner:
                     start_index += 1
                     continue
                 except (json.JSONDecodeError, OSError):
-                    logger.warning("Corrupt result.json in %s, treating as incomplete", ep_dir)
+                    logger.warning(
+                        "Corrupt result.json in %s, treating as incomplete", ep_dir
+                    )
             # First incomplete episode found — stop here
             break
 
@@ -442,7 +480,8 @@ class EvaluationRunner:
         if dirs_to_clear:
             logger.info(
                 "Resume: clearing %d episode dirs from index %d onward",
-                len(dirs_to_clear), start_index,
+                len(dirs_to_clear),
+                start_index,
             )
             for d in dirs_to_clear:
                 shutil.rmtree(d)
@@ -483,7 +522,13 @@ class EvaluationRunner:
                         result["_trajectory"] = []
 
     def _run_episode(
-        self, sim, agent, task, episode: dict, index: int, episode_dir: Path,
+        self,
+        sim,
+        agent,
+        task,
+        episode: dict,
+        index: int,
+        episode_dir: Path,
     ) -> dict:
         """Run a single episode and return metrics."""
         agent.reset()
@@ -503,15 +548,18 @@ class EvaluationRunner:
 
         # Write reset entry to trajectory
         trajectory_path = episode_dir / "trajectory.jsonl"
-        self._write_trajectory_entry(trajectory_path, {
-            "step": 0,
-            "type": "reset",
-            "rgb_path": Path(observation.rgb_path).name,
-            "agent_pose": observation.agent_pose,
-            "reward": 0.0,
-            "done": False,
-            "info": {},
-        })
+        self._write_trajectory_entry(
+            trajectory_path,
+            {
+                "step": 0,
+                "type": "reset",
+                "rgb_path": Path(observation.rgb_path).name,
+                "agent_pose": observation.agent_pose,
+                "reward": 0.0,
+                "done": False,
+                "info": {},
+            },
+        )
 
         # Agent-simulator loop
         trajectory: list[StepResult] = []
@@ -531,21 +579,24 @@ class EvaluationRunner:
 
             # Get LLM response from agent memory (None for buffered actions)
             llm_response = None
-            if hasattr(agent, 'memory') and agent.memory.steps:
+            if hasattr(agent, "memory") and agent.memory.steps:
                 llm_response = agent.memory.steps[-1].llm_response
 
             # Write step entry to trajectory
-            self._write_trajectory_entry(trajectory_path, {
-                "step": step + 1,
-                "type": "step",
-                "action": action.action_name,
-                "llm_response": llm_response,
-                "rgb_path": Path(step_result.observation.rgb_path).name,
-                "agent_pose": step_result.observation.agent_pose,
-                "reward": step_result.reward,
-                "done": step_result.done,
-                "info": step_result.info,
-            })
+            self._write_trajectory_entry(
+                trajectory_path,
+                {
+                    "step": step + 1,
+                    "type": "step",
+                    "action": action.action_name,
+                    "llm_response": llm_response,
+                    "rgb_path": Path(step_result.observation.rgb_path).name,
+                    "agent_pose": step_result.observation.agent_pose,
+                    "reward": step_result.reward,
+                    "done": step_result.done,
+                    "info": step_result.info,
+                },
+            )
 
             # Feed action outcome back to agent for ReAct reasoning
             last_success = step_result.info.get("last_action_success", 1.0)
@@ -573,7 +624,7 @@ class EvaluationRunner:
         metrics["_episode"] = episode
 
         # Snapshot LLM usage for this episode
-        if hasattr(agent, 'llm_client') and hasattr(agent.llm_client, 'get_usage'):
+        if hasattr(agent, "llm_client") and hasattr(agent.llm_client, "get_usage"):
             metrics["llm_usage"] = agent.llm_client.get_usage()
             agent.llm_client.reset_usage()
 
@@ -608,7 +659,9 @@ class EvaluationRunner:
             total["total_prompt_tokens"] += usage.get("prompt_tokens", 0)
             total["total_completion_tokens"] += usage.get("completion_tokens", 0)
             total["total_cost_usd"] += usage.get("cost_usd", 0.0)
-        total["total_tokens"] = total["total_prompt_tokens"] + total["total_completion_tokens"]
+        total["total_tokens"] = (
+            total["total_prompt_tokens"] + total["total_completion_tokens"]
+        )
         n = len(results) or 1
         total["avg_prompt_tokens_per_episode"] = round(total["total_prompt_tokens"] / n)
         total["avg_cost_per_episode_usd"] = round(total["total_cost_usd"] / n, 6)
@@ -624,12 +677,18 @@ class EvaluationRunner:
             data_dir=self.data_dir,
         )
 
-    def _create_agent(self, action_space: list[str], task_config: dict,
-                      backend: str | None = None, base_url: str | None = None):
+    def _create_agent(
+        self,
+        action_space: list[str],
+        task_config: dict,
+        backend: str | None = None,
+        base_url: str | None = None,
+    ):
         from easi.utils.import_utils import import_class
 
         if self.agent_type == "dummy":
             from easi.agents.dummy_agent import DummyAgent
+
             return DummyAgent(action_space=action_space, seed=self.agent_seed)
 
         elif self.agent_type == "react":
@@ -641,8 +700,10 @@ class EvaluationRunner:
             if backend and backend != "legacy":
                 from easi.llm.client import LLMClient
                 from easi.llm.utils import (
-                    build_litellm_model, parse_llm_kwargs,
-                    split_kwargs, validate_backend,
+                    build_litellm_model,
+                    parse_llm_kwargs,
+                    split_kwargs,
+                    validate_backend,
                 )
 
                 validate_backend(backend)
@@ -667,9 +728,8 @@ class EvaluationRunner:
             else:
                 # Legacy path: existing LLMApiClient
                 from easi.llm.api_client import LLMApiClient
-                llm = LLMApiClient(
-                    base_url=base_url or "http://127.0.0.1:8000"
-                )
+
+                llm = LLMApiClient(base_url=base_url or "http://127.0.0.1:8000")
 
             # Load task-specific prompt builder
             prompt_builder = None
@@ -687,7 +747,9 @@ class EvaluationRunner:
         else:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 
-    def _create_simulator(self, simulator_key: str, task=None, label: str = "bridge", worker_id: int = 0):
+    def _create_simulator(
+        self, simulator_key: str, task=None, label: str = "bridge", worker_id: int = 0
+    ):
         import json as _json
 
         from easi.simulators.registry import (
@@ -709,13 +771,14 @@ class EvaluationRunner:
 
         # Task-specific bridge overrides simulator default
         bridge_path = (
-            (task.get_bridge_script_path() if task else None)
-            or sim._get_bridge_script_path()
-        )
+            task.get_bridge_script_path() if task else None
+        ) or sim._get_bridge_script_path()
 
         extra_args = ["--data-dir", str(self.data_dir)]
         if task and task.simulator_kwargs:
-            extra_args.extend(["--simulator-kwargs", _json.dumps(task.simulator_kwargs)])
+            extra_args.extend(
+                ["--simulator-kwargs", _json.dumps(task.simulator_kwargs)]
+            )
 
         # Extract runner-level timeouts from simulator_configs
         sim_configs = task.simulator_configs if task else {}
@@ -743,8 +806,14 @@ class EvaluationRunner:
                 label=label,
                 **runner_kwargs,
             )
-            data_dir_str = str(self.data_dir) if self.data_dir else (
-                entry.data_dir.replace("~", str(Path.home())) if entry.data_dir else None
+            data_dir_str = (
+                str(self.data_dir)
+                if self.data_dir
+                else (
+                    entry.data_dir.replace("~", str(Path.home()))
+                    if entry.data_dir
+                    else None
+                )
             )
             runner.launch_docker(
                 docker_env_manager=env_manager,
@@ -777,30 +846,52 @@ class EvaluationRunner:
             )
 
         # Use pre-setup global platform if available, else resolve per-simulator
-        if getattr(self, '_render_platform', None) is not None:
+        if getattr(self, "_render_platform", None) is not None:
             render_platform = self._render_platform
         else:
-            render_platform = resolve_render_platform(simulator_key, platform_name, env_manager=env_manager)
+            render_platform = resolve_render_platform(
+                simulator_key, platform_name, env_manager=env_manager
+            )
 
-        # Pass platform name to get_env_vars for conditional logic
         from easi.core.render_platforms import EnvVars
 
         env_vars = env_manager.get_env_vars(render_platform_name=platform_name)
 
-        # Merge task-level env_vars from simulator_configs.env_vars
         if task and task.extra_env_vars:
             env_vars = EnvVars.merge(env_vars, EnvVars(replace=task.extra_env_vars))
 
-        # Per-worker platform instance (lifecycle platforms like xorg return
-        # a worker-specific instance that already handles GPU assignment)
-        render_platform = render_platform.for_worker(worker_id)
+        from easi.simulators.registry import (
+            resolve_render_adapter as _resolve_render_adapter,
+        )
 
-        # Apply per-worker GPU pinning via round-robin (skip if platform
-        # already sets CUDA_VISIBLE_DEVICES, e.g. xorg worker platforms)
-        platform_env = render_platform.get_env_vars()
-        if self.sim_gpus is not None and "CUDA_VISIBLE_DEVICES" not in platform_env.replace:
+        adapter = _resolve_render_adapter(simulator_key, env_manager=env_manager)
+
+        base_render_platform = render_platform
+        binding = render_platform.for_worker(worker_id)
+
+        adapter_env = adapter.get_env_vars(binding) if adapter else EnvVars()
+        binding_env = EnvVars.merge(binding.extra_env, adapter_env)
+
+        if binding.display:
+            binding_env = EnvVars.merge(
+                binding_env, EnvVars(replace={"DISPLAY": binding.display})
+            )
+        if binding.cuda_visible_devices is not None:
+            binding_env = EnvVars.merge(
+                binding_env,
+                EnvVars(replace={"CUDA_VISIBLE_DEVICES": binding.cuda_visible_devices}),
+            )
+
+        if self.sim_gpus is not None and binding.cuda_visible_devices is None:
             gpu_id = self.sim_gpus[worker_id % len(self.sim_gpus)]
-            env_vars = EnvVars.merge(env_vars, EnvVars(replace={"CUDA_VISIBLE_DEVICES": str(gpu_id)}))
+            env_vars = EnvVars.merge(
+                env_vars, EnvVars(replace={"CUDA_VISIBLE_DEVICES": str(gpu_id)})
+            )
+
+        env_vars = EnvVars.merge(env_vars, binding_env)
+        render_platform = base_render_platform
+        active_binding = binding
+        active_adapter = adapter
 
         runner = SubprocessRunner(
             python_executable=env_manager.get_python_executable(),
@@ -809,6 +900,8 @@ class EvaluationRunner:
             screen_config=env_manager.screen_config,
             extra_args=extra_args,
             extra_env=env_vars if env_vars else None,
+            render_adapter=active_adapter,
+            worker_binding=active_binding,
             label=label,
             **runner_kwargs,
         )

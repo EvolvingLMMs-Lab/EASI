@@ -1,8 +1,10 @@
 """Render platform package — pluggable display/rendering backends.
 
 Each render platform encapsulates how to launch a bridge subprocess with
-the correct display/rendering environment.  Simulators declare a default
+the correct display/rendering environment. Simulators declare a default
 platform; users can override via CLI (--render-platform) or task YAML.
+Simulator-specific render quirks belong in a ``SimulatorRenderAdapter``
+registered from the simulator manifest, not in backend-specific subclasses.
 
 Built-in platforms:
     auto     — use native DISPLAY if available, fall back to xvfb
@@ -14,12 +16,12 @@ Built-in platforms:
 """
 
 from .auto import AutoPlatform
-from .base import EnvVars, RenderPlatform
+from .base import EnvVars, RenderPlatform, SimulatorRenderAdapter, WorkerBinding
 from .egl import EGLPlatform
 from .headless import HeadlessPlatform
 from .native import NativePlatform
 from .registry import available_platforms, get_render_platform
-from .xorg import XorgPlatform, _XorgWorkerPlatform
+from .xorg import XorgPlatform
 from .xorg_manager import XorgInstance, XorgManager
 from .xvfb import XvfbPlatform
 
@@ -27,6 +29,8 @@ __all__ = [
     # Base types
     "RenderPlatform",
     "EnvVars",
+    "WorkerBinding",
+    "SimulatorRenderAdapter",
     # Built-in platforms
     "AutoPlatform",
     "NativePlatform",
@@ -34,7 +38,6 @@ __all__ = [
     "EGLPlatform",
     "HeadlessPlatform",
     "XorgPlatform",
-    "_XorgWorkerPlatform",
     # Xorg internals
     "XorgManager",
     "XorgInstance",

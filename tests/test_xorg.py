@@ -9,43 +9,16 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 _MGR = "easi.core.render_platforms.xorg_manager"  # canonical module for XorgManager internals
-_XORG = "easi.core.render_platforms.xorg"          # canonical module for XorgPlatform
-
-
-class TestXorgWorkerPlatform:
-    """Test _XorgWorkerPlatform env vars and command wrapping."""
-
-    def test_name(self):
-        from easi.core.render_platforms.xorg import _XorgWorkerPlatform
-
-        p = _XorgWorkerPlatform(display_num=10, gpu_id=4)
-        assert p.name == "xorg"
-
-    def test_env_vars(self):
-        from easi.core.render_platforms.xorg import _XorgWorkerPlatform
-
-        p = _XorgWorkerPlatform(display_num=10, gpu_id=4)
-        ev = p.get_env_vars()
-        assert ev.replace["DISPLAY"] == ":10"
-        assert ev.replace["CUDA_VISIBLE_DEVICES"] == "4"
-        assert ev.replace["EASI_GPU_DISPLAY"] == "1"
-
-    def test_wrap_command_passthrough(self):
-        from easi.core.render_platforms.xorg import _XorgWorkerPlatform
-
-        p = _XorgWorkerPlatform(display_num=10, gpu_id=4)
-        cmd = ["python", "bridge.py", "--workspace", "/tmp"]
-        assert p.wrap_command(cmd, "1024x768x24") == cmd
-
-    def test_is_available(self):
-        from easi.core.render_platforms.xorg import _XorgWorkerPlatform
-
-        p = _XorgWorkerPlatform(display_num=10, gpu_id=4)
-        assert p.is_available() is True
+_XORG = "easi.core.render_platforms.xorg"  # canonical module for XorgPlatform
 
 
 class TestXorgPlatformLifecycle:
     """Test XorgPlatform setup/teardown/for_worker lifecycle."""
+
+    def test_module_no_longer_exports_worker_platform_shim(self):
+        import easi.core.render_platforms.xorg as xorg_module
+
+        assert not hasattr(xorg_module, "_XorgWorkerPlatform")
 
     def test_name(self):
         from easi.core.render_platforms.xorg import XorgPlatform
@@ -147,8 +120,10 @@ class TestXorgManager:
         mgr._instances = [XorgInstance(display=10, gpu_id=0, pid=12345)]
         mgr._conf_files = []
 
-        with patch(f"{_MGR}.os.getpgid", return_value=12345), \
-             patch(f"{_MGR}.os.killpg") as mock_killpg:
+        with (
+            patch(f"{_MGR}.os.getpgid", return_value=12345),
+            patch(f"{_MGR}.os.killpg") as mock_killpg,
+        ):
             mgr.stop()
             mock_killpg.assert_called_with(12345, signal.SIGTERM)
 
@@ -165,14 +140,17 @@ class TestXorgManager:
         mgr._instances = [XorgInstance(display=10, gpu_id=0, pid=12345)]
         mgr._conf_files = []
 
-        with patch(f"{_MGR}.os.getpgid", return_value=12345), \
-             patch(f"{_MGR}.os.killpg") as mock_killpg, \
-             patch(f"{_MGR}.subprocess.run") as mock_run:
+        with (
+            patch(f"{_MGR}.os.getpgid", return_value=12345),
+            patch(f"{_MGR}.os.killpg") as mock_killpg,
+            patch(f"{_MGR}.subprocess.run") as mock_run,
+        ):
             mgr.stop()
             mock_killpg.assert_not_called()
             mock_run.assert_called_once_with(
                 ["sudo", "-n", "kill", f"-{signal.SIGTERM}", "-12345"],
-                capture_output=True, timeout=5,
+                capture_output=True,
+                timeout=5,
             )
 
     def test_sudo_fallback(self):
@@ -180,6 +158,7 @@ class TestXorgManager:
         from easi.core.render_platforms.xorg_manager import XorgManager
 
         call_count = 0
+
         def mock_popen(cmd, **kwargs):
             nonlocal call_count
             call_count += 1
@@ -258,8 +237,8 @@ class TestPerWorkerGpuPinning:
             XorgInstance(display=10, gpu_id=4, pid=1),
             XorgInstance(display=11, gpu_id=5, pid=2),
         ]
-        gpus = [p.for_worker(i).gpu_id for i in range(6)]
-        assert gpus == [4, 5, 4, 5, 4, 5]
+        gpus = [p.for_worker(i).cuda_visible_devices for i in range(6)]
+        assert gpus == ["4", "5", "4", "5", "4", "5"]
 
     def test_single_gpu_all_workers_same(self):
         """With one GPU, all workers get the same GPU."""
@@ -269,7 +248,22 @@ class TestPerWorkerGpuPinning:
         p = XorgPlatform()
         p._instances = [XorgInstance(display=10, gpu_id=4, pid=1)]
         for worker_id in range(4):
-            assert p.for_worker(worker_id).gpu_id == 4
+            assert p.for_worker(worker_id).cuda_visible_devices == "4"
+
+    def test_binding_contains_display_and_env(self):
+        from easi.core.render_platforms import WorkerBinding
+        from easi.core.render_platforms.xorg import XorgPlatform
+        from easi.core.render_platforms.xorg_manager import XorgInstance
+
+        p = XorgPlatform()
+        p._instances = [XorgInstance(display=12, gpu_id=7, pid=1)]
+
+        binding = p.for_worker(0)
+
+        assert isinstance(binding, WorkerBinding)
+        assert binding.display == ":12"
+        assert binding.cuda_visible_devices == "7"
+        assert binding.extra_env.replace == {"EASI_GPU_DISPLAY": "1"}
 
 
 class TestXorgRunnerIntegration:

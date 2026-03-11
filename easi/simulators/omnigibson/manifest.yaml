@@ -7,9 +7,7 @@ versions:
     simulator_class: "easi.simulators.omnigibson.v3_7_2.simulator.OmniGibsonSimulator"
     env_manager_class: "easi.simulators.omnigibson.v3_7_2.env_manager.OmniGibsonEnvManager"
     python_version: "3.10"
-    render_platforms:
-      native: "easi.simulators.omnigibson.v3_7_2.render_platforms.OmniGibsonNativePlatform"
-      auto:   "easi.simulators.omnigibson.v3_7_2.render_platforms.OmniGibsonAutoPlatform"
+    render_adapter: "easi.simulators.omnigibson.v3_7_2.render_platforms.OmniGibsonRenderAdapter"
     installation_kwargs:
       cuda_version: "12.4"
       behavior_1k_repo: "https://github.com/StanfordVL/BEHAVIOR-1K.git"

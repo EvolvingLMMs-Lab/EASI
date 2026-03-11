@@ -364,6 +364,7 @@ class TestSubprocessRunnerRenderPlatform:
             extra_env=EnvVars(replace={"SIM_ROOT": "/opt/sim"}),
         )
         env = runner._build_subprocess_env()
+        assert env is not None
         assert env["PYOPENGL_PLATFORM"] == "egl"
         assert env["SIM_ROOT"] == "/opt/sim"
 
@@ -417,7 +418,7 @@ class TestSimulatorRenderPlatforms:
     def test_coppeliasim_env_vars_are_platform_agnostic(self):
         """CoppeliaSim env_manager should NOT set QT_QPA_PLATFORM_PLUGIN_PATH or __EGL_VENDOR_LIBRARY_FILENAMES.
 
-        Those platform-specific vars are now handled by custom render platform classes.
+        Those platform-specific vars are now handled by the render platform adapter.
         """
         from easi.simulators.coppeliasim.v4_1_0.env_manager import (
             CoppeliaSimEnvManagerV410,
@@ -551,9 +552,7 @@ class TestCustomRenderPlatforms:
                 assert platform.get_env_vars().replace == {"CUSTOM": "1"}
 
 
-class TestCoppeliaSimCustomPlatforms:
-    """Test CoppeliaSim-specific custom render platform classes."""
-
+class TestCoppeliaSimAdapterIntegration:
     def _make_mock_env_manager(self, binary_dir_name="CoppeliaSim"):
         from unittest.mock import MagicMock
 
@@ -568,137 +567,149 @@ class TestCoppeliaSimCustomPlatforms:
         ).replace("{env_dir}", t["env_dir"])
         return mgr
 
-    def test_native_has_qt_plugin_path_and_headless_false(self):
+    def test_adapter_native_has_qt_plugin_path_and_headless_false(self):
+        from easi.core.render_platforms import WorkerBinding
         from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
-            CoppeliaSimNativePlatform,
+            CoppeliaSimRenderAdapter,
         )
 
         mgr = self._make_mock_env_manager()
-        p = CoppeliaSimNativePlatform(env_manager=mgr)
-        assert p.name == "native"
-        ev = p.get_env_vars()
+        adapter = CoppeliaSimRenderAdapter(env_manager=mgr)
+        ev = adapter.get_env_vars(WorkerBinding(metadata={"backend": "native"}))
         assert "QT_QPA_PLATFORM_PLUGIN_PATH" in ev.prepend
         assert ev.replace["COPPELIASIM_HEADLESS"] == "0"
         assert "__EGL_VENDOR_LIBRARY_FILENAMES" not in ev.replace
 
-    def test_xvfb_has_qt_plugin_path_and_headless_true(self):
+    def test_adapter_xvfb_has_qt_plugin_path_and_headless_true(self):
+        from easi.core.render_platforms import WorkerBinding
         from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
-            CoppeliaSimXvfbPlatform,
+            CoppeliaSimRenderAdapter,
         )
 
         mgr = self._make_mock_env_manager()
-        p = CoppeliaSimXvfbPlatform(env_manager=mgr)
-        assert p.name == "xvfb"
-        ev = p.get_env_vars()
+        adapter = CoppeliaSimRenderAdapter(env_manager=mgr)
+        ev = adapter.get_env_vars(WorkerBinding(metadata={"backend": "xvfb"}))
         assert "QT_QPA_PLATFORM_PLUGIN_PATH" in ev.prepend
         assert "CoppeliaSim" in ev.prepend["QT_QPA_PLATFORM_PLUGIN_PATH"]
         assert ev.replace["COPPELIASIM_HEADLESS"] == "1"
 
-    def test_xvfb_wraps_command(self):
-        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
-            CoppeliaSimXvfbPlatform,
-        )
+    def test_builtin_xvfb_wraps_command(self):
+        from easi.core.render_platforms import XvfbPlatform
 
-        p = CoppeliaSimXvfbPlatform()
-        cmd = ["python", "bridge.py"]
-        wrapped = p.wrap_command(cmd, "1280x720x24")
+        wrapped = XvfbPlatform().wrap_command(["python", "bridge.py"], "1280x720x24")
         assert wrapped[0] == "xvfb-run"
 
-    def test_auto_native_when_display(self):
+    def test_adapter_auto_native_when_display(self):
+        from easi.core.render_platforms import WorkerBinding
         from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
-            CoppeliaSimAutoPlatform,
+            CoppeliaSimRenderAdapter,
         )
 
         mgr = self._make_mock_env_manager()
-        p = CoppeliaSimAutoPlatform(env_manager=mgr)
-        assert p.name == "auto"
+        adapter = CoppeliaSimRenderAdapter(env_manager=mgr)
         with patch.dict(os.environ, {"DISPLAY": ":0"}):
-            ev = p.get_env_vars()
+            ev = adapter.get_env_vars(WorkerBinding())
             assert "QT_QPA_PLATFORM_PLUGIN_PATH" in ev.prepend
             assert ev.replace["COPPELIASIM_HEADLESS"] == "0"
 
-    def test_auto_xvfb_when_no_display(self):
+    def test_adapter_auto_xvfb_when_no_display(self):
+        from easi.core.render_platforms import WorkerBinding
         from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
-            CoppeliaSimAutoPlatform,
+            CoppeliaSimRenderAdapter,
         )
 
         mgr = self._make_mock_env_manager()
-        p = CoppeliaSimAutoPlatform(env_manager=mgr)
+        adapter = CoppeliaSimRenderAdapter(env_manager=mgr)
         env = os.environ.copy()
         env.pop("DISPLAY", None)
         with patch.dict(os.environ, env, clear=True):
-            ev = p.get_env_vars()
+            ev = adapter.get_env_vars(WorkerBinding())
             assert "QT_QPA_PLATFORM_PLUGIN_PATH" in ev.prepend
             assert ev.replace["COPPELIASIM_HEADLESS"] == "1"
 
-    def test_xvfb_no_env_manager_returns_empty(self):
+    def test_adapter_without_env_manager_returns_empty(self):
+        from easi.core.render_platforms import WorkerBinding
         from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
-            CoppeliaSimXvfbPlatform,
+            CoppeliaSimRenderAdapter,
         )
 
-        p = CoppeliaSimXvfbPlatform()  # no env_manager
-        ev = p.get_env_vars()
+        ev = CoppeliaSimRenderAdapter().get_env_vars(
+            WorkerBinding(metadata={"backend": "xvfb"})
+        )
         assert not ev
 
-    def test_manifest_registers_custom_platforms(self):
+    def test_manifest_uses_adapter_instead_of_custom_platforms(self):
         from easi.simulators.registry import get_simulator_entry
 
         entry = get_simulator_entry("coppeliasim:v4_1_0")
-        assert "auto" in entry.render_platforms
-        assert "native" in entry.render_platforms
-        assert "xvfb" in entry.render_platforms
-        assert "xorg" in entry.render_platforms
+        assert entry.render_platforms == {}
 
-    def test_resolve_coppeliasim_custom_platform(self):
-        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
-            CoppeliaSimAutoPlatform,
-        )
+    def test_resolve_coppeliasim_auto_platform_uses_builtin(self):
+        from easi.core.render_platforms import AutoPlatform
         from easi.simulators.registry import resolve_render_platform
 
         platform = resolve_render_platform("coppeliasim:v4_1_0", "auto")
-        assert isinstance(platform, CoppeliaSimAutoPlatform)
+        assert isinstance(platform, AutoPlatform)
         assert platform.name == "auto"
 
-    def test_xorg_has_qt_plugin_path_and_headless_false(self):
+    def test_xorg_binding_plus_adapter_has_qt_plugin_path_and_headless_false(self):
+        from easi.core.render_platforms import EnvVars, WorkerBinding
+        from easi.core.render_platforms.xorg import XorgPlatform
         from easi.core.render_platforms.xorg_manager import XorgInstance
         from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
-            CoppeliaSimXorgPlatform,
+            CoppeliaSimRenderAdapter,
         )
 
         mgr = self._make_mock_env_manager()
-        p = CoppeliaSimXorgPlatform(env_manager=mgr)
-        assert p.name == "xorg"
-        p._instances = [XorgInstance(display=10, gpu_id=0, pid=1)]
-        worker = p.for_worker(0)
-        ev = worker.get_env_vars()
-        assert "QT_QPA_PLATFORM_PLUGIN_PATH" in ev.prepend
-        assert "CoppeliaSim" in ev.prepend["QT_QPA_PLATFORM_PLUGIN_PATH"]
-        assert ev.replace["COPPELIASIM_HEADLESS"] == "0"
-        assert ev.replace["DISPLAY"] == ":10"
-        assert ev.replace["CUDA_VISIBLE_DEVICES"] == "0"
+        platform = XorgPlatform()
+        platform._instances = [XorgInstance(display=10, gpu_id=0, pid=1)]
+        binding = platform.for_worker(0)
+        adapter_env = CoppeliaSimRenderAdapter(env_manager=mgr).get_env_vars(binding)
+        merged_binding = WorkerBinding(
+            display=binding.display,
+            cuda_visible_devices=binding.cuda_visible_devices,
+            extra_env=EnvVars.merge(binding.extra_env, adapter_env),
+            metadata=dict(binding.metadata),
+        )
+        assert isinstance(binding, WorkerBinding)
+        assert "QT_QPA_PLATFORM_PLUGIN_PATH" in merged_binding.extra_env.prepend
+        assert (
+            "CoppeliaSim"
+            in merged_binding.extra_env.prepend["QT_QPA_PLATFORM_PLUGIN_PATH"]
+        )
+        assert merged_binding.extra_env.replace["COPPELIASIM_HEADLESS"] == "0"
+        assert merged_binding.display == ":10"
+        assert merged_binding.cuda_visible_devices == "0"
 
-    def test_xorg_no_env_manager_returns_base_env_only(self):
+    def test_xorg_without_env_manager_returns_base_binding_env_only(self):
+        from easi.core.render_platforms import EnvVars, WorkerBinding
+        from easi.core.render_platforms.xorg import XorgPlatform
         from easi.core.render_platforms.xorg_manager import XorgInstance
         from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
-            CoppeliaSimXorgPlatform,
+            CoppeliaSimRenderAdapter,
         )
 
-        p = CoppeliaSimXorgPlatform()
-        p._instances = [XorgInstance(display=11, gpu_id=2, pid=1)]
-        worker = p.for_worker(0)
-        ev = worker.get_env_vars()
-        assert ev.replace["DISPLAY"] == ":11"
-        assert ev.replace["CUDA_VISIBLE_DEVICES"] == "2"
-        assert "QT_QPA_PLATFORM_PLUGIN_PATH" not in ev.prepend
-
-    def test_xorg_resolve_from_registry(self):
-        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
-            CoppeliaSimXorgPlatform,
+        platform = XorgPlatform()
+        platform._instances = [XorgInstance(display=11, gpu_id=2, pid=1)]
+        binding = platform.for_worker(0)
+        adapter_env = CoppeliaSimRenderAdapter().get_env_vars(binding)
+        merged_binding = WorkerBinding(
+            display=binding.display,
+            cuda_visible_devices=binding.cuda_visible_devices,
+            extra_env=EnvVars.merge(binding.extra_env, adapter_env),
+            metadata=dict(binding.metadata),
         )
+        assert isinstance(binding, WorkerBinding)
+        assert merged_binding.display == ":11"
+        assert merged_binding.cuda_visible_devices == "2"
+        assert "QT_QPA_PLATFORM_PLUGIN_PATH" not in merged_binding.extra_env.prepend
+
+    def test_xorg_resolve_from_registry_uses_builtin(self):
+        from easi.core.render_platforms.xorg import XorgPlatform
         from easi.simulators.registry import resolve_render_platform
 
         platform = resolve_render_platform("coppeliasim:v4_1_0", "xorg")
-        assert isinstance(platform, CoppeliaSimXorgPlatform)
+        assert isinstance(platform, XorgPlatform)
         assert platform.name == "xorg"
 
 
@@ -774,6 +785,7 @@ class TestRunnerRenderPlatformWiring:
 
         mock_entry = MagicMock()
         mock_entry.runtime = "conda"
+        mock_entry.render_adapter = None
 
         with (
             patch(
@@ -797,6 +809,7 @@ class TestRunnerRenderPlatformWiring:
             MockRunner.return_value.launch.return_value = None
             runner._create_simulator("fake:v1")
             rp = MockRunner.call_args.kwargs.get("render_platform")
+            assert rp is not None
             assert rp.name == "auto"
 
     def test_cli_override_wins(self):
@@ -817,6 +830,7 @@ class TestRunnerRenderPlatformWiring:
 
         mock_entry = MagicMock()
         mock_entry.runtime = "conda"
+        mock_entry.render_adapter = None
 
         with (
             patch(
@@ -840,6 +854,7 @@ class TestRunnerRenderPlatformWiring:
             MockRunner.return_value.launch.return_value = None
             runner._create_simulator("fake:v1")
             rp = MockRunner.call_args.kwargs.get("render_platform")
+            assert rp is not None
             assert rp.name == "xvfb"
 
     def test_yaml_override_used_when_no_cli(self):
@@ -861,6 +876,7 @@ class TestRunnerRenderPlatformWiring:
 
         mock_entry = MagicMock()
         mock_entry.runtime = "conda"
+        mock_entry.render_adapter = None
 
         with (
             patch(
@@ -884,6 +900,7 @@ class TestRunnerRenderPlatformWiring:
             MockRunner.return_value.launch.return_value = None
             runner._create_simulator("fake:v1", task=mock_task)
             rp = MockRunner.call_args.kwargs.get("render_platform")
+            assert rp is not None
             assert rp.name == "egl"
 
     def test_cli_beats_yaml(self):
@@ -905,6 +922,7 @@ class TestRunnerRenderPlatformWiring:
 
         mock_entry = MagicMock()
         mock_entry.runtime = "conda"
+        mock_entry.render_adapter = None
 
         with (
             patch(
@@ -928,6 +946,7 @@ class TestRunnerRenderPlatformWiring:
             MockRunner.return_value.launch.return_value = None
             runner._create_simulator("fake:v1", task=mock_task)
             rp = MockRunner.call_args.kwargs.get("render_platform")
+            assert rp is not None
             assert rp.name == "xvfb"
 
     def test_unsupported_platform_raises(self):
@@ -949,6 +968,7 @@ class TestRunnerRenderPlatformWiring:
 
         mock_entry = MagicMock()
         mock_entry.runtime = "conda"
+        mock_entry.render_adapter = None
 
         with (
             patch(
@@ -987,6 +1007,7 @@ class TestRenderPlatformEndToEnd:
             extra_env=EnvVars(replace={"SIM_ROOT": "/opt/sim"}),
         )
         env = runner._build_subprocess_env()
+        assert env is not None
         assert env["PYOPENGL_PLATFORM"] == "egl"
         assert env["SIM_ROOT"] == "/opt/sim"
 
@@ -1019,3 +1040,459 @@ class TestRenderPlatformEndToEnd:
             render_platform="egl",
         )
         assert runner._cli_options["render_platform"] == "egl"
+
+
+class TestWorkerBinding:
+    def test_defaults_are_none_and_empty(self):
+        from easi.core.render_platforms import EnvVars, WorkerBinding
+
+        b = WorkerBinding()
+        assert b.display is None
+        assert b.cuda_visible_devices is None
+        assert isinstance(b.extra_env, EnvVars)
+        assert not b.extra_env
+        assert b.metadata == {}
+
+    def test_fields_set_correctly(self):
+        from easi.core.render_platforms import EnvVars, WorkerBinding
+
+        ev = EnvVars(replace={"FOO": "bar"})
+        b = WorkerBinding(
+            display=":10",
+            cuda_visible_devices="2",
+            extra_env=ev,
+            metadata={"backend": "xorg"},
+        )
+        assert b.display == ":10"
+        assert b.cuda_visible_devices == "2"
+        assert b.extra_env.replace == {"FOO": "bar"}
+        assert b.metadata == {"backend": "xorg"}
+
+    def test_two_bindings_are_independent(self):
+        from easi.core.render_platforms import WorkerBinding
+
+        b1 = WorkerBinding(display=":10", cuda_visible_devices="0")
+        b2 = WorkerBinding(display=":11", cuda_visible_devices="1")
+        assert b1.display != b2.display
+        assert b1.cuda_visible_devices != b2.cuda_visible_devices
+
+    def test_metadata_is_mutable_dict(self):
+        from easi.core.render_platforms import WorkerBinding
+
+        b = WorkerBinding()
+        b.metadata["key"] = "value"
+        assert b.metadata["key"] == "value"
+
+    def test_extra_env_defaults_are_not_shared(self):
+        from easi.core.render_platforms import WorkerBinding
+
+        b1 = WorkerBinding()
+        b2 = WorkerBinding()
+        b1.extra_env.replace["X"] = "1"
+        assert "X" not in b2.extra_env.replace
+
+
+class TestSimulatorRenderAdapter:
+    def _make_adapter(self):
+        from easi.core.render_platforms import SimulatorRenderAdapter
+
+        class NoOpAdapter(SimulatorRenderAdapter):
+            pass
+
+        return NoOpAdapter()
+
+    def test_get_env_vars_returns_empty_envvars(self):
+        from easi.core.render_platforms import EnvVars, WorkerBinding
+
+        adapter = self._make_adapter()
+        binding = WorkerBinding()
+        ev = adapter.get_env_vars(binding)
+        assert isinstance(ev, EnvVars)
+        assert not ev
+
+    def test_wrap_command_returns_same_list(self):
+        from easi.core.render_platforms import WorkerBinding
+
+        adapter = self._make_adapter()
+        binding = WorkerBinding()
+        cmd = ["python", "bridge.py", "--workspace", "/tmp"]
+        result = adapter.wrap_command(cmd, binding)
+        assert result == cmd
+
+    def test_wrap_command_does_not_copy(self):
+        from easi.core.render_platforms import WorkerBinding
+
+        adapter = self._make_adapter()
+        binding = WorkerBinding()
+        cmd = ["python", "bridge.py"]
+        result = adapter.wrap_command(cmd, binding)
+        assert result is cmd
+
+    def test_get_env_vars_receives_binding(self):
+        from easi.core.render_platforms import (
+            EnvVars,
+            SimulatorRenderAdapter,
+            WorkerBinding,
+        )
+
+        received = []
+
+        class RecordingAdapter(SimulatorRenderAdapter):
+            def get_env_vars(self, binding):
+                received.append(binding)
+                return EnvVars()
+
+        adapter = RecordingAdapter()
+        b = WorkerBinding(display=":5", cuda_visible_devices="3")
+        adapter.get_env_vars(b)
+        assert received[0] is b
+
+    def test_subclass_can_override_get_env_vars(self):
+        from easi.core.render_platforms import (
+            EnvVars,
+            SimulatorRenderAdapter,
+            WorkerBinding,
+        )
+
+        class CustomAdapter(SimulatorRenderAdapter):
+            def get_env_vars(self, binding):
+                return EnvVars(replace={"CUSTOM": "1"})
+
+        adapter = CustomAdapter()
+        ev = adapter.get_env_vars(WorkerBinding())
+        assert ev.replace == {"CUSTOM": "1"}
+
+    def test_subclass_can_override_wrap_command(self):
+        from easi.core.render_platforms import SimulatorRenderAdapter, WorkerBinding
+
+        class PrefixAdapter(SimulatorRenderAdapter):
+            def wrap_command(self, cmd, binding):
+                return ["prefix"] + cmd
+
+        adapter = PrefixAdapter()
+        result = adapter.wrap_command(["python", "bridge.py"], WorkerBinding())
+        assert result == ["prefix", "python", "bridge.py"]
+
+
+class TestRenderAdapterRegistry:
+    """Test render_adapter manifest key registration and resolution."""
+
+    def test_entry_has_render_adapter_when_registered(self):
+        from easi.simulators.registry import get_simulator_entry
+
+        entry = get_simulator_entry("dummy")
+        assert (
+            entry.render_adapter
+            == "easi.simulators.dummy.v1.render_platforms.DummyRenderAdapter"
+        )
+
+    def test_entry_render_adapter_none_when_not_registered(self):
+        from easi.simulators.registry import get_simulator_entry
+
+        entry = get_simulator_entry("ai2thor:v2_1_0")
+        assert entry.render_adapter is None
+
+    def test_resolve_render_adapter_returns_instance(self):
+        from easi.simulators.dummy.v1.render_platforms import DummyRenderAdapter
+        from easi.simulators.registry import resolve_render_adapter
+
+        adapter = resolve_render_adapter("dummy")
+        assert isinstance(adapter, DummyRenderAdapter)
+
+    def test_resolve_render_adapter_returns_none_when_not_registered(self):
+        from easi.simulators.registry import resolve_render_adapter
+
+        adapter = resolve_render_adapter("ai2thor:v2_1_0")
+        assert adapter is None
+
+    def test_resolve_render_adapter_env_vars(self):
+        from easi.core.render_platforms import WorkerBinding
+        from easi.simulators.registry import resolve_render_adapter
+
+        adapter = resolve_render_adapter("dummy")
+        assert adapter is not None
+        ev = adapter.get_env_vars(WorkerBinding())
+        assert ev.replace == {"DUMMY_ADAPTER": "1"}
+
+    def test_resolve_render_adapter_wrap_command_passthrough(self):
+        from easi.core.render_platforms import WorkerBinding
+        from easi.simulators.registry import resolve_render_adapter
+
+        adapter = resolve_render_adapter("dummy")
+        assert adapter is not None
+        cmd = ["python", "bridge.py"]
+        assert adapter.wrap_command(cmd, WorkerBinding()) is cmd
+
+    def test_legacy_render_platforms_still_work_alongside_adapter(self):
+        from easi.simulators.dummy.v1.render_platforms import DummyCustomPlatform
+        from easi.simulators.registry import resolve_render_platform
+
+        platform = resolve_render_platform("dummy", "dummy_custom")
+        assert isinstance(platform, DummyCustomPlatform)
+        assert platform.name == "dummy_custom"
+
+    def test_manifest_with_adapter_but_no_render_platforms(self):
+        from unittest.mock import patch
+
+        from easi.simulators.registry import SimulatorEntry, resolve_render_adapter
+
+        fake_entry = SimulatorEntry(
+            name="fake",
+            version="v1",
+            description="",
+            simulator_class="",
+            env_manager_class="",
+            python_version="3.10",
+            render_adapter="easi.simulators.dummy.v1.render_platforms.DummyRenderAdapter",
+        )
+        with patch("easi.simulators.registry._get_registry") as mock_reg:
+            mock_reg.return_value = {"fake:v1": fake_entry}
+            adapter = resolve_render_adapter("fake:v1")
+            assert adapter is not None
+
+    def test_coppeliasim_entry_has_render_adapter(self):
+        from easi.simulators.registry import get_simulator_entry
+
+        entry = get_simulator_entry("coppeliasim:v4_1_0")
+        assert (
+            entry.render_adapter
+            == "easi.simulators.coppeliasim.v4_1_0.render_platforms.CoppeliaSimRenderAdapter"
+        )
+
+
+class TestCoppeliaSimRenderAdapter:
+    def _make_mock_env_manager(self, binary_dir_name="CoppeliaSim"):
+        from unittest.mock import MagicMock
+
+        mgr = MagicMock()
+        mgr.installation_kwargs = {"binary_dir_name": binary_dir_name}
+        mgr._get_template_variables.return_value = {
+            "env_dir": "/fake/envs/easi_coppeliasim_v4_1_0",
+            "extras_dir": "/fake/envs/easi_coppeliasim_v4_1_0/extras",
+        }
+        mgr._resolve_template.side_effect = lambda tmpl, t: tmpl.replace(
+            "{extras_dir}", t["extras_dir"]
+        ).replace("{env_dir}", t["env_dir"])
+        return mgr
+
+    def test_resolve_adapter_returns_instance(self):
+        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
+            CoppeliaSimRenderAdapter,
+        )
+        from easi.simulators.registry import resolve_render_adapter
+
+        adapter = resolve_render_adapter("coppeliasim:v4_1_0")
+        assert isinstance(adapter, CoppeliaSimRenderAdapter)
+
+    def test_adapter_native_binding_headless_false_no_mesa(self):
+        from easi.core.render_platforms import WorkerBinding
+        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
+            CoppeliaSimRenderAdapter,
+        )
+
+        mgr = self._make_mock_env_manager()
+        adapter = CoppeliaSimRenderAdapter(env_manager=mgr)
+        binding = WorkerBinding(metadata={"backend": "native"})
+        ev = adapter.get_env_vars(binding)
+        assert "QT_QPA_PLATFORM_PLUGIN_PATH" in ev.prepend
+        assert "CoppeliaSim" in ev.prepend["QT_QPA_PLATFORM_PLUGIN_PATH"]
+        assert ev.replace["COPPELIASIM_HEADLESS"] == "0"
+        assert "__EGL_VENDOR_LIBRARY_FILENAMES" not in ev.replace
+
+    def test_adapter_xvfb_binding_headless_true_with_mesa(self):
+        from easi.core.render_platforms import WorkerBinding
+        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
+            CoppeliaSimRenderAdapter,
+        )
+
+        mgr = self._make_mock_env_manager()
+        adapter = CoppeliaSimRenderAdapter(env_manager=mgr)
+        binding = WorkerBinding(metadata={"backend": "xvfb"})
+        ev = adapter.get_env_vars(binding)
+        assert "QT_QPA_PLATFORM_PLUGIN_PATH" in ev.prepend
+        assert ev.replace["COPPELIASIM_HEADLESS"] == "1"
+
+    def test_adapter_xorg_binding_via_cuda_heuristic(self):
+        from easi.core.render_platforms import WorkerBinding
+        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
+            CoppeliaSimRenderAdapter,
+        )
+
+        mgr = self._make_mock_env_manager()
+        adapter = CoppeliaSimRenderAdapter(env_manager=mgr)
+        binding = WorkerBinding(
+            display=":10",
+            cuda_visible_devices="0",
+            metadata={"display_num": 10, "gpu_id": 0},
+        )
+        ev = adapter.get_env_vars(binding)
+        assert "QT_QPA_PLATFORM_PLUGIN_PATH" in ev.prepend
+        assert ev.replace["COPPELIASIM_HEADLESS"] == "0"
+        assert "__EGL_VENDOR_LIBRARY_FILENAMES" not in ev.replace
+
+    def test_adapter_xorg_binding_via_explicit_backend(self):
+        from easi.core.render_platforms import WorkerBinding
+        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
+            CoppeliaSimRenderAdapter,
+        )
+
+        mgr = self._make_mock_env_manager()
+        adapter = CoppeliaSimRenderAdapter(env_manager=mgr)
+        binding = WorkerBinding(metadata={"backend": "xorg"})
+        ev = adapter.get_env_vars(binding)
+        assert ev.replace["COPPELIASIM_HEADLESS"] == "0"
+        assert "__EGL_VENDOR_LIBRARY_FILENAMES" not in ev.replace
+
+    def test_adapter_auto_with_display_headless_false(self):
+        from easi.core.render_platforms import WorkerBinding
+        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
+            CoppeliaSimRenderAdapter,
+        )
+
+        mgr = self._make_mock_env_manager()
+        adapter = CoppeliaSimRenderAdapter(env_manager=mgr)
+        binding = WorkerBinding()
+        with patch.dict(os.environ, {"DISPLAY": ":0"}):
+            ev = adapter.get_env_vars(binding)
+            assert ev.replace["COPPELIASIM_HEADLESS"] == "0"
+            assert "__EGL_VENDOR_LIBRARY_FILENAMES" not in ev.replace
+
+    def test_adapter_auto_without_display_headless_true(self):
+        from easi.core.render_platforms import WorkerBinding
+        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
+            CoppeliaSimRenderAdapter,
+        )
+
+        mgr = self._make_mock_env_manager()
+        adapter = CoppeliaSimRenderAdapter(env_manager=mgr)
+        binding = WorkerBinding()
+        env = os.environ.copy()
+        env.pop("DISPLAY", None)
+        with patch.dict(os.environ, env, clear=True):
+            ev = adapter.get_env_vars(binding)
+            assert ev.replace["COPPELIASIM_HEADLESS"] == "1"
+
+    def test_adapter_no_env_manager_returns_empty(self):
+        from easi.core.render_platforms import WorkerBinding
+        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
+            CoppeliaSimRenderAdapter,
+        )
+
+        adapter = CoppeliaSimRenderAdapter()
+        ev = adapter.get_env_vars(WorkerBinding(metadata={"backend": "native"}))
+        assert not ev
+
+    def test_adapter_wrap_command_passthrough(self):
+        from easi.core.render_platforms import WorkerBinding
+        from easi.simulators.coppeliasim.v4_1_0.render_platforms import (
+            CoppeliaSimRenderAdapter,
+        )
+
+        adapter = CoppeliaSimRenderAdapter()
+        cmd = ["python", "bridge.py"]
+        result = adapter.wrap_command(cmd, WorkerBinding())
+        assert result is cmd
+
+
+class TestOmniGibsonRenderAdapter:
+    """Tests for OmniGibsonRenderAdapter dispatch logic."""
+
+    def test_omnigibson_entry_has_render_adapter(self):
+        from easi.simulators.registry import get_simulator_entry
+
+        entry = get_simulator_entry("omnigibson:v3_7_2")
+        assert (
+            entry.render_adapter
+            == "easi.simulators.omnigibson.v3_7_2.render_platforms.OmniGibsonRenderAdapter"
+        )
+
+    def test_resolve_adapter_returns_instance(self):
+        from easi.simulators.omnigibson.v3_7_2.render_platforms import (
+            OmniGibsonRenderAdapter,
+        )
+        from easi.simulators.registry import resolve_render_adapter
+
+        adapter = resolve_render_adapter("omnigibson:v3_7_2")
+        assert isinstance(adapter, OmniGibsonRenderAdapter)
+
+    def test_adapter_native_backend_headless_false(self):
+        from easi.core.render_platforms import WorkerBinding
+        from easi.simulators.omnigibson.v3_7_2.render_platforms import (
+            OmniGibsonRenderAdapter,
+        )
+
+        adapter = OmniGibsonRenderAdapter()
+        binding = WorkerBinding(metadata={"backend": "native"})
+        ev = adapter.get_env_vars(binding)
+        assert ev.replace["OMNIGIBSON_HEADLESS"] == "0"
+
+    def test_adapter_xorg_backend_headless_false(self):
+        from easi.core.render_platforms import WorkerBinding
+        from easi.simulators.omnigibson.v3_7_2.render_platforms import (
+            OmniGibsonRenderAdapter,
+        )
+
+        adapter = OmniGibsonRenderAdapter()
+        binding = WorkerBinding(metadata={"backend": "xorg"})
+        ev = adapter.get_env_vars(binding)
+        assert ev.replace["OMNIGIBSON_HEADLESS"] == "0"
+
+    def test_adapter_xvfb_backend_headless_true(self):
+        from easi.core.render_platforms import WorkerBinding
+        from easi.simulators.omnigibson.v3_7_2.render_platforms import (
+            OmniGibsonRenderAdapter,
+        )
+
+        adapter = OmniGibsonRenderAdapter()
+        binding = WorkerBinding(metadata={"backend": "xvfb"})
+        ev = adapter.get_env_vars(binding)
+        assert ev.replace["OMNIGIBSON_HEADLESS"] == "1"
+
+    def test_adapter_cuda_binding_headless_false(self):
+        """Binding with cuda_visible_devices (xorg heuristic) → headless=0."""
+        from easi.core.render_platforms import WorkerBinding
+        from easi.simulators.omnigibson.v3_7_2.render_platforms import (
+            OmniGibsonRenderAdapter,
+        )
+
+        adapter = OmniGibsonRenderAdapter()
+        binding = WorkerBinding(cuda_visible_devices="0")
+        ev = adapter.get_env_vars(binding)
+        assert ev.replace["OMNIGIBSON_HEADLESS"] == "0"
+
+    def test_adapter_auto_with_display_headless_false(self):
+        from easi.core.render_platforms import WorkerBinding
+        from easi.simulators.omnigibson.v3_7_2.render_platforms import (
+            OmniGibsonRenderAdapter,
+        )
+
+        adapter = OmniGibsonRenderAdapter()
+        binding = WorkerBinding()
+        with patch.dict(os.environ, {"DISPLAY": ":0"}):
+            ev = adapter.get_env_vars(binding)
+            assert ev.replace["OMNIGIBSON_HEADLESS"] == "0"
+
+    def test_adapter_auto_without_display_headless_true(self):
+        from easi.core.render_platforms import WorkerBinding
+        from easi.simulators.omnigibson.v3_7_2.render_platforms import (
+            OmniGibsonRenderAdapter,
+        )
+
+        adapter = OmniGibsonRenderAdapter()
+        binding = WorkerBinding()
+        env = os.environ.copy()
+        env.pop("DISPLAY", None)
+        with patch.dict(os.environ, env, clear=True):
+            ev = adapter.get_env_vars(binding)
+            assert ev.replace["OMNIGIBSON_HEADLESS"] == "1"
+
+    def test_adapter_wrap_command_passthrough(self):
+        from easi.core.render_platforms import WorkerBinding
+        from easi.simulators.omnigibson.v3_7_2.render_platforms import (
+            OmniGibsonRenderAdapter,
+        )
+
+        adapter = OmniGibsonRenderAdapter()
+        cmd = ["python", "bridge.py"]
+        result = adapter.wrap_command(cmd, WorkerBinding())
+        assert result is cmd

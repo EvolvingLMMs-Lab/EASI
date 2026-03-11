@@ -12,14 +12,15 @@ Replicates the BEHAVIOR-1K setup.sh install process:
 7. Fix websockets conflict in Isaac Sim extscache (post_install)
 8. Fix cffi compatibility (post_install)
 
-Rendering mode is controlled via OMNIGIBSON_HEADLESS, set by the active render
-platform class (OmniGibsonNativePlatform or OmniGibsonAutoPlatform). No Xvfb needed.
+Rendering mode is controlled via OMNIGIBSON_HEADLESS, set by the simulator's
+render adapter on top of the active core render backend. No Xvfb needed.
 
 NFS workaround: On NFS/FUSE filesystems, /proc/self/exe can resolve to
 "python3.10 (deleted)" which crashes Isaac Sim's Carbonite library. The
 get_python_executable() override copies the Python binary to /tmp (local
 filesystem) where /proc/self/exe resolves correctly.
 """
+
 from __future__ import annotations
 
 import atexit
@@ -139,15 +140,15 @@ class OmniGibsonEnvManager(BaseEnvironmentManager):
 
         logger.trace(
             "Copied Python to local filesystem: %s -> %s",
-            real_binary, local_python,
+            real_binary,
+            local_python,
         )
         return str(local_python)
 
     def get_env_vars(self, render_platform_name: str | None = None) -> EnvVars:
         """Export env vars for EULA acceptance and PYTHONHOME.
 
-        OMNIGIBSON_HEADLESS is set by the render platform (OmniGibsonNativePlatform
-        or OmniGibsonAutoPlatform), not here.
+        OMNIGIBSON_HEADLESS is set by the simulator render adapter, not here.
 
         PYTHONHOME is set to the conda env directory so the /tmp Python
         copy can find the conda env's stdlib and site-packages.
@@ -155,10 +156,12 @@ class OmniGibsonEnvManager(BaseEnvironmentManager):
         conda_python = self._get_conda_python()
         # conda env dir is two levels up from bin/python
         conda_env_dir = str(Path(conda_python).resolve().parent.parent)
-        return EnvVars(replace={
-            "OMNI_KIT_ACCEPT_EULA": "YES",
-            "PYTHONHOME": conda_env_dir,
-        })
+        return EnvVars(
+            replace={
+                "OMNI_KIT_ACCEPT_EULA": "YES",
+                "PYTHONHOME": conda_env_dir,
+            }
+        )
 
     def post_install(self, context: dict) -> None:
         """Replicate BEHAVIOR-1K setup.sh install process.
@@ -220,9 +223,15 @@ class OmniGibsonEnvManager(BaseEnvironmentManager):
         logger.info("Installing PyTorch with CUDA %s support", cuda_version)
         self._run_command(
             [
-                python, "-m", "pip", "install",
-                "torch", "torchvision", "torchaudio",
-                "--index-url", f"https://download.pytorch.org/whl/cu{cuda_ver_short}",
+                python,
+                "-m",
+                "pip",
+                "install",
+                "torch",
+                "torchvision",
+                "torchaudio",
+                "--index-url",
+                f"https://download.pytorch.org/whl/cu{cuda_ver_short}",
             ],
             "install PyTorch with CUDA",
         )
@@ -292,6 +301,7 @@ class OmniGibsonEnvManager(BaseEnvironmentManager):
         finally:
             # Clean up temp directory
             import shutil
+
             shutil.rmtree(temp_dir, ignore_errors=True)
 
     def _fix_websockets_conflict(self, python: str) -> None:
@@ -302,9 +312,14 @@ class OmniGibsonEnvManager(BaseEnvironmentManager):
         """
         try:
             result = subprocess.run(
-                [python, "-c",
-                 "import isaacsim, os; print(os.environ.get('ISAAC_PATH', ''))"],
-                capture_output=True, text=True, timeout=30,
+                [
+                    python,
+                    "-c",
+                    "import isaacsim, os; print(os.environ.get('ISAAC_PATH', ''))",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
             isaac_path = result.stdout.strip()
         except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -320,6 +335,7 @@ class OmniGibsonEnvManager(BaseEnvironmentManager):
 
         logger.info("Fixing websockets conflict under %s", extscache)
         import shutil
+
         for ws_dir in extscache.rglob("pip_prebundle/websockets"):
             if ws_dir.is_dir():
                 logger.trace("Removing %s", ws_dir)
@@ -339,11 +355,14 @@ class OmniGibsonEnvManager(BaseEnvironmentManager):
         try:
             result = subprocess.run(
                 ["ldd", "--version"],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             output = result.stdout + result.stderr
             # Look for version like "2.31", "2.32", "2.33"
             import re
+
             match = re.search(r"(\d+\.\d+)", output)
             if match:
                 version = float(match.group(1))
@@ -356,6 +375,7 @@ class OmniGibsonEnvManager(BaseEnvironmentManager):
     def _download_wheel(url: str, dest: Path) -> None:
         """Download a single wheel file."""
         import urllib.request
+
         req = urllib.request.Request(url, headers={"User-Agent": "easi/1.0"})
         with urllib.request.urlopen(req) as response, open(str(dest), "wb") as out:
             while True:

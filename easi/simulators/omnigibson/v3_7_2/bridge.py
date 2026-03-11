@@ -8,8 +8,8 @@ Provides an OmniGibsonBridge that handles:
 - Action execution and observation capture
 - Main IPC loop (reset/step/close)
 
-Rendering mode is controlled via OMNIGIBSON_HEADLESS env var, set by the active
-render platform class (OmniGibsonNativePlatform or OmniGibsonAutoPlatform).
+Rendering mode is controlled via OMNIGIBSON_HEADLESS env var, set by the
+simulator render adapter on top of the active core render backend.
 
 Note: Isaac Sim takes 60-120 seconds to start on first launch. Use --timeout 300
 or more when running easi sim test for OmniGibson.
@@ -17,6 +17,7 @@ or more when running easi sim test for OmniGibson.
 Usage:
     python bridge.py --workspace /tmp/easi_xxx [--simulator-kwargs '{}']
 """
+
 from __future__ import annotations
 
 import numpy as np
