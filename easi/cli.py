@@ -460,6 +460,7 @@ def cmd_sim_test(
         create_env_manager,
         get_simulator_entry,
         load_simulator_class,
+        resolve_render_adapter,
         resolve_render_platform,
     )
     from easi.simulators.subprocess_runner import SubprocessRunner
@@ -545,7 +546,7 @@ def cmd_sim_test(
         )
         try:
             render_platform.setup(gpu_ids=sim_gpus or [0])
-            worker_platform = render_platform.for_worker(0)
+            worker_binding = render_platform.for_worker(0)
         except RuntimeError as e:
             if platform_name == "xorg":
                 logger.warning("%s", str(e))
@@ -557,16 +558,40 @@ def cmd_sim_test(
         logger.info("  Python: %s", env_manager.get_python_executable())
         logger.info("  Render platform: %s", platform_name)
 
+        from easi.core.render_platforms import EnvVars
+
         env_vars = env_manager.get_env_vars(render_platform_name=platform_name)
+        render_adapter = resolve_render_adapter(simulator, env_manager=env_manager)
+
+        adapter_env = (
+            render_adapter.get_env_vars(worker_binding) if render_adapter else EnvVars()
+        )
+        binding_env = EnvVars.merge(worker_binding.extra_env, adapter_env)
+        if worker_binding.display:
+            binding_env = EnvVars.merge(
+                binding_env, EnvVars(replace={"DISPLAY": worker_binding.display})
+            )
+        if worker_binding.cuda_visible_devices is not None:
+            binding_env = EnvVars.merge(
+                binding_env,
+                EnvVars(
+                    replace={
+                        "CUDA_VISIBLE_DEVICES": worker_binding.cuda_visible_devices
+                    }
+                ),
+            )
+        env_vars = EnvVars.merge(env_vars, binding_env) if env_vars else binding_env
 
         runner = SubprocessRunner(
             python_executable=env_manager.get_python_executable(),
             bridge_script_path=sim._get_bridge_script_path(),
-            render_platform=worker_platform,
+            render_platform=render_platform,
             screen_config=env_manager.screen_config,
             startup_timeout=timeout,
             command_timeout=timeout,
             extra_env=env_vars if env_vars else None,
+            render_adapter=render_adapter,
+            worker_binding=worker_binding,
         )
 
         try:
