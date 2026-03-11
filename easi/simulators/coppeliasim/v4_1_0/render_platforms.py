@@ -16,16 +16,21 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from easi.core.render_platform import (
+from easi.core.render_platforms import (
     AutoPlatform,
     EnvVars,
     NativePlatform,
+    XorgPlatform,
     XvfbPlatform,
+    _XorgWorkerPlatform,
 )
 
 
 def _coppeliasim_qt_env_vars(
-    env_manager, *, include_mesa_egl: bool = False, headless: bool = True,
+    env_manager,
+    *,
+    include_mesa_egl: bool = False,
+    headless: bool = True,
 ) -> EnvVars:
     """Compute CoppeliaSim Qt env vars.
 
@@ -73,7 +78,9 @@ class CoppeliaSimNativePlatform(NativePlatform):
 
     def get_env_vars(self) -> EnvVars:
         return _coppeliasim_qt_env_vars(
-            self._env_manager, include_mesa_egl=False, headless=False,
+            self._env_manager,
+            include_mesa_egl=False,
+            headless=False,
         )
 
 
@@ -90,7 +97,9 @@ class CoppeliaSimXvfbPlatform(XvfbPlatform):
 
     def get_env_vars(self) -> EnvVars:
         return _coppeliasim_qt_env_vars(
-            self._env_manager, include_mesa_egl=True, headless=True,
+            self._env_manager,
+            include_mesa_egl=True,
+            headless=True,
         )
 
 
@@ -111,4 +120,45 @@ class CoppeliaSimAutoPlatform(AutoPlatform):
             self._env_manager,
             include_mesa_egl=not has_display,
             headless=not has_display,
+        )
+
+
+class _CoppeliaSimXorgWorkerPlatform(_XorgWorkerPlatform):
+    """Per-worker Xorg platform with CoppeliaSim Qt env vars merged in."""
+
+    def __init__(self, display_num: int, gpu_id: int, coppeliasim_env: EnvVars):
+        super().__init__(display_num=display_num, gpu_id=gpu_id)
+        self._coppeliasim_env = coppeliasim_env
+
+    def get_env_vars(self) -> EnvVars:
+        return EnvVars.merge(super().get_env_vars(), self._coppeliasim_env)
+
+
+class CoppeliaSimXorgPlatform(XorgPlatform):
+    """Xorg platform for CoppeliaSim — Qt plugin path, no Mesa, headless=False.
+
+    Xorg provides a real GPU-accelerated X11 display, so CoppeliaSim renders
+    with its GUI library (not headless). Per-worker instances include the
+    CoppeliaSim Qt env vars.
+    """
+
+    @property
+    def name(self) -> str:
+        return "xorg"
+
+    def for_worker(self, worker_id: int) -> _CoppeliaSimXorgWorkerPlatform:
+        if not self._instances:
+            raise RuntimeError(
+                "XorgPlatform.setup() must be called before for_worker()"
+            )
+        inst = self._instances[worker_id % len(self._instances)]
+        coppeliasim_env = _coppeliasim_qt_env_vars(
+            self._env_manager,
+            include_mesa_egl=False,
+            headless=False,
+        )
+        return _CoppeliaSimXorgWorkerPlatform(
+            display_num=inst.display,
+            gpu_id=inst.gpu_id,
+            coppeliasim_env=coppeliasim_env,
         )

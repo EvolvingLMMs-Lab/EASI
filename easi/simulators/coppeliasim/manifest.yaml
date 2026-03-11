@@ -11,6 +11,7 @@ versions:
       auto: "easi.simulators.coppeliasim.v4_1_0.render_platforms.CoppeliaSimAutoPlatform"
       native: "easi.simulators.coppeliasim.v4_1_0.render_platforms.CoppeliaSimNativePlatform"
       xvfb: "easi.simulators.coppeliasim.v4_1_0.render_platforms.CoppeliaSimXvfbPlatform"
+      xorg: "easi.simulators.coppeliasim.v4_1_0.render_platforms.CoppeliaSimXorgPlatform"
     installation_kwargs:
       binary_url: "https://downloads.coppeliarobotics.com/V4_1_0/CoppeliaSim_Pro_V4_1_0_Ubuntu20_04.tar.xz"
       binary_filename: "CoppeliaSim_Pro_V4_1_0_Ubuntu20_04.tar.xz"
