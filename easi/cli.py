@@ -556,11 +556,7 @@ def cmd_sim_test(
 
         logger.info("Testing %s...", simulator)
         logger.info("  Python: %s", env_manager.get_python_executable())
-        resolved = render_platform.resolved_name
-        if resolved != render_platform.name:
-            logger.info("  Render platform: %s (via auto-detection)", resolved)
-        else:
-            logger.info("  Render platform: %s", resolved)
+        logger.info("  Render platform: %s", render_platform.log_name)
 
         from easi.core.render_platforms import EnvVars
 

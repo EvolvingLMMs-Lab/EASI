@@ -167,11 +167,7 @@ class EvaluationRunner:
                 "Use --llm-gpus and --sim-gpus to separate them."
             )
 
-        resolved = platform.resolved_name
-        if resolved != platform.name:
-            logger.info("Render platform: %s (via auto-detection)", resolved)
-        else:
-            logger.info("Render platform: %s", resolved)
+        logger.info("Render platform: %s", platform.log_name)
         platform.setup(gpu_ids=self.sim_gpus)
         return platform
 
@@ -857,11 +853,7 @@ class EvaluationRunner:
             render_platform = resolve_render_platform(
                 simulator_key, platform_name, env_manager=env_manager
             )
-            resolved = render_platform.resolved_name
-            if resolved != render_platform.name:
-                logger.info("Render platform: %s (via auto-detection)", resolved)
-            else:
-                logger.info("Render platform: %s", resolved)
+            logger.info("Render platform: %s", render_platform.log_name)
 
         from easi.core.render_platforms import EnvVars
 

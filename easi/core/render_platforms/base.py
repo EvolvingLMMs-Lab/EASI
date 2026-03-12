@@ -118,6 +118,14 @@ class RenderPlatform(ABC):
         """Actual backend after auto-detection. Defaults to :attr:`name`."""
         return self.name
 
+    @property
+    def log_name(self) -> str:
+        """Human-readable name for log messages."""
+        resolved = self.resolved_name
+        if resolved != self.name:
+            return f"{resolved} (via auto-detection)"
+        return resolved
+
     @abstractmethod
     def wrap_command(self, cmd: list[str], screen_config: str) -> list[str]:
         """Optionally wrap the bridge launch command.
