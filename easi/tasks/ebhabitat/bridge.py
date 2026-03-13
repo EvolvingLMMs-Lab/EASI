@@ -98,9 +98,13 @@ class EBHabitatBridge(BaseBridge):
         return observations_to_image(obs, "head_rgb")
 
     def _get_sim(self):
-        """Access the underlying habitat-sim Simulator instance."""
+        """Access the underlying habitat-sim Simulator instance.
+
+        Chain: bridge.env (EBHabEnv) -> .env (gym wrapper) -> .env -> .env
+               -> ._env (HabitatEnv) -> .task._sim
+        """
         try:
-            return self.env.env.env._env.task._sim
+            return self.env.env.env.env._env.task._sim
         except AttributeError:
             return None
 
