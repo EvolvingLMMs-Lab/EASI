@@ -353,7 +353,7 @@ def render_episode_video(
     finally:
         writer.release()
 
-    logger.info("Wrote %s (%d frames)", output_path, len(entries))
+    logger.trace("Wrote %s (%d frames)", output_path, len(entries))
 
 
 def generate_trajectory_videos(
@@ -389,11 +389,17 @@ def generate_trajectory_videos(
 
     logger.info("Generating %d trajectory videos in %s", len(episodes), output_dir)
 
-    for ep_dir in episodes:
-        output_path = output_dir / f"{ep_dir.name}.mp4"
-        try:
-            render_episode_video(ep_dir, output_path, fps=fps)
-        except Exception:
-            logger.exception("Failed to render %s", ep_dir.name)
+    from easi.utils.progress import ProgressBar
 
-    logger.info("Done. Videos saved to %s", output_dir)
+    failed = 0
+    with ProgressBar(total=len(episodes)) as bar:
+        for i, ep_dir in enumerate(episodes):
+            output_path = output_dir / f"{ep_dir.name}.mp4"
+            try:
+                render_episode_video(ep_dir, output_path, fps=fps)
+            except Exception:
+                logger.exception("Failed to render %s", ep_dir.name)
+                failed += 1
+            bar.update(completed=i + 1, failed=failed)
+
+    logger.info("Done. %d videos saved to %s", len(episodes) - failed, output_dir)
