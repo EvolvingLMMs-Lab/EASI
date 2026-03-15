@@ -40,13 +40,13 @@ class TestE2EEvaluation:
         assert "metrics" in summary
         assert "success_rate" in summary["metrics"] or "avg_success" in summary["metrics"]
 
-    def test_max_episodes_limit(self, tmp_path):
-        """Verify max_episodes limits the run."""
+    def test_episodes_filter_limit(self, tmp_path):
+        """Verify --episodes :N limits the run."""
         runner = EvaluationRunner(
             task_name="dummy_task",
             agent_type="dummy",
             output_dir=tmp_path / "logs",
-            max_episodes=1,
+            episodes=":1",
         )
         results = runner.run()
         assert len(results) == 1
@@ -58,7 +58,7 @@ class TestE2EEvaluation:
             task_name="dummy_task",
             agent_type="dummy",
             output_dir=output_dir,
-            max_episodes=2,
+            episodes=":2",
         )
         runner.run()
 
@@ -80,7 +80,7 @@ class TestE2EEvaluation:
             task_name="dummy_task",
             agent_type="dummy",
             output_dir=tmp_path / "logs",
-            max_episodes=1,
+            episodes=":1",
         )
         results = runner.run()
 
@@ -117,7 +117,7 @@ class TestE2EEvaluation:
             agent_type="dummy",
             output_dir=tmp_path / "a",
             agent_seed=123,
-            max_episodes=2,
+            episodes=":2",
         ).run()
 
         results_b = EvaluationRunner(
@@ -125,7 +125,7 @@ class TestE2EEvaluation:
             agent_type="dummy",
             output_dir=tmp_path / "b",
             agent_seed=123,
-            max_episodes=2,
+            episodes=":2",
         ).run()
 
         for a, b in zip(results_a, results_b):
@@ -163,7 +163,7 @@ class TestE2EEvaluation:
             agent_type="dummy",
             output_dir=output_dir,
             agent_seed=42,
-            max_episodes=1,
+            episodes=":1",
         )
         runner.run()
 
@@ -172,7 +172,7 @@ class TestE2EEvaluation:
         assert config["cli_options"]["task_name"] == "dummy_task"
         assert config["cli_options"]["agent_type"] == "dummy"
         assert config["cli_options"]["agent_seed"] == 42
-        assert config["cli_options"]["max_episodes"] == 1
+        assert config["cli_options"]["episodes"] == ":1"
         assert "run_id" in config
         # Task YAML config is included
         assert "task_config" in config
@@ -185,7 +185,7 @@ class TestE2EEvaluation:
             task_name="dummy_task",
             agent_type="dummy",
             output_dir=output_dir,
-            max_episodes=1,
+            episodes=":1",
         )
         runner.run()
 
@@ -216,7 +216,7 @@ class TestE2EEvaluation:
             task_name="dummy_task",
             agent_type="dummy",
             output_dir=output_dir,
-            max_episodes=1,
+            episodes=":1",
         )
         runner.run()
 
@@ -238,7 +238,7 @@ class TestE2EEvaluation:
             agent_type="dummy",
             output_dir=output_dir,
             max_retries=5,
-            max_episodes=1,
+            episodes=":1",
         )
         assert runner.max_retries == 5
         runner.run()
@@ -368,7 +368,7 @@ class TestEpisodeRetry:
             agent_type="dummy",
             output_dir=output_dir,
             max_retries=3,
-            max_episodes=1,
+            episodes=":1",
         )
 
         call_count = {"n": 0}
@@ -397,7 +397,7 @@ class TestEpisodeRetry:
             agent_type="dummy",
             output_dir=output_dir,
             max_retries=2,
-            max_episodes=1,
+            episodes=":1",
         )
 
         with patch.object(
@@ -421,7 +421,7 @@ class TestEpisodeRetry:
             agent_type="dummy",
             output_dir=output_dir,
             max_retries=2,
-            max_episodes=1,
+            episodes=":1",
         )
 
         original_run_episode = runner._run_episode
@@ -460,7 +460,7 @@ class TestEpisodeRetry:
             agent_type="dummy",
             output_dir=output_dir,
             max_retries=1,
-            max_episodes=2,
+            episodes=":2",
         )
 
         original_run_episode = runner._run_episode
@@ -498,15 +498,15 @@ class TestResumeConfigLoading:
             task_name="dummy_task",
             agent_type="dummy",
             output_dir=output_dir,
-            max_episodes=2,
+            episodes=":2",
             agent_seed=42,
         )
         runner.run()
 
         run_dir = _find_run_dir(output_dir)
 
-        # Resume with higher max_episodes to complete remaining
-        # Saved config has max_episodes=2; override to 3 to run all.
+        # Resume with higher episodes limit to complete remaining
+        # Saved config has episodes=":2"; override to :3 to run all.
         args = Namespace(
             command="start",
             verbosity="INFO",
@@ -515,7 +515,7 @@ class TestResumeConfigLoading:
             agent_type="dummy",
             output_dir=None,
             data_dir=None,
-            max_episodes=3,
+            episodes=":3",
             llm_base_url=None,
             agent_seed=None,
             backend=None,
@@ -623,7 +623,7 @@ class TestMultiTaskRun:
             agent_type="dummy",
             output_dir=str(output_dir),
             data_dir=None,
-            max_episodes=1,
+            episodes=":1",
             llm_base_url=None,
             agent_seed=None,
             backend=None,
@@ -654,7 +654,7 @@ class TestMultiTaskRun:
             agent_type="dummy",
             output_dir="./logs",
             data_dir=None,
-            max_episodes=1,
+            episodes=":1",
             llm_base_url=None,
             agent_seed=None,
             backend=None,

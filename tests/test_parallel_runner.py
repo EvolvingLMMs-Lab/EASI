@@ -82,7 +82,7 @@ class TestParallelRunnerWithDummy:
             num_parallel=2,
             agent_type="dummy",
             output_dir=str(tmp_path),
-            max_episodes=3,
+            episodes=":3",
         )
         results = runner.run()
 
@@ -112,7 +112,7 @@ class TestParallelRunnerWithDummy:
             num_parallel=2,
             agent_type="dummy",
             output_dir=str(tmp_path),
-            max_episodes=1,
+            episodes=":1",
         )
         results = runner.run()
         assert len(results) == 1
@@ -126,7 +126,7 @@ class TestParallelRunnerWithDummy:
             num_parallel=3,
             agent_type="dummy",
             output_dir=str(tmp_path),
-            max_episodes=1,
+            episodes=":1",
         )
         runner.run()
 
@@ -143,7 +143,7 @@ class TestParallelRunnerWithDummy:
             num_parallel=2,
             agent_type="dummy",
             output_dir=str(tmp_path),
-            max_episodes=2,
+            episodes=":2",
         )
         runner.run()
 
@@ -297,7 +297,7 @@ class TestParallelResume:
         runner1 = ParallelRunner(
             task_name="dummy_task", num_parallel=2,
             agent_type="dummy", output_dir=str(tmp_path),
-            max_episodes=1,
+            episodes=":1",
         )
         results1 = runner1.run()
         assert len(results1) == 1

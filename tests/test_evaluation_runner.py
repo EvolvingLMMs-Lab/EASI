@@ -22,7 +22,7 @@ class TestEvaluationRunner:
             task_name="dummy_task",
             agent_type="dummy",
             output_dir=tmp_path / "logs",
-            max_episodes=1,
+            episodes=":1",
         )
         results = runner.run()
 
@@ -48,7 +48,7 @@ class TestEvaluationRunner:
             task_name="dummy_task",
             agent_type="dummy",
             output_dir=output_dir,
-            max_episodes=1,
+            episodes=":1",
         )
         runner.run()
 
@@ -94,7 +94,7 @@ class TestCliOptionsCapture:
         # All non-excluded init params should be present
         expected_keys = {
             "task_name", "agent_type", "output_dir", "data_dir",
-            "max_episodes", "llm_base_url", "agent_seed", "backend",
+            "episodes", "llm_base_url", "agent_seed", "backend",
             "model", "port", "llm_kwargs_raw", "max_retries",
             "render_platform",
             "llm_instances", "llm_gpus", "sim_gpus",
@@ -120,7 +120,7 @@ class TestCliOptionsCapture:
             backend="openai",
             model="gpt-4o",
             port=9090,
-            max_episodes=5,
+            episodes=":5",
             max_retries=2,
         )
         opts = runner._cli_options
@@ -131,7 +131,7 @@ class TestCliOptionsCapture:
         assert opts["backend"] == "openai"
         assert opts["model"] == "gpt-4o"
         assert opts["port"] == 9090
-        assert opts["max_episodes"] == 5
+        assert opts["episodes"] == ":5"
         assert opts["max_retries"] == 2
 
     def test_cli_options_defaults(self):
@@ -144,7 +144,7 @@ class TestCliOptionsCapture:
         assert opts["model"] == "default"
         assert opts["port"] == 8080
         assert opts["max_retries"] == 3
-        assert opts["max_episodes"] is None
+        assert opts["episodes"] is None
         assert opts["llm_base_url"] is None
         assert opts["agent_seed"] is None
         assert opts["backend"] is None
@@ -168,7 +168,7 @@ class TestCliOptionsCapture:
             task_name="dummy_task",
             agent_type="dummy",
             output_dir=output_dir,
-            max_episodes=1,
+            episodes=":1",
             model="test-model",
         )
         runner.run()
@@ -179,7 +179,7 @@ class TestCliOptionsCapture:
         assert opts["task_name"] == "dummy_task"
         assert opts["agent_type"] == "dummy"
         assert opts["model"] == "test-model"
-        assert opts["max_episodes"] == 1
+        assert opts["episodes"] == ":1"
         # Session-specific params should NOT be in config
         assert "resume_dir" not in opts
         assert "redownload" not in opts

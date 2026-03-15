@@ -176,7 +176,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Directory for downloading/caching datasets (default: ./datasets)",
     )
-    start_parser.add_argument("--max-episodes", type=int, default=None)
+    start_parser.add_argument(
+        "--episodes", type=str, default=None,
+        help="Episode filter: IDs (2,5,7), ranges (10:20), or mixed (2,10:20,40). "
+             "Use :N for first N episodes.",
+    )
     start_parser.add_argument(
         "--llm-url", type=str, default=None, dest="llm_base_url", help="LLM server URL"
     )
@@ -693,6 +697,12 @@ def cmd_start(args):
             logger.error("Resume directory has no config.json: %s", resume_dir)
             sys.exit(1)
         saved = _json.loads(config_path.read_text()).get("cli_options", {})
+        # Migrate legacy max_episodes -> episodes
+        if "max_episodes" in saved and "episodes" not in saved:
+            old_val = saved.pop("max_episodes")
+            if isinstance(old_val, int) and old_val > 0:
+                saved["episodes"] = f":{old_val}"
+        saved.pop("max_episodes", None)
         # Saved values fill gaps; explicit CLI args win
         run_kwargs = {**saved, **raw}
         # If no task was given on CLI, pull from saved config

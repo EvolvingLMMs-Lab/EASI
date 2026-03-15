@@ -166,7 +166,7 @@ class TestSummaryJsonStructure:
             task_name="dummy_task",
             agent_type="dummy",
             output_dir=str(tmp_path),
-            max_episodes=2,
+            episodes=":2",
         )
         runner.run()
 

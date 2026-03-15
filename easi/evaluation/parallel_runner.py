@@ -159,8 +159,9 @@ class ParallelRunner(EvaluationRunner):
             if self.refresh_data:
                 task.download_dataset(force=True)
             episodes = task.load_episodes()
-            if self.max_episodes is not None:
-                episodes = episodes[: self.max_episodes]
+            if self.episodes_filter is not None:
+                from easi.evaluation.episode_filter import filter_episodes
+                episodes = filter_episodes(episodes, self.episodes_filter)
             logger.trace(
                 "Task loaded. %d episodes, simulator_key=%s",
                 len(episodes), task.simulator_key,

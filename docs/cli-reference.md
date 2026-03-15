@@ -63,7 +63,7 @@ easi start [TASK ...] [options]
 | Option | Description |
 |---|---|
 | `--num-parallel N` | Parallel simulator instances (default: 1). Works with any backend. |
-| `--max-episodes N` | Max episodes to run (default: all) |
+| `--episodes FILTER` | Episode filter: IDs (`2,5,7`), ranges (`10:20`), or `:N` for first N (default: all) |
 | `--seed SEED` | Random seed for agent reproducibility |
 | `--render-platform PLATFORM` | Rendering platform override (default: simulator's preference). See [Render Platforms](#render-platforms). |
 
@@ -127,7 +127,7 @@ easi start ebalfred_base --agent react --backend openai --model gpt-4o \
     --llm-kwargs '{"temperature": 0.7, "max_tokens": 500}'
 
 # Limit episodes
-easi start ebalfred_base --agent dummy --max-episodes 5 --seed 42
+easi start ebalfred_base --agent dummy --episodes :5 --seed 42
 
 # Parallel evaluation (API backend)
 easi start ebalfred_base --agent react --backend openai --model gpt-4o \

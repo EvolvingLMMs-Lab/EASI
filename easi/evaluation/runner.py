@@ -53,7 +53,7 @@ class EvaluationRunner:
         agent_type: str = "react",
         output_dir: Path | str = "./logs",
         data_dir: Path | str = "./datasets",
-        max_episodes: int | None = None,
+        episodes: str | None = None,
         llm_base_url: str | None = None,
         agent_seed: int | None = None,
         backend: str | None = None,
@@ -80,7 +80,7 @@ class EvaluationRunner:
         self.agent_type = agent_type
         self.output_dir = Path(output_dir)
         self.data_dir = Path(data_dir)
-        self.max_episodes = max_episodes
+        self.episodes_filter = episodes
         self.llm_base_url = llm_base_url
         self.agent_seed = agent_seed
         self.backend = backend
@@ -186,8 +186,9 @@ class EvaluationRunner:
         if self.refresh_data:
             task.download_dataset(force=True)
         episodes = task.load_episodes()
-        if self.max_episodes is not None:
-            episodes = episodes[: self.max_episodes]
+        if self.episodes_filter is not None:
+            from easi.evaluation.episode_filter import filter_episodes
+            episodes = filter_episodes(episodes, self.episodes_filter)
 
         # Handle resume: load completed results and find start point
         if self.resume_dir:
