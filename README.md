@@ -193,7 +193,7 @@ For more details on lmms-eval usage, refer to the documentation in [lmms-eval/do
 **EASI (backend=VLMEvalKit)**
 - **Models**: Defined in `vlmeval/config.py`. Verify inference with `vlmutil check {MODEL_NAME}`.
 - **Benchmarks**: Full list of supported Benchmarks at [VLMEvalKit Supported Benchmarks](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY). 
-- **EASI Specifics**: For [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard), related benchmarks are summarized in [Supported Models & Benchmarks](docs/Support_bench_models.md). 
+- **EASI Specifics**: For [EASI Leaderboard](https://easi.lmms-lab.com/leaderboard/), related benchmarks are summarized in [Supported Models & Benchmarks](docs/Support_bench_models.md). 
 
 **EASI (backend=lmms-eval)**
 - **Models**: lmms-eval supports various model types including `qwen2_5_vl`, `llava`, `internvl2`, and more. Use `--model_args` to specify model parameters like `pretrained`, `attn_implementation`, etc.
@@ -214,11 +214,10 @@ For more details on lmms-eval usage, refer to the documentation in [lmms-eval/do
 
 ### Submision
 
-To submit your evaluation results to our [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard):
+To submit your evaluation results to our [EASI Leaderboard](https://easi.lmms-lab.com/leaderboard/):
 
-1. Go to the [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard) page.
-2. Click **🚀 Submit here!** to the submission form.
-3. Follow the instructions to fill in the submission form, and submit your results.
+1. Go to the [EASI Leaderboard Submission](https://easi.lmms-lab.com/submit/) page.
+2. Follow the instructions to fill in the submission form, and submit your results.
 
 ## 🤝 Contribution
 
