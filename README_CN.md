@@ -11,8 +11,11 @@
     <a href="https://arxiv.org/abs/2508.13142" target="_blank">
         <img alt="arXiv" src="https://img.shields.io/badge/arXiv-EASI-red?logo=arxiv" height="20" />
     </a>
-    <a href="https://huggingface.co/spaces/lmms-lab-si/EASI-Leaderboard" target="_blank">
+    <!-- <a href="https://huggingface.co/spaces/lmms-lab-si/EASI-Leaderboard" target="_blank">
         <img alt="Data" src="https://img.shields.io/badge/%F0%9F%A4%97%20_EASI-Leaderboard-ffc107?color=ffc107&logoColor=white" height="20" />
+    </a> -->
+    <a href="https://easi.lmms-lab.com/leaderboard/" target="_blank">
+        <img alt="Leaderboard" src="https://img.shields.io/badge/🏆_EASI-Leaderboard-ffc107?color=ffc107&logoColor=white" height="20" />
     </a>
     <a href="https://github.com/EvolvingLMMs-Lab/EASI/blob/main/LICENSE"><img src="https://img.shields.io/github/license/EvolvingLMMs-Lab/EASI?style=flat"></a>
 </p>
@@ -194,7 +197,7 @@ lmms-eval --tasks list
 **EASI (后端=VLMEvalKit)**
 - **模型**：定义在 `vlmeval/config.py` 中。请使用 `vlmutil check {MODEL_NAME}` 验证推理是否可用。
 - **基准**：完整支持列表请见 [VLMEvalKit Supported Benchmarks](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY)。
-- **EASI 特有**：针对 [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard)，相关基准测试汇总于 [支持的模型与基准](docs/Support_bench_models.md)。
+- **EASI 特有**：针对 [EASI Leaderboard](https://easi.lmms-lab.com/leaderboard/)，相关基准测试汇总于 [支持的模型与基准](docs/Support_bench_models.md)。
 
 **EASI (后端=lmms-eval)**
 - **模型**：lmms-eval 支持多种模型类型（如 `qwen2_5_vl`, `llava`, `internvl2` 等）。使用 `--model_args` 指定模型参数（如 `pretrained`, `attn_implementation` 等）。
@@ -213,11 +216,10 @@ lmms-eval --tasks list
 
 ### 提交
 
-将您的评测结果提交到我们的 [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard)：
+将您的评测结果提交到我们的 [EASI Leaderboard](https://easi.lmms-lab.com/leaderboard/)：
 
-1. 访问 [EASI Leaderboard](https://huggingface.co/spaces/lmms-lab-si/easi-leaderboard) 页面。
-2. 点击 **🚀 Submit here!** 进入提交表单。
-3. 按照页面上的说明填写提交表单，并提交你的结果。
+1. 访问 [EASI Leaderboard](https://easi.lmms-lab.com/submit/) 页面。
+2. 按照页面上的说明填写提交表单，并提交你的结果。
 
 ## 🖊️ 引用
 
