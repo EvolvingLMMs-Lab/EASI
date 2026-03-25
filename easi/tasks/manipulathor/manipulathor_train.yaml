@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: manipulathor_train
+display_name: "ManipulaTHOR Train"
+description: "Training split — 19 scenes, 6 seen objects, 6840 episodes"
+dataset:
+  split: "train"
+agent:
+  prompt_builder_kwargs:
+    split: "train"

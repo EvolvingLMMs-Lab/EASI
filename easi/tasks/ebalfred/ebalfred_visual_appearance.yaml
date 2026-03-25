@@ -1,0 +1,6 @@
+extends: _base.yaml
+name: ebalfred_visual_appearance
+display_name: "EB-Alfred Visual Appearance Split"
+description: "Visual appearance evaluation split testing visual grounding"
+dataset:
+  split: "visual_appearance"

@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: ebhabitat_common_sense
+display_name: "EB-Habitat Common Sense Split"
+description: "Common sense evaluation split for EB-Habitat (rearrangement)"
+dataset:
+  split: "common_sense"
+agent:
+  prompt_builder_kwargs:
+    split: "common_sense"

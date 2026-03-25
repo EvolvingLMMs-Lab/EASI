@@ -1,0 +1,2 @@
+numpy<2
+setuptools<=79

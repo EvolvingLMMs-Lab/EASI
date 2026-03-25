@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: ebnavigation_base
+display_name: "EB-Navigation Base Split"
+description: "Base evaluation split for EB-Navigation (object-goal navigation)"
+dataset:
+  split: "base"
+agent:
+  prompt_builder_kwargs:
+    split: "base"

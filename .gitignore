@@ -1,1 +1,16 @@
 /logs
+*.pyc
+__pycache__/
+*.pyo
+*.egg-info
+/build
+/datasets
+/results
+/BEHAVIOR-1K
+.worktrees/
+/docs/plans
+yolo11n.pt
+.tmp*
+/scripts
+.sisyphus/
+.claude/

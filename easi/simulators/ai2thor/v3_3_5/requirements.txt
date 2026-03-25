@@ -1,0 +1,5 @@
+ai2thor @ git+https://github.com/allenai/ai2thor.git@a84dd29471ec2201f583de00257d84fac1a03de2
+numpy<1.24
+Pillow
+scipy
+matplotlib

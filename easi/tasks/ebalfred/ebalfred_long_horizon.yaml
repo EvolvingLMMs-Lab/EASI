@@ -1,0 +1,11 @@
+extends: _base.yaml
+name: ebalfred_long_horizon
+display_name: "EB-Alfred Long Horizon Split"
+description: "Long-horizon evaluation split requiring multi-step planning"
+dataset:
+  split: "long_horizon"
+agent:
+  prompt_builder_kwargs:
+    n_shot: 7
+    split: "long_horizon"
+    chat_history: true

@@ -1,0 +1,2 @@
+# Dummy simulator has no extra Python dependencies
+# This file exists to satisfy the BaseEnvironmentManager interface

@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: ebhabitat_complex_instruction
+display_name: "EB-Habitat Complex Instruction Split"
+description: "Complex instruction evaluation split for EB-Habitat (rearrangement)"
+dataset:
+  split: "complex_instruction"
+agent:
+  prompt_builder_kwargs:
+    split: "complex_instruction"

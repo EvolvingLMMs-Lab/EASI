@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: ebhabitat_base
+display_name: "EB-Habitat Base Split"
+description: "Base evaluation split for EB-Habitat (rearrangement)"
+dataset:
+  split: "base"
+agent:
+  prompt_builder_kwargs:
+    split: "base"

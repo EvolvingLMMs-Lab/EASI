@@ -1,0 +1,6 @@
+extends: _base.yaml
+name: vlnce_rxr_val_seen_hi
+display_name: "VLN-CE RxR Val Seen (Hindi)"
+description: "VLN-CE RxR validation split (seen environments, Hindi)"
+dataset:
+  split: "val_seen_hi"

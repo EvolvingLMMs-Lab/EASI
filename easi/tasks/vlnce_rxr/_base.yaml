@@ -1,0 +1,42 @@
+# easi/tasks/vlnce_rxr/_base.yaml
+display_name: "VLN-CE RxR"
+description: "Vision-Language Navigation in Continuous Environments (Room-across-Room)"
+simulator: "habitat_sim:v0_1_7"
+task_class: "easi.tasks.vlnce_rxr.task.VLNCERxRTask"
+max_steps: 500
+
+dataset:
+  source: huggingface
+  repo_id: "oscarqjh/VLN-CE-RxR_easi"
+  subset: null
+  hf_data_dir: "data"
+  zip_files:
+    - "mp3d_scenes.zip"
+
+simulator_configs:
+  render_platform: auto
+  screen_height: 480
+  screen_width: 640
+  hfov: 79
+  sensor_height: 0.88
+  gpu_device_id: 0
+  success_distance: 3.0
+  forward_step_size: 0.25
+  turn_angle: 30
+  tilt_angle: 30
+  allow_sliding: false
+  additional_deps:
+    - "fastdtw>=0.3.4"
+
+agent:
+  prompt_builder: "easi.tasks.vlnce_rxr.prompts.VLNCERxRPromptBuilder"
+  prompt_builder_kwargs:
+    use_feedback: true
+    use_geo_distance: true
+    action_history_len: 20
+    chat_history: false
+    message_window_len: 5
+  generation_kwargs:
+    temperature: 0
+    max_tokens: 4096
+    top_p: 0.95

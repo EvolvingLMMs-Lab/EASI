@@ -1,0 +1,5 @@
+name: echo
+display_name: "Echo Model"
+description: "Testing model that echoes back user input. No GPU required."
+model_class: "easi.llm.models.echo.model.EchoModel"
+default_kwargs: {}

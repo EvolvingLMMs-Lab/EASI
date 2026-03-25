@@ -1,0 +1,6 @@
+extends: _base.yaml
+name: vlnce_r2r_val_seen
+display_name: "VLN-CE R2R Val Seen"
+description: "VLN-CE R2R validation split (seen environments)"
+dataset:
+  split: "val_seen"

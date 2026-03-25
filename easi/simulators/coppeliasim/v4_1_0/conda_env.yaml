@@ -1,0 +1,11 @@
+name: easi_coppeliasim_v4_1_0
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - fontconfig
+  - freetype
+  - libxkbcommon
+  - libxcb=1.17.0
+  - qt=5.15

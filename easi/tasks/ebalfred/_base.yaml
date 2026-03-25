@@ -1,0 +1,36 @@
+display_name: "EB-Alfred"
+description: "EB-Alfred benchmark"
+simulator: "ai2thor:v2_1_0"
+task_class: "easi.tasks.ebalfred.task.EBAlfredTask"
+max_steps: 50
+dataset:
+  source: huggingface
+  repo_id: "oscarqjh/EB-Alfred_easi"
+  subset: null
+  zip_files:
+    - "tasks.zip"
+simulator_configs:
+  render_platform: auto
+  quality: "MediumCloseFitShadows"
+  screen_height: 500
+  screen_width: 500
+  max_invalid_actions: 10
+  feedback_verbosity: 0
+  detection_box: false
+  additional_deps:
+    - "gym"
+    - "networkx"
+    - "opencv-python"
+agent:
+  prompt_builder: "easi.tasks.ebalfred.prompts.EBAlfredPromptBuilder"
+  prompt_builder_kwargs:
+    n_shot: 10
+    split: "base"
+    use_feedback: true
+    chat_history: false
+  generation_kwargs:
+    temperature: 0
+    max_tokens: 2048
+    top_k: 50
+    top_p: 0.95
+    do_sample: false

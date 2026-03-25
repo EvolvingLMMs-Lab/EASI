@@ -1,0 +1,6 @@
+extends: _base.yaml
+name: ebalfred_complex_instruction
+display_name: "EB-Alfred Complex Instruction Split"
+description: "Complex instruction evaluation split with nuanced language"
+dataset:
+  split: "complex_instruction"

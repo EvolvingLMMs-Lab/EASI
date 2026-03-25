@@ -1,0 +1,6 @@
+extends: _base.yaml
+name: reverie_ce_test
+display_name: "REVERIE-CE Test"
+description: "REVERIE-CE test split"
+dataset:
+  split: "test"

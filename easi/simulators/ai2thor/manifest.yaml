@@ -1,0 +1,19 @@
+name: ai2thor
+display_name: "AI2-THOR"
+default_version: "v5_0_0"
+versions:
+  v2_1_0:
+    description: "AI2-THOR 2.1.0 — currently used by eb-alfred"
+    simulator_class: "easi.simulators.ai2thor.v2_1_0.simulator.AI2ThorSimulatorV210"
+    env_manager_class: "easi.simulators.ai2thor.v2_1_0.env_manager.AI2ThorEnvManagerV210"
+    python_version: "3.8"
+  v3_3_5:
+    description: "AI2-THOR ~3.3.5 (arm mode) — used by manipulathor"
+    simulator_class: "easi.simulators.ai2thor.v3_3_5.simulator.AI2ThorSimulatorV335"
+    env_manager_class: "easi.simulators.ai2thor.v3_3_5.env_manager.AI2ThorEnvManagerV335"
+    python_version: "3.8"
+  v5_0_0:
+    description: "AI2-THOR 5.0.0 — currently used by eb-navigation"
+    simulator_class: "easi.simulators.ai2thor.v5_0_0.simulator.AI2ThorSimulatorV500"
+    env_manager_class: "easi.simulators.ai2thor.v5_0_0.env_manager.AI2ThorEnvManagerV500"
+    python_version: "3.10"

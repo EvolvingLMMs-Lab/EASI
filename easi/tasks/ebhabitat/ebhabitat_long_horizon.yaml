@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: ebhabitat_long_horizon
+display_name: "EB-Habitat Long Horizon Split"
+description: "Long horizon evaluation split for EB-Habitat (rearrangement)"
+dataset:
+  split: "long_horizon"
+agent:
+  prompt_builder_kwargs:
+    split: "long_horizon"

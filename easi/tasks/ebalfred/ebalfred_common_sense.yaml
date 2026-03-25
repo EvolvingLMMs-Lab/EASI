@@ -1,0 +1,6 @@
+extends: _base.yaml
+name: ebalfred_common_sense
+display_name: "EB-Alfred Common Sense Split"
+description: "Common sense evaluation split testing implicit knowledge"
+dataset:
+  split: "common_sense"

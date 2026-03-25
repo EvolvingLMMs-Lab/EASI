@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: ebmanipulation_complex
+display_name: "EB-Manipulation Complex Split"
+description: "Complex instruction evaluation split for EB-Manipulation (multi-step manipulation instructions)"
+dataset:
+  split: "complex"
+agent:
+  prompt_builder_kwargs:
+    split: "complex"

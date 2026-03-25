@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: ebmanipulation_base
+display_name: "EB-Manipulation Base Split"
+description: "Base evaluation split for EB-Manipulation (robotic manipulation with 7D discrete gripper actions)"
+dataset:
+  split: "base"
+agent:
+  prompt_builder_kwargs:
+    split: "base"

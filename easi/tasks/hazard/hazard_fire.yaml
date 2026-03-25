@@ -1,0 +1,15 @@
+extends: _base.yaml
+name: hazard_fire
+display_name: "HAZARD Fire"
+description: "HAZARD fire scenario - rescue objects from a burning house"
+scenario: fire
+max_steps: 1500
+dataset:
+  subset: "fire"
+  split: "test"
+simulator_configs:
+  scenario: fire
+  max_steps: 1500
+agent:
+  prompt_builder_kwargs:
+    scenario: fire

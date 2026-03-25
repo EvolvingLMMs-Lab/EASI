@@ -1,0 +1,14 @@
+name: omnigibson
+display_name: "OmniGibson (Isaac Sim)"
+default_version: "v3_7_2"
+versions:
+  v3_7_2:
+    description: "OmniGibson 3.7.2 + Isaac Sim 4.5.0 — used by BEHAVIOR-1K"
+    simulator_class: "easi.simulators.omnigibson.v3_7_2.simulator.OmniGibsonSimulator"
+    env_manager_class: "easi.simulators.omnigibson.v3_7_2.env_manager.OmniGibsonEnvManager"
+    python_version: "3.10"
+    render_adapter: "easi.simulators.omnigibson.v3_7_2.render_platforms.OmniGibsonRenderAdapter"
+    installation_kwargs:
+      cuda_version: "12.4"
+      behavior_1k_repo: "https://github.com/StanfordVL/BEHAVIOR-1K.git"
+      behavior_1k_tag: "v3.7.2"

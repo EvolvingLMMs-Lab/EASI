@@ -1,0 +1,6 @@
+extends: _base.yaml
+name: ebalfred_base
+display_name: "EB-Alfred Base Split"
+description: "Base evaluation split for EB-Alfred"
+dataset:
+  split: "base"

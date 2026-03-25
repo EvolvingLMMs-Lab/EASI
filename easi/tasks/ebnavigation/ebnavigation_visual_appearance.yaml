@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: ebnavigation_visual_appearance
+display_name: "EB-Navigation Visual Appearance Split"
+description: "Visual appearance evaluation split for EB-Navigation (object-goal navigation)"
+dataset:
+  split: "visual_appearance"
+agent:
+  prompt_builder_kwargs:
+    split: "visual_appearance"

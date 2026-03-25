@@ -1,0 +1,9 @@
+name: easi_habitat_sim_v0_1_7
+channels:
+  - aihabitat
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - habitat-sim=0.1.7
+  - headless

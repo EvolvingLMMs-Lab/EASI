@@ -1,0 +1,6 @@
+extends: _base.yaml
+name: vlnce_r2r_val_unseen
+display_name: "VLN-CE R2R Val Unseen"
+description: "VLN-CE R2R validation split (unseen environments)"
+dataset:
+  split: "val_unseen"

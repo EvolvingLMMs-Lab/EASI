@@ -1,0 +1,6 @@
+extends: _base.yaml
+name: vlnce_r2r_test
+display_name: "VLN-CE R2R Test"
+description: "VLN-CE R2R test split (no ground truth)"
+dataset:
+  split: "test"

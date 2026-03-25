@@ -1,0 +1,15 @@
+extends: _base.yaml
+name: hazard_flood
+display_name: "HAZARD Flood"
+description: "HAZARD flood scenario - rescue objects from a flooding house"
+scenario: flood
+max_steps: 1500
+dataset:
+  subset: "flood"
+  split: "test"
+simulator_configs:
+  scenario: flood
+  max_steps: 1500
+agent:
+  prompt_builder_kwargs:
+    scenario: flood

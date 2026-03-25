@@ -1,0 +1,19 @@
+name: matterport3d
+display_name: "Matterport3D Simulator"
+default_version: "v0_1"
+data_dir: "/datasets/matterport3d"
+
+versions:
+  v0_1:
+    runtime: docker
+    description: "Matterport3DSimulator with EGL rendering (Python 3.8)"
+    simulator_class: "easi.simulators.matterport3d.v0_1.simulator.Matterport3DSimulator"
+    env_manager_class: "easi.simulators.matterport3d.v0_1.env_manager.Matterport3DEnvManager"
+    python_version: "3.8"
+    installation_kwargs:
+      dockerfile: "v0_1/Dockerfile"
+      gpu_required: true
+      container_python: "/usr/bin/python3"
+      container_data_mount: "/data/v1/scans"
+      easi_mount: "/opt/easi"
+      hf_dataset_repo: "Gen3DF/Matterport3d"

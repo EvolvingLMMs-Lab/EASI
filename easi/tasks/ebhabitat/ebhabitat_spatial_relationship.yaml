@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: ebhabitat_spatial_relationship
+display_name: "EB-Habitat Spatial Relationship Split"
+description: "Spatial relationship evaluation split for EB-Habitat (rearrangement)"
+dataset:
+  split: "spatial_relationship"
+agent:
+  prompt_builder_kwargs:
+    split: "spatial_relationship"

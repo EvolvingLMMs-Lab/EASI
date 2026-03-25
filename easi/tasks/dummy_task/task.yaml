@@ -1,0 +1,21 @@
+name: dummy_task
+display_name: "Dummy Navigation Task"
+description: "A dummy task for testing the pipeline end-to-end"
+
+# Pin to a specific versioned simulator
+simulator: "dummy:v1"
+
+# Dataset source
+dataset:
+  source: "local"
+  path: null  # null = use built-in dummy episodes
+
+# Simulator config
+simulator_configs:
+  render_platform: headless
+
+# Episode limits
+max_steps: 100
+
+# Task class to load
+task_class: "easi.tasks.dummy_task.task.DummyTask"

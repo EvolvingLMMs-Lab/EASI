@@ -1,0 +1,9 @@
+name: easi_habitat_sim_v0_3_0
+channels:
+  - aihabitat
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - habitat-sim>=0.3.0,<0.4
+  - withbullet

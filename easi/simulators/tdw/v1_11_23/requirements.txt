@@ -1,0 +1,4 @@
+tdw==1.11.23.0
+setuptools<71
+numpy>=1.24
+Pillow>=10.0

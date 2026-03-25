@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: ebmanipulation_visual
+display_name: "EB-Manipulation Visual Split"
+description: "Visual appearance evaluation split for EB-Manipulation (tasks requiring visual property recognition)"
+dataset:
+  split: "visual"
+agent:
+  prompt_builder_kwargs:
+    split: "visual"

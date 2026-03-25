@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: ebnavigation_common_sense
+display_name: "EB-Navigation Common Sense Split"
+description: "Common sense evaluation split for EB-Navigation (object-goal navigation)"
+dataset:
+  split: "common_sense"
+agent:
+  prompt_builder_kwargs:
+    split: "common_sense"

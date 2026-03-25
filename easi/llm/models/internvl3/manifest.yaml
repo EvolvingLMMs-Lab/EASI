@@ -1,0 +1,11 @@
+name: internvl3
+display_name: "InternVL3"
+description: >
+  InternVL3 vision-language model family (1B, 2B, 8B, 78B, etc.).
+  Supports image understanding with OpenAI-format messages.
+  Requires: pip install transformers torch torchvision pillow
+  Recommended: pip install flash-attn (for flash_attention_2)
+model_class: "easi.llm.models.internvl3.model.InternVL3Model"
+default_kwargs:
+  dtype: "bfloat16"
+  attn_implementation: "flash_attention_2"

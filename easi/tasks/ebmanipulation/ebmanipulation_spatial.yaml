@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: ebmanipulation_spatial
+display_name: "EB-Manipulation Spatial Split"
+description: "Spatial reasoning evaluation split for EB-Manipulation (tasks with relative spatial references)"
+dataset:
+  split: "spatial"
+agent:
+  prompt_builder_kwargs:
+    split: "spatial"

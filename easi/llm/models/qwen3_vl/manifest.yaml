@@ -1,0 +1,10 @@
+name: qwen3_vl
+display_name: "Qwen3-VL"
+description: >
+  Qwen3-VL vision-language model family (8B, 72B, etc.).
+  Supports image understanding with OpenAI-format messages.
+  Requires: uv pip install transformers torch torchvision pillow
+model_class: "easi.llm.models.qwen3_vl.model.Qwen3VLModel"
+default_kwargs:
+  dtype: "bfloat16"
+  attn_implementation: "flash_attention_2"

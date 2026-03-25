@@ -1,0 +1,14 @@
+name: habitat_sim
+display_name: "Habitat Simulator"
+default_version: "v0_3_0"
+versions:
+  v0_1_7:
+    description: "Habitat 0.1.7 — VLN-CE R2R (Python 3.8)"
+    simulator_class: "easi.simulators.habitat_sim.v0_1_7.simulator.HabitatSimulatorV017"
+    env_manager_class: "easi.simulators.habitat_sim.v0_1_7.env_manager.HabitatEnvManagerV017"
+    python_version: "3.8"
+  v0_3_0:
+    description: "Habitat 0.3.0 — currently used by eb-habitat"
+    simulator_class: "easi.simulators.habitat_sim.v0_3_0.simulator.HabitatSimulatorV030"
+    env_manager_class: "easi.simulators.habitat_sim.v0_3_0.env_manager.HabitatEnvManagerV030"
+    python_version: "3.9"

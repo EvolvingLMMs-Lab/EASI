@@ -1,0 +1,32 @@
+display_name: "HAZARD"
+description: "HAZARD benchmark - embodied decision making in disaster environments"
+simulator: "tdw:v1_11_23"
+task_class: "easi.tasks.hazard.task.HAZARDTask"
+max_steps: 1500
+dataset:
+  source: huggingface
+  repo_id: "oscarqjh/HAZARD_easi"
+  zip_files:
+    - "simulator_data.zip"
+simulator_configs:
+  render_platform: auto
+  screen_size: 512
+  port: 1071
+  use_cached_assets: false
+  command_timeout: 600
+  additional_deps:
+    - "opencv-python"
+    - "gym"
+    - "pyastar2d"
+    - "inflect"
+    - "pandas"
+    - "torch"
+agent:
+  prompt_builder: "easi.tasks.hazard.prompts.HAZARDPromptBuilder"
+  prompt_builder_kwargs:
+    cot: false
+    show_object_history: false  # Set to true to show temperature/water level changes over time
+  generation_kwargs:
+    temperature: 0.7
+    max_tokens: 512
+    top_p: 1.0

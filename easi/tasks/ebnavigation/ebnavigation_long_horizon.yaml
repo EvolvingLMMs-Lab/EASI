@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: ebnavigation_long_horizon
+display_name: "EB-Navigation Long Horizon Split"
+description: "Long horizon evaluation split for EB-Navigation (object-goal navigation)"
+dataset:
+  split: "long_horizon"
+agent:
+  prompt_builder_kwargs:
+    split: "long_horizon"

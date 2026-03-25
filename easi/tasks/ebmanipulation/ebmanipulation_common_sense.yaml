@@ -1,0 +1,9 @@
+extends: _base.yaml
+name: ebmanipulation_common_sense
+display_name: "EB-Manipulation Common Sense Split"
+description: "Common sense evaluation split for EB-Manipulation (tasks requiring commonsense reasoning)"
+dataset:
+  split: "common_sense"
+agent:
+  prompt_builder_kwargs:
+    split: "common_sense"

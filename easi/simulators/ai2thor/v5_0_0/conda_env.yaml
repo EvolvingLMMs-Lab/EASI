@@ -1,0 +1,6 @@
+name: easi_ai2thor_v5_0_0
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10

@@ -1,0 +1,35 @@
+display_name: "ManipulaTHOR"
+description: "ManipulaTHOR Arm Point Navigation — pick up an object and move it to a goal location in AI2-THOR kitchens"
+simulator: "ai2thor:v3_3_5"
+task_class: "easi.tasks.manipulathor.task.ManipulaTHORTask"
+
+max_steps: 200
+
+dataset:
+  source: huggingface
+  repo_id: "oscarqjh/manipulathor_easi"
+
+simulator_configs:
+  render_platform: auto
+  width: 224
+  height: 224
+  renderDepthImage: true
+  verbose_feedback: true
+  additional_deps:
+    - "matplotlib"
+
+agent:
+  prompt_builder: "easi.tasks.manipulathor.prompts.ManipulaTHORPromptBuilder"
+  prompt_builder_kwargs:
+    n_shot: 0
+    use_feedback: true
+    action_history_len: 20
+    chat_history: false
+    message_window_len: 5
+    max_steps: 200
+    use_rgb: true
+    use_gps: true
+    use_depth: false
+  generation_kwargs:
+    temperature: 0
+    max_tokens: 2048
