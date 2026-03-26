@@ -215,12 +215,11 @@ For more details on lmms-eval usage, refer to the documentation in [lmms-eval/do
   For more details on lmms-eval usage, refer to the [lmms-eval documentation](lmms-eval/README.md).
 
 
-### Submision
+### Submission
 
-To submit your evaluation results to our [EASI Leaderboard](https://easi.lmms-lab.com/leaderboard/):
+You can submit your evaluation results at 👉 **[EASI Leaderboard Submission](https://easi.lmms-lab.com/submit/)**.
 
-1. Go to the [EASI Leaderboard Submission](https://easi.lmms-lab.com/submit/) page.
-2. Follow the instructions to fill in the submission form, and submit your results.
+Full details and file format examples are available at 👉 **[Submission Guide](docs/Submit_results.md)**.
 
 ## 🤝 Contribution
 
