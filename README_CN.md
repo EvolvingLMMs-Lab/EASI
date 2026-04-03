@@ -216,10 +216,9 @@ lmms-eval --tasks list
 
 ### 提交
 
-将您的评测结果提交到我们的 [EASI Leaderboard](https://easi.lmms-lab.com/leaderboard/)：
+你可以通过 👉 **[EASI Leaderboard Submission](https://easi.lmms-lab.com/submit/)** 提交评测结果。
 
-1. 访问 [EASI Leaderboard](https://easi.lmms-lab.com/submit/) 页面。
-2. 按照页面上的说明填写提交表单，并提交你的结果。
+详细提交要求和文件示例请见 👉 **[Submission Guide](docs/Submit_results.md)**。
 
 ## 🖊️ 引用
 
