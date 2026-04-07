@@ -893,6 +893,10 @@ class EvaluationRunner:
             env_vars = EnvVars.merge(
                 env_vars, EnvVars(replace={"CUDA_VISIBLE_DEVICES": str(gpu_id)})
             )
+            # Inject assigned GPU ID into simulator_kwargs for simulators
+            # that don't respect CUDA_VISIBLE_DEVICES (e.g. Habitat-Sim)
+            if task is not None:
+                task.inject_simulator_kwarg("_assigned_gpu_id", gpu_id)
 
         env_vars = EnvVars.merge(env_vars, binding_env)
         render_platform = base_render_platform

@@ -144,7 +144,21 @@ class BaseTask(ABC):
         cfg.pop("startup_timeout", None)
         cfg.pop("render_platform", None)
         cfg["max_steps"] = self.max_steps
+        # Merge per-worker overrides injected by the runner
+        cfg.update(self._simulator_kwarg_overrides)
         return cfg
+
+    _simulator_kwarg_overrides: dict = {}
+
+    def inject_simulator_kwarg(self, key: str, value) -> None:
+        """Inject a per-worker override into simulator_kwargs.
+
+        Used by the runner to pass worker-specific values (e.g. assigned GPU ID)
+        without mutating the shared task config.
+        """
+        if not self._simulator_kwarg_overrides:
+            self._simulator_kwarg_overrides = {}
+        self._simulator_kwarg_overrides[key] = value
 
     @property
     def extra_env_vars(self) -> dict[str, str]:

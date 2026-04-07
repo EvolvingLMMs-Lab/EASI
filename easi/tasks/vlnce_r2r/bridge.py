@@ -82,7 +82,11 @@ class VLNCEBridge(BaseBridge):
             geodesic_distance=geodesic_distance,
             success_distance=self._sim_kwargs.get("success_distance", 3.0),
             max_steps=self._sim_kwargs.get("max_steps", 500),
-            gpu_device_id=self._sim_kwargs.get("gpu_device_id", -1),
+            gpu_device_id=(
+                self._sim_kwargs.get("_assigned_gpu_id", 0)
+                if self._sim_kwargs.get("device", "cpu") == "gpu"
+                else -1
+            ),
             width=self._sim_kwargs.get("screen_width", 480),
             height=self._sim_kwargs.get("screen_height", 480),
             hfov=self._sim_kwargs.get("hfov", 90),

@@ -56,7 +56,11 @@ class EBHabitatBridge(BaseBridge):
         max_steps = simulator_kwargs.get("max_steps", 30)
         max_invalid_actions = simulator_kwargs.get("max_invalid_actions", 10)
         feedback_verbosity = simulator_kwargs.get("feedback_verbosity", 1)
-        gpu_device_id = simulator_kwargs.get("gpu_device_id", None)
+        device = simulator_kwargs.get("device", "cpu")
+        if device == "gpu":
+            gpu_device_id = simulator_kwargs.get("_assigned_gpu_id", 0)
+        else:
+            gpu_device_id = None
 
         env = EBHabEnv(
             eval_set=eval_set,

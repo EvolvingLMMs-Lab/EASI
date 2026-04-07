@@ -62,7 +62,11 @@ class LHPRVLNBridge(BaseBridge):
         regions = json.loads(reset_config["regions"]) if isinstance(reset_config["regions"], str) else reset_config["regions"]
         gt_step = json.loads(reset_config.get("gt_step", "[]")) if isinstance(reset_config.get("gt_step"), str) else reset_config.get("gt_step")
 
-        gpu_device_id = self._sim_kwargs.get("gpu_device_id", -1)
+        device = self._sim_kwargs.get("device", "cpu")
+        if device == "gpu":
+            gpu_device_id = self._sim_kwargs.get("_assigned_gpu_id", 0)
+        else:
+            gpu_device_id = -1
         max_steps = self._sim_kwargs.get("max_steps", 500)
         width = self._sim_kwargs.get("screen_width", 512)
         height = self._sim_kwargs.get("screen_height", 512)
