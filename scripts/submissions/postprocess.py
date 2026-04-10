@@ -359,6 +359,7 @@ def build_payload(
     model_name: str,
     benchmarks: dict[str, str],
     submission_configs: dict | None = None,
+    backend_adapter=None,
 ) -> dict:
     """Build the EASI leaderboard submission payload.
 
@@ -367,6 +368,9 @@ def build_payload(
         model_name: Model name (e.g. ``Qwen2.5-VL-7B-Instruct``)
         benchmarks: ``{benchmark_key: data_name}`` for benchmarks that were run
         submission_configs: User-provided metadata overrides
+        backend_adapter: Optional backend adapter; when provided, delegates score
+            extraction to ``adapter.extract_scores()``.  When ``None``, falls
+            back to the VLMEvalKit-specific logic.
 
     Returns:
         JSON-serializable dict matching the API schema (camelCase fields).
@@ -376,20 +380,32 @@ def build_payload(
     scores: dict[str, float | None] = {}
     sub_scores: dict[str, dict[str, float | None]] = {}
 
-    # Map benchmark keys to METRIC_MAP keys
-    # site_image/site_video -> site (combined)
-    benchmark_keys_to_process: set[str] = set()
-    for key in benchmarks:
-        if key in ("site_image", "site_video"):
-            benchmark_keys_to_process.add("site")
-        elif key in METRIC_MAP:
-            benchmark_keys_to_process.add(key)
+    if backend_adapter is not None:
+        # Adapter path: delegate score extraction to the backend adapter
+        bench_scores = backend_adapter.extract_scores(model_dir, model_name, benchmarks)
+        for bench_key, bs in sorted(bench_scores.items()):
+            scores[bench_key] = bs.overall
+            if bs.sub_scores:
+                sub_scores[bench_key] = bs.sub_scores
+        backend_name = backend_adapter.name
+    else:
+        # Legacy VLMEvalKit path
+        backend_name = "vlmevalkit"
 
-    for bench_key in sorted(benchmark_keys_to_process):
-        overall, subs = _extract_scores(bench_key, model_dir, model_name)
-        scores[bench_key] = overall
-        if subs:
-            sub_scores[bench_key] = subs
+        # Map benchmark keys to METRIC_MAP keys
+        # site_image/site_video -> site (combined)
+        benchmark_keys_to_process: set[str] = set()
+        for key in benchmarks:
+            if key in ("site_image", "site_video"):
+                benchmark_keys_to_process.add("site")
+            elif key in METRIC_MAP:
+                benchmark_keys_to_process.add(key)
+
+        for bench_key in sorted(benchmark_keys_to_process):
+            overall, subs = _extract_scores(bench_key, model_dir, model_name)
+            scores[bench_key] = overall
+            if subs:
+                sub_scores[bench_key] = subs
 
     return {
         "modelName": configs.get("modelName", model_name),
@@ -398,7 +414,7 @@ def build_payload(
         "revision": configs.get("revision", "main"),
         "weightType": configs.get("weightType", ""),
         "baseModel": configs.get("baseModel", ""),
-        "backend": configs.get("backend", "vlmevalkit"),
+        "backend": configs.get("backend", backend_name),
         "remarks": configs.get("remarks", ""),
         "scores": scores,
         "subScores": sub_scores,
@@ -413,11 +429,20 @@ def build_results_archive(
     model_dir: Path,
     model_name: str,
     output_dir: Path,
+    backend_adapter=None,
 ) -> Path:
     """Build a zip archive of result files for submission upload.
 
     Copies all relevant result files (acc.csv, extract_matching.xlsx, judge pkl)
     from model_dir into a staging directory, then zips it.
+
+    Args:
+        model_dir: Path to the model's result directory.
+        model_name: Model name used for directory naming inside the zip.
+        output_dir: Directory where the zip file will be written.
+        backend_adapter: Optional backend adapter; when provided, delegates file
+            listing to ``adapter.get_result_files()``.  When ``None``, falls
+            back to the VLMEvalKit glob patterns.
 
     Returns:
         Path to the created zip file.
@@ -427,23 +452,30 @@ def build_results_archive(
         shutil.rmtree(staging)
     staging.mkdir(parents=True)
 
-    # Copy all result files (following symlinks)
-    patterns = [
-        "*_acc.csv",
-        "*_extract_matching.xlsx",
-        "*_extract_matching_acc.csv",
-        "*_result.pkl",
-        "*_result.xlsx",
-        "*_llm_*_judge.pkl",
-    ]
-    copied = set()
-    for pattern in patterns:
-        for src in model_dir.glob(pattern):
-            # Resolve symlinks to get the actual file
-            real_src = src.resolve()
-            if real_src.name not in copied and real_src.is_file():
-                shutil.copy2(real_src, staging / real_src.name)
-                copied.add(real_src.name)
+    if backend_adapter is not None:
+        # Adapter path: delegate file listing to the backend adapter
+        files = backend_adapter.get_result_files(model_dir, model_name)
+        for src in files:
+            if src.is_file():
+                shutil.copy2(src, staging / src.name)
+    else:
+        # Legacy VLMEvalKit path: copy all result files (following symlinks)
+        patterns = [
+            "*_acc.csv",
+            "*_extract_matching.xlsx",
+            "*_extract_matching_acc.csv",
+            "*_result.pkl",
+            "*_result.xlsx",
+            "*_llm_*_judge.pkl",
+        ]
+        copied = set()
+        for pattern in patterns:
+            for src in model_dir.glob(pattern):
+                # Resolve symlinks to get the actual file
+                real_src = src.resolve()
+                if real_src.name not in copied and real_src.is_file():
+                    shutil.copy2(real_src, staging / real_src.name)
+                    copied.add(real_src.name)
 
     # Create zip
     zip_path = output_dir / "easi_results.zip"
