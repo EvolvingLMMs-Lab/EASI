@@ -406,7 +406,11 @@ class LmmsEvalAdapter(BackendAdapter):
             overall_metric_name = config["overall_metric"]
             raw_overall = task_metrics.get(overall_metric_name)
 
+            # When overall_is_dict, the metric value is a dict containing
+            # both "overall" and the sub-scores (e.g. vsibench_score)
+            overall_dict: dict | None = None
             if config.get("overall_is_dict") and isinstance(raw_overall, dict):
+                overall_dict = raw_overall
                 raw_overall = raw_overall.get("overall")
 
             overall: float | None = None
@@ -416,10 +420,12 @@ class LmmsEvalAdapter(BackendAdapter):
                 except (ValueError, TypeError):
                     pass
 
-            # Sub-scores
+            # Sub-scores: look in task_metrics first, then in the overall dict
             sub_scores: dict[str, float | None] = {}
             for payload_key, metric_name in config["sub_scores"].items():
                 val = task_metrics.get(metric_name)
+                if val is None and overall_dict is not None:
+                    val = overall_dict.get(metric_name)
                 if val is not None:
                     try:
                         sub_scores[payload_key] = round(float(val) * scale, 4)
