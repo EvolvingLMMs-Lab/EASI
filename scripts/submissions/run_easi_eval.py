@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
-"""Run EASI benchmark evaluation via VLMEvalKit.
+"""Run EASI benchmark evaluation via VLMEvalKit or lmms-eval.
 
 Runs all EASI-8 benchmarks (optionally including extras) on a specified model
-using VLMEvalKit's run.py. Handles dataset preparation with retry logic before
+using the selected backend. Handles dataset preparation with retry logic before
 launching GPU-heavy inference.
 
-Usage:
+Usage (VLMEvalKit — default):
     python scripts/submissions/run_easi_eval.py --model Qwen/Qwen2.5-VL-7B-Instruct
     python scripts/submissions/run_easi_eval.py --model Qwen/Qwen2.5-VL-7B-Instruct --output-dir ./results --include-extra
 
-Installation:
+Usage (lmms-eval):
+    python scripts/submissions/run_easi_eval.py --backend lmms-eval \\
+        --model qwen2_vl --model-args 'pretrained=Qwen/Qwen2.5-VL-7B-Instruct,attn_implementation=flash_attention_2' \\
+        --nproc 8
+
+Installation (VLMEvalKit):
     - Update requirements.txt with "transformers>=4.45,<5", "torch==2.7.1", "torchvision==0.22.1", "setuptools<81"
     - Run the following:
     uv venv -p 3.11
@@ -18,19 +23,22 @@ Installation:
     uv pip install .
     uv pip install hf_transfer  # optional, for faster HF downloads (but can be flaky on some networks)
     uv pip install flash-attn --no-build-isolation
+
+Installation (lmms-eval):
+    pip install lmms-eval accelerate
 """
 import argparse
 import json
 import os
 import subprocess
 import sys
-import tempfile
 import threading
 import time
 from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from backends import get_backend
 from backends.vlmevalkit import (
     VLMEvalKitAdapter,
     DEFAULT_JUDGE,
@@ -44,26 +52,16 @@ from backends.vlmevalkit import (
 )
 
 # ---------------------------------------------------------------------------
-# Benchmark registry
+# Benchmark registry (backend-agnostic keys)
 # ---------------------------------------------------------------------------
 
-EASI_8 = [
-    ("vsi_bench", "VSI-Bench_32frame"),
-    ("mmsi_bench", "MMSIBench_wo_circular"),
-    ("mindcube_tiny", "MindCubeBench_tiny_raw_qa"),
-    ("viewspatial", "ViewSpatialBench"),
-    ("site_image", "SiteBenchImage"),
-    ("site_video", "SiteBenchVideo_32frame"),
-    ("blink", "BLINK"),
-    ("3dsrbench", "3DSRBench"),
-    ("embspatial", "EmbSpatialBench"),
+EASI_8_KEYS = [
+    "vsi_bench", "mmsi_bench", "mindcube_tiny", "viewspatial",
+    "site_image", "site_video", "blink", "3dsrbench", "embspatial",
 ]
 
-EXTRA = [
-    ("mmsi_video_bench", "MMSIVideoBench_50frame"),
-    ("omnispatial_(manual_cot)", "OmniSpatialBench_manual_cot"),
-    ("spar_bench", "SparBench"),
-    ("vsi_debiased", "VSI-Bench-Debiased_32frame"),
+EXTRA_KEYS = [
+    "mmsi_video_bench", "omnispatial_(manual_cot)", "spar_bench", "vsi_debiased",
 ]
 
 # Display grouping: map a group name to its child benchmark keys.
@@ -128,11 +126,13 @@ class ProgressDisplay:
         benchmarks: dict[str, str],
         totals: dict[str, int],
         display_items: list[str | tuple[str, list[str]]],
+        backend: str = "vlmevalkit",
     ):
         self.model_name = model_name
         self.benchmarks = benchmarks  # flat key -> data_name
         self.totals = totals
         self.display_items = display_items
+        self.backend = backend
         # Dual-phase tracking: inference and evaluation
         self.infer_status: dict[str, str] = {k: self.PENDING for k in benchmarks}
         self.infer_completed: dict[str, int] = {k: 0 for k in benchmarks}
@@ -273,25 +273,32 @@ class ProgressDisplay:
 
     def _add_benchmark_row(self, table, key: str, indent: str = "",
                            pending_warnings: list | None = None):
-        """Add a benchmark row with dual-phase icons."""
-        infer_st = self.infer_status[key]
-        eval_st = self.eval_status[key]
-        completed = self.infer_completed[key]
-        total = self.totals.get(key, 0)
-        name = f"{indent}[dim]{key}[/dim]" if indent else key
-
-        # Build phase string: "✓ infer  ◔ eval"
-        phases = f"{self._phase_icon(infer_st)} infer"
-        if infer_st in (self.DONE, self.FAILED):
-            phases += f"  {self._phase_icon(eval_st)} eval"
-
-        # Progress bar: show inference progress when inferring, keep at 100% after
-        if infer_st in (self.PENDING, self.FAILED):
-            progress = ""
+        """Add a benchmark row with dual-phase icons (vlmevalkit) or single status (lmms-eval)."""
+        if self.backend != "vlmevalkit":
+            # Simplified: single status, no progress bar
+            overall = self._benchmark_overall_status(key)
+            name = f"{indent}[dim]{key}[/dim]" if indent else key
+            status_str = f"{self._phase_icon(overall)} {overall}"
+            table.add_row(name, status_str, "")
         else:
-            progress = self._progress_bar(completed, total)
+            infer_st = self.infer_status[key]
+            eval_st = self.eval_status[key]
+            completed = self.infer_completed[key]
+            total = self.totals.get(key, 0)
+            name = f"{indent}[dim]{key}[/dim]" if indent else key
 
-        table.add_row(name, phases, progress)
+            # Build phase string: "✓ infer  ◔ eval"
+            phases = f"{self._phase_icon(infer_st)} infer"
+            if infer_st in (self.DONE, self.FAILED):
+                phases += f"  {self._phase_icon(eval_st)} eval"
+
+            # Progress bar: show inference progress when inferring, keep at 100% after
+            if infer_st in (self.PENDING, self.FAILED):
+                progress = ""
+            else:
+                progress = self._progress_bar(completed, total)
+
+            table.add_row(name, phases, progress)
         if key in self.warnings and pending_warnings is not None:
             pending_warnings.append((key, self.warnings[key]))
 
@@ -336,40 +343,49 @@ class ProgressDisplay:
             if isinstance(item, tuple):
                 group_name, children = item
                 grp_status = self._group_status(children)
-                grp_completed = sum(self.infer_completed[c] for c in children)
-                grp_total = sum(self.totals.get(c, 0) for c in children)
 
-                # Group phase icons: aggregate from children
-                any_infer_terminal = any(self.infer_status[c] in (self.DONE, self.FAILED) for c in children)
-                any_infer_failed = any(self.infer_status[c] == self.FAILED for c in children)
-                all_infer_done = all(self.infer_status[c] == self.DONE for c in children)
-                grp_infer_icon = self._phase_icon(
-                    self.FAILED if any_infer_failed else
-                    self.DONE if all_infer_done else
-                    self.RUNNING if any(self.infer_status[c] == self.RUNNING for c in children) else
-                    self.PENDING
-                )
-                grp_phases = f"{grp_infer_icon} infer"
-                if any_infer_terminal:
-                    any_eval_failed = any(self.eval_status[c] == self.FAILED for c in children)
-                    all_eval_done = all(self.eval_status[c] == self.DONE for c in children)
-                    any_eval_running = any(self.eval_status[c] == self.RUNNING for c in children)
-                    grp_eval_icon = self._phase_icon(
-                        self.FAILED if any_eval_failed else
-                        self.DONE if all_eval_done else
-                        self.RUNNING if any_eval_running else
+                if self.backend != "vlmevalkit":
+                    # Simplified group row: single aggregate status
+                    grp_icon = self._phase_icon(grp_status)
+                    table.add_row(group_name, f"{grp_icon} {grp_status}", "")
+                    for child in children:
+                        self._add_benchmark_row(table, child, indent="  ",
+                                                pending_warnings=pending_warnings)
+                else:
+                    grp_completed = sum(self.infer_completed[c] for c in children)
+                    grp_total = sum(self.totals.get(c, 0) for c in children)
+
+                    # Group phase icons: aggregate from children
+                    any_infer_terminal = any(self.infer_status[c] in (self.DONE, self.FAILED) for c in children)
+                    any_infer_failed = any(self.infer_status[c] == self.FAILED for c in children)
+                    all_infer_done = all(self.infer_status[c] == self.DONE for c in children)
+                    grp_infer_icon = self._phase_icon(
+                        self.FAILED if any_infer_failed else
+                        self.DONE if all_infer_done else
+                        self.RUNNING if any(self.infer_status[c] == self.RUNNING for c in children) else
                         self.PENDING
                     )
-                    grp_phases += f"  {grp_eval_icon} eval"
+                    grp_phases = f"{grp_infer_icon} infer"
+                    if any_infer_terminal:
+                        any_eval_failed = any(self.eval_status[c] == self.FAILED for c in children)
+                        all_eval_done = all(self.eval_status[c] == self.DONE for c in children)
+                        any_eval_running = any(self.eval_status[c] == self.RUNNING for c in children)
+                        grp_eval_icon = self._phase_icon(
+                            self.FAILED if any_eval_failed else
+                            self.DONE if all_eval_done else
+                            self.RUNNING if any_eval_running else
+                            self.PENDING
+                        )
+                        grp_phases += f"  {grp_eval_icon} eval"
 
-                table.add_row(
-                    group_name,
-                    grp_phases,
-                    self._progress_bar(grp_completed, grp_total) if grp_status != self.PENDING else "",
-                )
-                for child in children:
-                    self._add_benchmark_row(table, child, indent="  ",
-                                            pending_warnings=pending_warnings)
+                    table.add_row(
+                        group_name,
+                        grp_phases,
+                        self._progress_bar(grp_completed, grp_total) if grp_status != self.PENDING else "",
+                    )
+                    for child in children:
+                        self._add_benchmark_row(table, child, indent="  ",
+                                                pending_warnings=pending_warnings)
                 if grp_status in (self.DONE, self.FAILED):
                     done_display += 1
             else:
@@ -612,10 +628,10 @@ def _monitor_loop(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run EASI benchmark evaluation via VLMEvalKit",
+        description="Run EASI benchmark evaluation via VLMEvalKit or lmms-eval",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
+Examples (VLMEvalKit):
   # Run EASI-8 core benchmarks
   python scripts/submissions/run_easi_eval.py --model Qwen/Qwen2.5-VL-7B-Instruct
 
@@ -627,6 +643,17 @@ Examples:
 
   # With data parallelism and LLM judge
   python scripts/submissions/run_easi_eval.py --model Qwen/Qwen2.5-VL-7B-Instruct --nproc 8 --judge chatgpt-0125
+
+Examples (lmms-eval):
+  # Run EASI-8 via lmms-eval
+  python scripts/submissions/run_easi_eval.py --backend lmms-eval \\
+      --model qwen2_vl \\
+      --model-args 'pretrained=Qwen/Qwen2.5-VL-7B-Instruct,attn_implementation=flash_attention_2' \\
+      --nproc 8
+
+  # Force re-evaluation (skip resume)
+  python scripts/submissions/run_easi_eval.py --backend lmms-eval --rerun \\
+      --model qwen2_vl --model-args 'pretrained=Qwen/Qwen2.5-VL-7B-Instruct'
         """,
     )
     parser.add_argument("--model", required=True, help="Model name (HuggingFace ID or VLMEvalKit model name)")
@@ -645,25 +672,53 @@ Examples:
                              '\'{"modelName": "org/model", "modelType": "pretrained", "precision": "bfloat16"}\'')
     parser.add_argument("--submit", action="store_true",
                         help="Submit results to EASI leaderboard after evaluation (requires HF token)")
+    # Backend selection
+    parser.add_argument("--backend", choices=["vlmevalkit", "lmms-eval"], default="vlmevalkit",
+                        help="Evaluation backend (default: vlmevalkit)")
+    parser.add_argument("--model-args", type=str, default=None,
+                        help="Model arguments for lmms-eval (e.g. 'pretrained=Qwen/...,attn_implementation=flash_attention_2')")
+    parser.add_argument("--accelerate", dest="use_accelerate", action="store_true", default=True,
+                        help="Use accelerate launch for lmms-eval (default)")
+    parser.add_argument("--no-accelerate", dest="use_accelerate", action="store_false",
+                        help="Don't use accelerate for lmms-eval")
+    parser.add_argument("--rerun", action="store_true",
+                        help="Force re-evaluation (skip resume logic)")
 
     args, extra_args = parser.parse_known_args()
+
+    # Backend-specific validation
+    if args.backend == "lmms-eval":
+        if not args.model_args:
+            print("ERROR: --model-args is required with --backend lmms-eval")
+            sys.exit(1)
+        if args.judge:
+            print("WARNING: --judge is ignored for lmms-eval backend")
+    elif args.backend == "vlmevalkit":
+        if args.model_args:
+            print("WARNING: --model-args is ignored for vlmevalkit backend")
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     repo_root = Path(__file__).resolve().parent.parent.parent  # scripts/submissions/ -> repo root
-    dataset_dir = Path(args.dataset_dir) if args.dataset_dir else repo_root / "datasets"
-    dataset_dir.mkdir(parents=True, exist_ok=True)
-    os.environ["LMUData"] = str(dataset_dir.resolve())
-    # NOTE: We do NOT override HF_HUB_CACHE. Both our prep step and
-    # VLMEvalKit's internal snapshot_download use the default HF cache
-    # (~/.cache/huggingface/hub/). This avoids re-downloading model weights
-    # to a different location.
 
-    # Build benchmark list
-    all_benchmarks = dict(EASI_8)
+    # Create adapter early
+    if args.backend == "lmms-eval":
+        adapter = get_backend("lmms-eval",
+            model_args=args.model_args,
+            use_accelerate=args.use_accelerate,
+            rerun=args.rerun,
+        )
+    else:
+        adapter = get_backend("vlmevalkit",
+            repo_root=repo_root,
+            rerun=args.rerun,
+        )
+
+    # Build benchmark list using adapter's TASK_MAP
+    all_keys = list(EASI_8_KEYS)
     if args.include_extra:
-        all_benchmarks.update(dict(EXTRA))
+        all_keys += EXTRA_KEYS
 
     if args.benchmarks:
         requested = set(args.benchmarks.split(","))
@@ -676,18 +731,30 @@ Examples:
                 expanded.update(BENCHMARK_GROUPS[name])
             else:
                 expanded.add(name)
-        available = dict(EASI_8 + EXTRA)
-        unknown = expanded - set(available.keys())
+        available = set(adapter.TASK_MAP.keys())
+        unknown = expanded - available
         if unknown:
             group_names = sorted(BENCHMARK_GROUPS.keys())
             alias_names = sorted(BENCHMARK_ALIASES.keys())
             print(f"ERROR: Unknown benchmarks: {unknown}")
-            print(f"Available: {sorted(available.keys())}")
+            print(f"Available: {sorted(available)}")
             print(f"Groups: {group_names}, Aliases: {alias_names}")
             sys.exit(1)
-        all_benchmarks = {k: available[k] for k in expanded if k in available}
+        all_keys = [k for k in expanded if k in adapter.TASK_MAP]
 
-    model_name = args.model.split("/")[-1]
+    all_benchmarks = {k: adapter.TASK_MAP[k] for k in all_keys if k in adapter.TASK_MAP}
+
+    # Model name and model directory depend on backend
+    if args.backend == "lmms-eval":
+        model_name = args.model  # model type for display
+        # lmms-eval uses sanitized pretrained path as directory name
+        model_args_dict = dict(kv.split("=", 1) for kv in args.model_args.split(",") if "=" in kv)
+        pretrained = model_args_dict.get("pretrained", args.model)
+        sanitized = pretrained.replace("/", "__")
+        model_dir = output_dir / sanitized
+    else:
+        model_name = args.model.split("/")[-1]
+        model_dir = output_dir / model_name
 
     # Build display structure: group children under their parent for UI
     active_keys = set(all_benchmarks.keys())
@@ -711,7 +778,6 @@ Examples:
     # Decide whether to use the rich progress display
     use_rich = not args.no_rich and sys.stdout.isatty()
 
-    model_dir = output_dir / model_name
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_path = output_dir / f"eval_{model_name}_{timestamp}.log"
 
@@ -719,15 +785,19 @@ Examples:
     # The display redirects stdout, so subsequent print() calls are captured.
     display: ProgressDisplay | None = None
     if use_rich:
-        display = ProgressDisplay(model_name, all_benchmarks, {}, display_items)
+        display = ProgressDisplay(model_name, all_benchmarks, {}, display_items,
+                                  backend=args.backend)
         display._log_path = str(log_path)
         display.start()  # starts stdout redirect
 
     # Print config info (only in non-rich mode; rich panel shows this via its sections)
     if not use_rich:
+        print(f"Backend:  {args.backend}")
         print(f"Model:    {args.model}")
         print(f"Output:   {output_dir}")
-        print(f"Datasets: {dataset_dir.resolve()}")
+        if args.backend == "vlmevalkit":
+            dataset_dir_display = (Path(args.dataset_dir) if args.dataset_dir else repo_root / "datasets").resolve()
+            print(f"Datasets: {dataset_dir_display}")
         print(f"Benchmarks ({len(display_items)}):")
         for item in display_items:
             if isinstance(item, tuple):
@@ -778,149 +848,243 @@ Examples:
             sys.exit(1)
 
     # ---- Phase 1: Prepare datasets (CPU only, with retries) ----
-    try:
-        datasets_ok = prepare_datasets(dataset_dir, all_benchmarks, display=display)
-    except KeyboardInterrupt:
-        if display:
-            display.stop()
-        print("\n\nInterrupted during dataset preparation.")
-        sys.exit(130)
+    if args.backend == "vlmevalkit":
+        dataset_dir = Path(args.dataset_dir) if args.dataset_dir else repo_root / "datasets"
+        dataset_dir.mkdir(parents=True, exist_ok=True)
+        os.environ["LMUData"] = str(dataset_dir.resolve())
+        # NOTE: We do NOT override HF_HUB_CACHE. Both our prep step and
+        # VLMEvalKit's internal snapshot_download use the default HF cache
+        # (~/.cache/huggingface/hub/). This avoids re-downloading model weights
+        # to a different location.
 
-    if not datasets_ok:
-        if not display:
-            print("WARNING: Some datasets failed to download. Affected benchmarks may fail.")
-            print("Fix network issues and rerun, or press Ctrl+C to abort.\n")
-        # In rich mode, the data prep section already shows ✗ for failed datasets
-
-    # Now that TSVs are downloaded, compute totals for progress tracking
-    if display:
-        for key, data_name in all_benchmarks.items():
-            display.totals[key] = _count_tsv_rows(dataset_dir, data_name)
-
-    # ---- Phase 2: Run benchmarks via VLMEvalKit ----
-    run_py = repo_root / "VLMEvalKit" / "run.py"
-    if not run_py.exists():
-        if display:
-            display.stop()
-        print(f"ERROR: VLMEvalKit not found at {run_py}")
-        print("Run: git submodule update --init VLMEvalKit")
-        sys.exit(1)
-
-    def _build_cmd(data_names: list[str], judge: str | None = None) -> list[str]:
-        if args.nproc > 1:
-            cmd = ["torchrun", f"--nproc-per-node={args.nproc}", str(run_py)]
-        else:
-            cmd = [sys.executable, str(run_py)]
-        cmd += [
-            "--data", *data_names,
-            "--model", args.model,
-            "--reuse",
-            "--work-dir", str(output_dir),
-        ]
-        if judge:
-            cmd += ["--judge", judge]
-        if args.verbose:
-            cmd.append("--verbose")
-        cmd += extra_args
-        return cmd
-
-    def _run_vlmevalkit(cmd: list[str], phase_label: str):
-        """Run a single VLMEvalKit invocation with monitoring."""
-        if use_rich:
-            display.set_phase(phase_label)
-            stop_event = threading.Event()
-            proc = None
-
-            try:
-                env = os.environ.copy()
-                env["PYTHONUNBUFFERED"] = "1"
-                env.setdefault("DIST_TIMEOUT", "7200")  # 2 hours
-                with open(log_path, "ab", buffering=0) as log_f:
-                    proc = subprocess.Popen(
-                        cmd, stdout=log_f, stderr=subprocess.STDOUT, env=env,
-                    )
-                    monitor = threading.Thread(
-                        target=_monitor_loop,
-                        args=(display, model_dir, model_name, all_benchmarks, stop_event),
-                        daemon=True,
-                    )
-                    monitor.start()
-                    proc.wait()
-                    stop_event.set()
-                    monitor.join()
-                    _poll_progress(display, model_dir, model_name, all_benchmarks,
-                                   detect_failures=True)
-            except KeyboardInterrupt:
-                stop_event.set()
+        try:
+            datasets_ok = adapter.prepare_datasets(all_benchmarks, dataset_dir, display=display)
+        except KeyboardInterrupt:
+            if display:
                 display.stop()
-                if proc is not None:
-                    proc.terminate()
-                    proc.wait()
-                elapsed = time.time() - start
-                print(f"\n\nInterrupted after {elapsed:.0f}s. Partial results may be available.")
-                print(f"Log file: {log_path}")
-                print("Rerun with --reuse to resume.")
-                sys.exit(130)
-        else:
-            print(f"\n{'='*60}")
-            print(phase_label)
-            print(f"Command: {' '.join(cmd)}")
-            print(f"{'='*60}\n")
+            print("\n\nInterrupted during dataset preparation.")
+            sys.exit(130)
 
-            proc = None
-            try:
-                env = os.environ.copy()
-                env["PYTHONUNBUFFERED"] = "1"
-                env.setdefault("DIST_TIMEOUT", "36000")
-                with open(log_path, "ab") as log_f:
-                    proc = subprocess.Popen(
-                        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env,
-                    )
-                    for line in iter(proc.stdout.readline, b""):
-                        sys.stdout.buffer.write(line)
-                        sys.stdout.buffer.flush()
-                        log_f.write(line)
-                    proc.wait()
-            except KeyboardInterrupt:
-                if proc is not None:
-                    proc.terminate()
-                    proc.wait()
-                elapsed = time.time() - start
-                print(f"\n\nInterrupted after {elapsed:.0f}s. Partial results may be available.")
-                print("Rerun with --reuse to resume.")
-                sys.exit(130)
+        if not datasets_ok:
+            if not display:
+                print("WARNING: Some datasets failed to download. Affected benchmarks may fail.")
+                print("Fix network issues and rerun, or press Ctrl+C to abort.\n")
+            # In rich mode, the data prep section already shows X for failed datasets
 
+        # Now that TSVs are downloaded, compute totals for progress tracking
+        if display:
+            for key, data_name in all_benchmarks.items():
+                display.totals[key] = adapter.count_tsv_rows(dataset_dir, data_name)
+    else:
+        # lmms-eval manages its own datasets
+        datasets_ok = True
+        if display:
+            for key in all_benchmarks:
+                display.set_data_prep(key, "done", "managed by lmms-eval")
+
+    # ---- Phase 2: Run benchmarks ----
     start = time.time()
 
-    if args.judge:
-        # User explicitly specified judge — single invocation for all benchmarks
-        data_names = list(all_benchmarks.values())
-        cmd = _build_cmd(data_names, judge=args.judge)
-        _run_vlmevalkit(cmd, f"Running evaluation (judge: {args.judge})")
+    # Resume logic: find already-completed tasks
+    completed = set()
+    if not args.rerun:
+        completed = adapter.find_completed_tasks(model_dir, model_name, all_benchmarks)
+        if display:
+            for key in completed:
+                display.mark_infer_done(key)
+                display.mark_eval_done(key)
+
+    pending_benchmarks = {k: v for k, v in all_benchmarks.items() if k not in completed}
+
+    if args.backend == "lmms-eval":
+        # ---- lmms-eval subprocess ----
+        def _run_lmmseval(cmd: list[str]):
+            """Run lmms-eval subprocess."""
+            if use_rich:
+                display.set_phase("Running evaluation")
+                # Mark all pending benchmarks as running
+                for key in pending_benchmarks:
+                    if display.infer_status[key] == ProgressDisplay.PENDING:
+                        display.infer_status[key] = ProgressDisplay.RUNNING
+
+                proc = None
+                try:
+                    env = os.environ.copy()
+                    env.update(adapter.get_env_overrides())
+                    with open(log_path, "ab", buffering=0) as log_f:
+                        proc = subprocess.Popen(cmd, stdout=log_f, stderr=subprocess.STDOUT, env=env)
+                        proc.wait()
+                except KeyboardInterrupt:
+                    display.stop()
+                    if proc:
+                        proc.terminate()
+                        proc.wait()
+                    print(f"\n\nInterrupted. Partial results may be available.")
+                    print(f"Log: {log_path}")
+                    sys.exit(130)
+            else:
+                print(f"\n{'='*60}")
+                print("Running evaluation")
+                print(f"Command: {' '.join(cmd)}")
+                print(f"{'='*60}\n")
+                proc = None
+                try:
+                    env = os.environ.copy()
+                    env.update(adapter.get_env_overrides())
+                    with open(log_path, "ab") as log_f:
+                        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
+                        for line in iter(proc.stdout.readline, b""):
+                            sys.stdout.buffer.write(line)
+                            sys.stdout.buffer.flush()
+                            log_f.write(line)
+                        proc.wait()
+                except KeyboardInterrupt:
+                    if proc:
+                        proc.terminate()
+                        proc.wait()
+                    print(f"\n\nInterrupted. Rerun to resume.")
+                    sys.exit(130)
+
+        if pending_benchmarks:
+            cmd = adapter.build_cmd(args.model, pending_benchmarks, output_dir, args.nproc,
+                                    extra_args=extra_args, verbose=args.verbose)
+            _run_lmmseval(cmd)
+            # After exit: mark completion
+            completion = adapter.detect_completion(model_dir, model_name, all_benchmarks)
+            if display:
+                for key, done in completion.items():
+                    if done:
+                        display.mark_infer_done(key)
+                        display.mark_eval_done(key)
+                    elif key in pending_benchmarks:
+                        display.mark_failed(key)
+        elif not use_rich:
+            print("All benchmarks already completed. Skipping to postprocessing.")
+
     else:
-        # Split benchmarks by default judge
-        llm_judge_benchmarks = {
-            k: v for k, v in all_benchmarks.items() if v in DEFAULT_JUDGE
-        }
-        exact_benchmarks = {
-            k: v for k, v in all_benchmarks.items() if v not in DEFAULT_JUDGE
-        }
+        # ---- VLMEvalKit subprocess ----
+        run_py = repo_root / "VLMEvalKit" / "run.py"
+        if not run_py.exists():
+            if display:
+                display.stop()
+            print(f"ERROR: VLMEvalKit not found at {run_py}")
+            print("Run: git submodule update --init VLMEvalKit")
+            sys.exit(1)
 
-        # Invocation 1: ALL benchmarks with exact_matching (inference + fast eval)
-        all_data_names = list(all_benchmarks.values())
-        cmd = _build_cmd(all_data_names, judge="exact_matching")
-        _run_vlmevalkit(cmd, "Running evaluation (exact_matching)")
+        def _build_cmd(data_names: list[str], judge: str | None = None) -> list[str]:
+            if args.nproc > 1:
+                cmd = ["torchrun", f"--nproc-per-node={args.nproc}", str(run_py)]
+            else:
+                cmd = [sys.executable, str(run_py)]
+            cmd += [
+                "--data", *data_names,
+                "--model", args.model,
+                "--work-dir", str(output_dir),
+            ]
+            if not args.rerun:
+                cmd.append("--reuse")
+            if judge:
+                cmd += ["--judge", judge]
+            if args.verbose:
+                cmd.append("--verbose")
+            cmd += extra_args
+            return cmd
 
-        # Invocation 2: LLM-judge benchmarks only (reuses inference, re-evaluates)
-        if llm_judge_benchmarks:
-            for key, data_name in llm_judge_benchmarks.items():
-                judge_model = DEFAULT_JUDGE[data_name]
-                # Reset eval status so the display shows re-evaluation in progress
-                if display:
-                    with display._lock:
-                        display.eval_status[key] = ProgressDisplay.PENDING
-                cmd = _build_cmd([data_name], judge=judge_model)
-                _run_vlmevalkit(cmd, f"Re-evaluating {data_name} (judge: {judge_model})")
+        def _run_vlmevalkit(cmd: list[str], phase_label: str):
+            """Run a single VLMEvalKit invocation with monitoring."""
+            if use_rich:
+                display.set_phase(phase_label)
+                stop_event = threading.Event()
+                proc = None
+
+                try:
+                    env = os.environ.copy()
+                    env["PYTHONUNBUFFERED"] = "1"
+                    env.setdefault("DIST_TIMEOUT", "7200")  # 2 hours
+                    with open(log_path, "ab", buffering=0) as log_f:
+                        proc = subprocess.Popen(
+                            cmd, stdout=log_f, stderr=subprocess.STDOUT, env=env,
+                        )
+                        monitor = threading.Thread(
+                            target=_monitor_loop,
+                            args=(display, model_dir, model_name, all_benchmarks, stop_event),
+                            daemon=True,
+                        )
+                        monitor.start()
+                        proc.wait()
+                        stop_event.set()
+                        monitor.join()
+                        _poll_progress(display, model_dir, model_name, all_benchmarks,
+                                       detect_failures=True)
+                except KeyboardInterrupt:
+                    stop_event.set()
+                    display.stop()
+                    if proc is not None:
+                        proc.terminate()
+                        proc.wait()
+                    elapsed = time.time() - start
+                    print(f"\n\nInterrupted after {elapsed:.0f}s. Partial results may be available.")
+                    print(f"Log file: {log_path}")
+                    print("Rerun with --reuse to resume.")
+                    sys.exit(130)
+            else:
+                print(f"\n{'='*60}")
+                print(phase_label)
+                print(f"Command: {' '.join(cmd)}")
+                print(f"{'='*60}\n")
+
+                proc = None
+                try:
+                    env = os.environ.copy()
+                    env["PYTHONUNBUFFERED"] = "1"
+                    env.setdefault("DIST_TIMEOUT", "36000")
+                    with open(log_path, "ab") as log_f:
+                        proc = subprocess.Popen(
+                            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env,
+                        )
+                        for line in iter(proc.stdout.readline, b""):
+                            sys.stdout.buffer.write(line)
+                            sys.stdout.buffer.flush()
+                            log_f.write(line)
+                        proc.wait()
+                except KeyboardInterrupt:
+                    if proc is not None:
+                        proc.terminate()
+                        proc.wait()
+                    elapsed = time.time() - start
+                    print(f"\n\nInterrupted after {elapsed:.0f}s. Partial results may be available.")
+                    print("Rerun with --reuse to resume.")
+                    sys.exit(130)
+
+        if args.judge:
+            # User explicitly specified judge — single invocation for all benchmarks
+            data_names = list(all_benchmarks.values())
+            cmd = _build_cmd(data_names, judge=args.judge)
+            _run_vlmevalkit(cmd, f"Running evaluation (judge: {args.judge})")
+        else:
+            # Split benchmarks by default judge
+            llm_judge_benchmarks = {
+                k: v for k, v in all_benchmarks.items() if v in DEFAULT_JUDGE
+            }
+            exact_benchmarks = {
+                k: v for k, v in all_benchmarks.items() if v not in DEFAULT_JUDGE
+            }
+
+            # Invocation 1: ALL benchmarks with exact_matching (inference + fast eval)
+            all_data_names = list(all_benchmarks.values())
+            cmd = _build_cmd(all_data_names, judge="exact_matching")
+            _run_vlmevalkit(cmd, "Running evaluation (exact_matching)")
+
+            # Invocation 2: LLM-judge benchmarks only (reuses inference, re-evaluates)
+            if llm_judge_benchmarks:
+                for key, data_name in llm_judge_benchmarks.items():
+                    judge_model = DEFAULT_JUDGE[data_name]
+                    # Reset eval status so the display shows re-evaluation in progress
+                    if display:
+                        with display._lock:
+                            display.eval_status[key] = ProgressDisplay.PENDING
+                    cmd = _build_cmd([data_name], judge=judge_model)
+                    _run_vlmevalkit(cmd, f"Re-evaluating {data_name} (judge: {judge_model})")
 
     elapsed = time.time() - start
 
@@ -930,58 +1094,79 @@ Examples:
     if display:
         display.set_phase("Verifying results")
 
-    results = verify_results(output_dir, model_name, all_benchmarks, stderr_text)
-    results_by_key = {r.key: r for r in results}
-    failed_keys = [r.key for r in results if not r.success]
-
-    # Update display status from verification results and collect summary lines
     summary_lines: list[str] = []
 
-    def _update_display_for_result(key: str, r: BenchmarkResult):
-        """Update display status and warnings from verification."""
-        if not display:
-            return
-        if r.success:
-            display.mark_infer_done(key)
-            display.mark_eval_done(key)
-        else:
-            display.mark_failed(key)
-        if r.errors:
-            display.set_warning(key, r.errors[0])
+    if args.backend == "vlmevalkit":
+        results = verify_results(output_dir, model_name, all_benchmarks, stderr_text)
+        results_by_key = {r.key: r for r in results}
+        failed_keys = [r.key for r in results if not r.success]
 
-    def _format_result(r: BenchmarkResult, indent: str = "  ") -> str:
-        total_str = str(r.total) if r.total > 0 else "?"
-        completed_str = str(r.completed) if r.completed >= 0 else "?"
-        status = "OK" if r.success else "FAIL"
-        line = f"{indent}[{status}] {r.key:<25} {completed_str}/{total_str} samples"
-        if r.errors:
-            line += f"\n{indent}     !! {r.errors[0]}"
-        return line
+        # Update display status from verification results and collect summary lines
 
-    for item in display_items:
-        if isinstance(item, tuple):
-            group_name, children = item
-            child_results = [results_by_key[c] for c in children if c in results_by_key]
-            all_ok = all(r.success for r in child_results)
-            grp_status = "OK" if all_ok else "FAIL"
-            grp_completed = sum(r.completed for r in child_results if r.completed >= 0)
-            grp_total = sum(r.total for r in child_results if r.total > 0)
-            total_str = str(grp_total) if grp_total > 0 else "?"
-            completed_str = str(grp_completed) if grp_completed >= 0 else "?"
-            summary_lines.append(f"  [{grp_status}] {group_name:<25} {completed_str}/{total_str} samples")
-            for child in children:
-                if child in results_by_key:
-                    r = results_by_key[child]
-                    summary_lines.append(_format_result(r, indent="    "))
-                    _update_display_for_result(child, r)
-        else:
-            if item in results_by_key:
-                r = results_by_key[item]
-                summary_lines.append(_format_result(r))
-                _update_display_for_result(item, r)
+        def _update_display_for_result(key: str, r: BenchmarkResult):
+            """Update display status and warnings from verification."""
+            if not display:
+                return
+            if r.success:
+                display.mark_infer_done(key)
+                display.mark_eval_done(key)
+            else:
+                display.mark_failed(key)
+            if r.errors:
+                display.set_warning(key, r.errors[0])
 
-    ok = sum(1 for r in results if r.success)
-    summary_lines.append(f"\n{ok}/{len(results)} sub-benchmarks passed ({len(display_items)} benchmarks)")
+        def _format_result(r: BenchmarkResult, indent: str = "  ") -> str:
+            total_str = str(r.total) if r.total > 0 else "?"
+            completed_str = str(r.completed) if r.completed >= 0 else "?"
+            status = "OK" if r.success else "FAIL"
+            line = f"{indent}[{status}] {r.key:<25} {completed_str}/{total_str} samples"
+            if r.errors:
+                line += f"\n{indent}     !! {r.errors[0]}"
+            return line
+
+        for item in display_items:
+            if isinstance(item, tuple):
+                group_name, children = item
+                child_results = [results_by_key[c] for c in children if c in results_by_key]
+                all_ok = all(r.success for r in child_results)
+                grp_status = "OK" if all_ok else "FAIL"
+                grp_completed = sum(r.completed for r in child_results if r.completed >= 0)
+                grp_total = sum(r.total for r in child_results if r.total > 0)
+                total_str = str(grp_total) if grp_total > 0 else "?"
+                completed_str = str(grp_completed) if grp_completed >= 0 else "?"
+                summary_lines.append(f"  [{grp_status}] {group_name:<25} {completed_str}/{total_str} samples")
+                for child in children:
+                    if child in results_by_key:
+                        r = results_by_key[child]
+                        summary_lines.append(_format_result(r, indent="    "))
+                        _update_display_for_result(child, r)
+            else:
+                if item in results_by_key:
+                    r = results_by_key[item]
+                    summary_lines.append(_format_result(r))
+                    _update_display_for_result(item, r)
+
+        ok = sum(1 for r in results if r.success)
+        summary_lines.append(f"\n{ok}/{len(results)} sub-benchmarks passed ({len(display_items)} benchmarks)")
+    else:
+        # lmms-eval verification
+        completion = adapter.detect_completion(model_dir, model_name, all_benchmarks)
+        failed_keys = [k for k, done in completion.items() if not done]
+        if display:
+            for key, done in completion.items():
+                if done:
+                    display.mark_infer_done(key)
+                    display.mark_eval_done(key)
+                else:
+                    display.mark_failed(key)
+        if not use_rich:
+            for key in all_benchmarks:
+                status = "OK" if completion.get(key) else "FAIL"
+                summary_lines.append(f"  [{status}] {key}")
+
+        ok = sum(1 for done in completion.values() if done)
+        summary_lines.append(f"\n{ok}/{len(completion)} benchmarks passed ({len(display_items)} benchmarks)")
+
     summary_lines.append(f"Results saved to: {output_dir}")
     if log_path.exists():
         summary_lines.append(f"Full log: {log_path}")
@@ -989,6 +1174,10 @@ Examples:
     rerun_cmd = ""
     if failed_keys:
         rerun_cmd = f"python scripts/submissions/run_easi_eval.py --model {args.model} --benchmarks {','.join(failed_keys)}"
+        if args.backend != "vlmevalkit":
+            rerun_cmd += f" --backend {args.backend}"
+        if args.model_args:
+            rerun_cmd += f" --model-args '{args.model_args}'"
         if args.nproc > 1:
             rerun_cmd += f" --nproc {args.nproc}"
         if args.judge:
@@ -1007,11 +1196,13 @@ Examples:
     if display:
         display.set_phase("Building submission")
 
-    payload = build_payload(model_dir, model_name, all_benchmarks, submission_configs)
+    payload = build_payload(model_dir, model_name, all_benchmarks, submission_configs,
+                            backend_adapter=adapter)
     json_path = output_dir / "easi_results.json"
     json_path.write_text(json.dumps(payload, indent=2))
 
-    zip_path = build_results_archive(model_dir, model_name, output_dir)
+    zip_path = build_results_archive(model_dir, model_name, output_dir,
+                                      backend_adapter=adapter)
 
     if display:
         display.results_info = {
