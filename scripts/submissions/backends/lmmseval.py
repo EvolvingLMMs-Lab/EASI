@@ -283,6 +283,17 @@ class LmmsEvalAdapter(BackendAdapter):
     def name(self) -> str:
         return "lmmseval"
 
+    def get_env_overrides(self) -> dict[str, str]:
+        """Env vars for the subprocess.
+
+        Disables ``hf_transfer`` which can cause filelock deadlocks with
+        multi-process accelerate launches on shared HuggingFace caches.
+        """
+        return {
+            "PYTHONUNBUFFERED": "1",
+            "HF_HUB_ENABLE_HF_TRANSFER": "0",
+        }
+
     # ---- Command building ----
 
     def build_cmd(

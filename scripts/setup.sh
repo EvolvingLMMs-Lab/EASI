@@ -8,9 +8,9 @@
 #   - CUDA toolkit (for flash-attn and torch)
 #
 # What this does:
-#   1. Initializes the VLMEvalKit submodule
+#   1. Initializes submodules (VLMEvalKit, lmms-eval)
 #   2. Creates a Python 3.11 venv
-#   3. Installs VLMEvalKit + pinned dependencies
+#   3. Installs both backends + pinned dependencies
 #   4. Installs flash-attn (optional but recommended)
 
 set -euo pipefail
@@ -40,17 +40,17 @@ echo ""
 # shellcheck disable=SC1091
 source .venv/bin/activate
 
-# ---- Step 3: Install VLMEvalKit ----
-echo "[3/4] Installing VLMEvalKit and dependencies..."
-cd VLMEvalKit
-uv pip install .
-cd "$REPO_ROOT"
+# ---- Step 3: Install backends and dependencies ----
+echo "[3/4] Installing backends and dependencies..."
 
-# Pin specific versions (overrides VLMEvalKit's unpinned defaults)
-uv pip install "torch==2.7.1" "torchvision==0.22.1" "setuptools<81" "transformers>=4.45,<5"
+uv pip install -e ./VLMEvalKit -e ./lmms-eval
 
-# Additional dependencies for the eval/submission scripts
-uv pip install requests
+# Pin versions: torch/torchvision, transformers, and filelock/datasets
+# (filelock>=3.21 and datasets>=4.6 cause deadlocks with accelerate multi-GPU)
+uv pip install \
+    "torch==2.7.1" "torchvision==0.22.1" "setuptools<81" "transformers>=4.45,<5" \
+    "filelock==3.20.3" "datasets==4.5.0" \
+    requests accelerate
 echo ""
 
 # ---- Step 4: Install flash-attn (optional) ----
@@ -69,5 +69,9 @@ echo ""
 echo "To activate the environment:"
 echo "  source .venv/bin/activate"
 echo ""
-echo "To run EASI-8 evaluation:"
-echo "  bash scripts/vlmevalkit_submit.sh"
+echo "To run evaluation (VLMEvalKit):"
+echo "  python scripts/submissions/run_easi_eval.py --model Qwen/Qwen2.5-VL-7B-Instruct"
+echo ""
+echo "To run evaluation (lmms-eval):"
+echo "  python scripts/submissions/run_easi_eval.py --backend lmms-eval --model qwen3_vl \\"
+echo "    --model-args 'pretrained=Qwen/Qwen3-VL-8B-Instruct,attn_implementation=flash_attention_2' --nproc 4"
