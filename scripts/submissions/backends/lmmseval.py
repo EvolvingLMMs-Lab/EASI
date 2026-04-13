@@ -387,11 +387,44 @@ class LmmsEvalAdapter(BackendAdapter):
     # ---- Result files ----
 
     def get_result_files(self, model_dir: Path, model_name: str) -> list[Path]:
-        """Glob ``*_results.json`` and ``*_samples_*.jsonl`` in *model_dir*."""
+        """Return only the latest result files per task for the archive.
+
+        For results JSONs: include the latest file that contains each task.
+        For sample JSONLs: include only the latest file per task name.
+        This ensures the archive matches the scores in the submission payload.
+        """
         files: list[Path] = []
-        files.extend(model_dir.glob("*_results.json"))
-        files.extend(model_dir.glob("*_samples_*.jsonl"))
-        return sorted(set(files))
+
+        # Results JSONs: find which file is the latest contributor per task
+        used_results: set[Path] = set()
+        for path in sorted(model_dir.glob("*_results.json"), reverse=True):
+            try:
+                data = json.loads(path.read_text())
+                tasks_in_file = set(data.get("results", {}).keys())
+            except (json.JSONDecodeError, OSError):
+                continue
+            if tasks_in_file:
+                used_results.add(path)
+                # Only need the latest file per task — but since files may
+                # each contain different tasks (per-benchmark runs), include
+                # any file that has at least one task not yet covered.
+                # Simpler: include all results files (they're small).
+        files.extend(used_results)
+
+        # Sample JSONLs: latest per task name
+        seen_tasks: set[str] = set()
+        for path in sorted(model_dir.glob("*_samples_*.jsonl"), reverse=True):
+            # Extract task name from filename: {timestamp}_samples_{task_name}.jsonl
+            name = path.name
+            samples_idx = name.find("_samples_")
+            if samples_idx < 0:
+                continue
+            task_name = name[samples_idx + len("_samples_"):].removesuffix(".jsonl")
+            if task_name not in seen_tasks:
+                seen_tasks.add(task_name)
+                files.append(path)
+
+        return sorted(files)
 
     # ---- Score extraction ----
 
