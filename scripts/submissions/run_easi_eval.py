@@ -897,16 +897,11 @@ Examples (lmms-eval):
     pending_benchmarks = {k: v for k, v in all_benchmarks.items() if k not in completed}
 
     if args.backend == "lmms-eval":
-        # ---- lmms-eval subprocess ----
-        def _run_lmmseval(cmd: list[str]):
-            """Run lmms-eval subprocess."""
+        # ---- lmms-eval subprocess (one benchmark at a time) ----
+        def _run_lmmseval(cmd: list[str], phase_label: str):
+            """Run a single lmms-eval subprocess."""
             if use_rich:
-                display.set_phase("Running evaluation")
-                # Mark all pending benchmarks as running
-                for key in pending_benchmarks:
-                    if display.infer_status[key] == ProgressDisplay.PENDING:
-                        display.infer_status[key] = ProgressDisplay.RUNNING
-
+                display.set_phase(phase_label)
                 proc = None
                 try:
                     env = os.environ.copy()
@@ -924,7 +919,7 @@ Examples (lmms-eval):
                     sys.exit(130)
             else:
                 print(f"\n{'='*60}")
-                print("Running evaluation")
+                print(phase_label)
                 print(f"Command: {' '.join(cmd)}")
                 print(f"{'='*60}\n")
                 proc = None
@@ -946,18 +941,28 @@ Examples (lmms-eval):
                     sys.exit(130)
 
         if pending_benchmarks:
-            cmd = adapter.build_cmd(args.model, pending_benchmarks, output_dir, args.nproc,
-                                    extra_args=extra_args, verbose=args.verbose)
-            _run_lmmseval(cmd)
-            # After exit: mark completion
-            completion = adapter.detect_completion(model_dir, model_name, all_benchmarks)
-            if display:
-                for key, done in completion.items():
-                    if done:
+            # Run each benchmark individually to avoid dataset filelock
+            # deadlocks when multiple accelerate workers try to download
+            # different datasets simultaneously.
+            for key, task_name in pending_benchmarks.items():
+                if display:
+                    display.infer_status[key] = ProgressDisplay.RUNNING
+
+                single = {key: task_name}
+                cmd = adapter.build_cmd(args.model, single, output_dir, args.nproc,
+                                        extra_args=extra_args, verbose=args.verbose)
+                _run_lmmseval(cmd, f"Running {key} ({task_name})")
+
+                # Check completion after each benchmark
+                completion = adapter.detect_completion(model_dir, model_name, {key: task_name})
+                if display:
+                    if completion.get(key):
                         display.mark_infer_done(key)
                         display.mark_eval_done(key)
-                    elif key in pending_benchmarks:
+                    else:
                         display.mark_failed(key)
+                elif not completion.get(key):
+                    print(f"  WARNING: {key} may have failed")
         elif not use_rich:
             print("All benchmarks already completed. Skipping to postprocessing.")
 
