@@ -61,7 +61,7 @@ The following benchmarks are optional but encouraged:
 
 ### Using the Submission Script (Recommended)
 
-The submission script automates the full pipeline: dataset preparation, evaluation, result collection, and optional leaderboard submission. Currently, this script only supports VLMEvalKit as evaluation backend.
+The submission script automates the full pipeline: dataset preparation, evaluation, result collection, and optional leaderboard submission. It supports both **VLMEvalKit** and **lmms-eval** as evaluation backends.
 
 #### Setup
 
@@ -73,18 +73,15 @@ bash scripts/setup.sh
 source .venv/bin/activate
 ```
 
-#### Basic Usage
+#### VLMEvalKit Backend (Default)
 
 ```bash
 # Run EASI-8 core benchmarks on 8 GPUs
 python scripts/submissions/run_easi_eval.py \
   --model Qwen/Qwen2.5-VL-7B-Instruct \
   --nproc 8
-```
 
-#### Full Usage with Submission
-
-```bash
+# With submission
 python scripts/submissions/run_easi_eval.py \
   --model Qwen/Qwen2.5-VL-7B-Instruct \
   --nproc 8 \
@@ -100,20 +97,54 @@ python scripts/submissions/run_easi_eval.py \
   }'
 ```
 
+#### lmms-eval Backend
+
+```bash
+# Run EASI-8 core benchmarks on 4 GPUs
+python scripts/submissions/run_easi_eval.py \
+  --backend lmms-eval \
+  --model qwen3_vl \
+  --model-args "pretrained=Qwen/Qwen3-VL-8B-Instruct,attn_implementation=flash_attention_2" \
+  --nproc 4
+
+# With submission
+python scripts/submissions/run_easi_eval.py \
+  --backend lmms-eval \
+  --model qwen3_vl \
+  --model-args "pretrained=Qwen/Qwen3-VL-8B-Instruct,attn_implementation=flash_attention_2" \
+  --nproc 4 \
+  --submit \
+  --submission-configs '{
+    "modelName": "Qwen/Qwen3-VL-8B-Instruct",
+    "modelType": "instruction",
+    "precision": "bfloat16",
+    "revision": "main",
+    "weightType": "Original",
+    "baseModel": "Qwen3",
+    "remarks": "Submitted via script"
+  }'
+```
+
+> **Note:** For lmms-eval, `--model` is the model type (e.g. `qwen3_vl`, `qwen2_5_vl`) and `--model-args` provides the HuggingFace model path and configuration. See the [lmms-eval model list](https://github.com/EvolvingLMMs-Lab/lmms-eval/tree/main/lmms_eval/models) for supported model types.
+
 #### CLI Options
 
 | Option | Description |
 |---|---|
-| `--model` | **(Required)** Model name — HuggingFace ID (e.g. `Qwen/Qwen2.5-VL-7B-Instruct`) or VLMEvalKit model name |
-| `--nproc` | Number of GPUs for data parallelism via torchrun (default: 1) |
+| `--model` | **(Required)** For VLMEvalKit: HuggingFace model ID (e.g. `Qwen/Qwen2.5-VL-7B-Instruct`). For lmms-eval: model type (e.g. `qwen3_vl`) |
+| `--backend` | Evaluation backend: `vlmevalkit` (default) or `lmms-eval` |
+| `--model-args` | **(Required for lmms-eval)** Model arguments (e.g. `pretrained=Qwen/Qwen3-VL-8B-Instruct,attn_implementation=flash_attention_2`) |
+| `--nproc` | Number of GPUs for data parallelism (default: 1). Uses torchrun for VLMEvalKit, accelerate for lmms-eval |
 | `--benchmarks` | Comma-separated benchmark keys to run (default: all EASI-8). Use `sitebench` or `site` as shorthand for both `site_image` and `site_video` |
 | `--include-extra` | Also run the 4 optional benchmarks (MMSI-Video, OmniSpatial, SPAR-Bench, VSI-Debiased) |
-| `--judge` | Override the judge model for all benchmarks (e.g. `exact_matching` or `gpt-4o-1120`). If not specified, uses VLMEvalKit per-benchmark defaults. BLINK is additionally re-evaluated with `gpt-4o-1120` by default |
+| `--judge` | Override the judge model (VLMEvalKit only; ignored for lmms-eval) |
 | `--output-dir` | Output directory (default: `./eval_results`) |
-| `--dataset-dir` | Dataset directory (default: `./datasets`) |
+| `--dataset-dir` | Dataset directory (VLMEvalKit only; default: `./datasets`). lmms-eval manages datasets via HuggingFace |
 | `--submit` | Submit results to the EASI leaderboard after evaluation. Requires `HF_TOKEN` environment variable or `.env` file |
 | `--submission-configs` | JSON string with submission metadata (see fields below) |
-| `--verbose` | Pass `--verbose` to VLMEvalKit (prints per-sample model responses) |
+| `--rerun` | Force re-evaluation of all benchmarks (skip resume logic) |
+| `--no-accelerate` | Use plain Python instead of accelerate for lmms-eval (useful for OOM recovery) |
+| `--verbose` | Enable verbose output (VLMEvalKit: `--verbose`; lmms-eval: `--verbosity DEBUG`) |
 | `--no-rich` | Disable the rich terminal UI (for CI/non-interactive terminals) |
 
 #### Submission Config Fields
@@ -128,7 +159,6 @@ When using `--submit`, the following fields can be set via `--submission-configs
 | `revision` | No | Model revision (default: `main`) |
 | `weightType` | No | `Original`, `Delta`, or `Adapter` |
 | `baseModel` | No | Required for Delta/Adapter weights |
-| `backend` | No | Defaults to `vlmevalkit` |
 | `remarks` | No | Free-text notes |
 
 #### Output Files
@@ -137,26 +167,50 @@ After evaluation, the script generates:
 
 - `eval_results/easi_results.json` — Submission payload with all scores and sub-scores
 - `eval_results/easi_results.zip` — Zip archive of all result files for verification
-- `eval_results/eval_{model}_{timestamp}.log` — Full VLMEvalKit output log
+- `eval_results/eval_{model}_{timestamp}.log` — Full evaluation output log
 
 If `--submit` is used and the zip file exceeds 4.5 MB, upload `easi_results.json` and `easi_results.zip` manually at https://easi.lmms-lab.com/submit/ or email them to `easi-lmms-lab@outlook.com`.
 
-#### Examples
+#### Resume and Rerun
+
+The script automatically resumes from where it left off. If a run is interrupted or some benchmarks fail, simply rerun the same command — completed benchmarks are skipped.
+
+For lmms-eval, if some benchmarks fail with OOM using accelerate, rerun with `--no-accelerate` to complete the remaining benchmarks in single-GPU mode:
 
 ```bash
-# Run specific benchmarks only
+# Failed benchmarks will be retried without accelerate
+python scripts/submissions/run_easi_eval.py \
+  --backend lmms-eval \
+  --model qwen3_vl \
+  --model-args "pretrained=Qwen/Qwen3-VL-8B-Instruct,attn_implementation=flash_attention_2" \
+  --no-accelerate
+```
+
+To force a fresh evaluation (ignore all previous results), add `--rerun`:
+
+```bash
+python scripts/submissions/run_easi_eval.py \
+  --model Qwen/Qwen2.5-VL-7B-Instruct \
+  --nproc 8 --rerun
+```
+
+#### More Examples
+
+```bash
+# Run specific benchmarks only (VLMEvalKit)
 python scripts/submissions/run_easi_eval.py \
   --model Qwen/Qwen2.5-VL-7B-Instruct \
   --nproc 4 \
   --benchmarks vsi_bench,blink,sitebench
 
-# Run all benchmarks including extras
+# Run all benchmarks including extras (lmms-eval)
 python scripts/submissions/run_easi_eval.py \
-  --model Qwen/Qwen2.5-VL-7B-Instruct \
-  --nproc 8 \
-  --include-extra
+  --backend lmms-eval \
+  --model qwen3_vl \
+  --model-args "pretrained=Qwen/Qwen3-VL-8B-Instruct,attn_implementation=flash_attention_2" \
+  --nproc 4 --include-extra
 
-# Force exact_matching judge (no API calls, faster but less accurate for BLINK)
+# Force exact_matching judge (VLMEvalKit, no API calls, faster but less accurate for BLINK)
 python scripts/submissions/run_easi_eval.py \
   --model Qwen/Qwen2.5-VL-7B-Instruct \
   --nproc 8 \
@@ -184,11 +238,56 @@ python run.py --data \
               --verbose --reuse --judge gpt-4o-1120
 ```
 
-### Using lmms-eval
+### Using lmms-eval Directly
 
-For `lmms-eval`, it is similar. The benchmark names can be found in:
+For `lmms-eval`, install the package and run each benchmark individually. Use `accelerate launch` for multi-GPU inference:
 
-- https://github.com/EvolvingLMMs-Lab/EASI/blob/main/docs/Support_bench_models.md
+```bash
+cd lmms-eval
+pip install -e .
+
+# Example: run VSI-Bench with 4 GPUs
+CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
+    --num_processes=4 \
+    --num_machines=1 \
+    --mixed_precision=no \
+    --dynamo_backend=no \
+    --main_process_port=12346 \
+    -m lmms_eval \
+    --model qwen3_vl \
+    --model_args=pretrained=Qwen/Qwen3-VL-8B-Instruct,attn_implementation=flash_attention_2 \
+    --tasks vsibench_multiimage \
+    --batch_size 1 \
+    --log_samples \
+    --output_path ./logs/
+```
+
+The EASI-8 benchmark task names in lmms-eval are:
+
+| Benchmark | lmms-eval task name |
+|---|---|
+| VSI-Bench | `vsibench_multiimage` |
+| MMSI-Bench | `mmsi_bench` |
+| MindCube-Tiny | `mindcube_tiny` |
+| ViewSpatial | `viewspatial` |
+| SITE (image) | `site_bench_image` |
+| SITE (video) | `site_bench_video_multiimage` |
+| BLINK | `blink` |
+| 3DSRBench | `3dsrbench` |
+| EmbSpatial | `embspatial` |
+
+Optional benchmarks:
+
+| Benchmark | lmms-eval task name |
+|---|---|
+| MMSI-Video-Bench | `mmsi_video_u50` |
+| OmniSpatial (Manual CoT) | `omnispatial_test` |
+| SPAR-Bench | `sparbench` |
+| VSI-Debiased | `vsibench_debiased_multiimage` |
+
+> **Note:** Always pass `--log_samples` when running lmms-eval directly. The per-sample JSONL files are needed for SiteBench combined scoring and for result submission.
+
+For the full list of supported model types, see the [lmms-eval models directory](https://github.com/EvolvingLMMs-Lab/lmms-eval/tree/main/lmms_eval/models).
 
 ## Submission
 

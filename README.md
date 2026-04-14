@@ -24,25 +24,25 @@
 
 - EASI is a unified evaluation suite for Spatial Intelligence in multimodal LLMs.
 - EASI supports **two evaluation backends**: [VLMEvalKit](https://github.com/open-compass/VLMEvalKit) and [lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval).
-- After installation, you can quickly try a SenseNova-SI model with:
+- After installation, you can run all EASI-8 benchmarks with a single command:
 
-**Using EASI (backend=VLMEvalKit):**
+**Using VLMEvalKit backend (default):**
 ```bash
-cd VLMEvalKit/
-python run.py --data MindCubeBench_tiny_raw_qa \
-              --model SenseNova-SI-1.3-InternVL3-8B \
-              --verbose --reuse --judge extract_matching
+python scripts/submissions/run_easi_eval.py \
+  --model sensenova/SenseNova-SI-1.3-InternVL3-8B \
+  --nproc 4
 ```
 
-**Using EASI (backend=lmms-eval):**
+**Using lmms-eval backend:**
 ```bash
-lmms-eval --model qwen2_5_vl \
-          --model_args pretrained=sensenova/SenseNova-SI-1.1-Qwen2.5-VL-3B \
-          --tasks site_bench_image \
-          --batch_size 1 \
-          --log_samples \
-          --output_path ./logs/
+python scripts/submissions/run_easi_eval.py \
+  --backend lmms-eval \
+  --model internvl2 \
+  --model-args "pretrained=sensenova/SenseNova-SI-1.3-InternVL3-8B" \
+  --nproc 4
 ```
+
+> Under the hood, EASI wraps [VLMEvalKit](https://github.com/open-compass/VLMEvalKit) and [lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval) with a unified CLI. See the respective repos for advanced usage and adding custom models.
 
 ## Overview
 
@@ -73,27 +73,20 @@ For the full release history and detailed changelog, please see 👉 **[Changelo
 ## 🛠️ QuickStart
 ### Installation
 
-EASI provides two evaluation backends. You can install one or both depending on your needs.
+#### Option 1: Local environment (Recommended)
 
-#### Option 1: Local environment (backend=VLMEvalKit)
+The setup script installs both evaluation backends (VLMEvalKit and lmms-eval) with pinned dependencies:
+
 ```bash
 git clone --recursive https://github.com/EvolvingLMMs-Lab/EASI.git
 cd EASI
-pip install -e ./VLMEvalKit
+bash scripts/setup.sh
+source .venv/bin/activate
 ```
 
-#### Option 2: Local environment (backend=lmms-eval)
-```bash
-git clone --recursive https://github.com/EvolvingLMMs-Lab/EASI.git
-cd EASI
-pip install -e ./lmms-eval spacy
-# Recommended Dependencies
-# Use "torch==2.7.1", "torchvision==0.22.1" in pyproject.toml (this works with most models)
-# Install flash-attn for faster inference
-pip install flash-attn --no-build-isolation
-```
+This creates a Python 3.11 virtual environment with both backends, flash-attn, and all required dependencies. See [scripts/setup.sh](scripts/setup.sh) for details.
 
-#### Option 3: Docker-based environment
+#### Option 2: Docker-based environment
 ```
 bash dockerfiles/EASI/build_runtime_docker.sh
 
@@ -106,114 +99,105 @@ docker run --gpus all -it --rm \
 
 ### Evaluation
 
-EASI supports two evaluation backends. Choose the one that best fits your needs.
+EASI provides a unified evaluation script that supports both VLMEvalKit and lmms-eval backends. The script handles dataset preparation, evaluation, result collection, and optional leaderboard submission.
 
 ---
 
-#### Backend 1: VLMEvalKit
+#### Using the Unified Evaluation Script (Recommended)
 
-**General command**
+**VLMEvalKit backend (default):**
 ```bash
-python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --judge {JUDGE_MODE} --verbose --reuse 
+# Run EASI-8 core benchmarks on 4 GPUs
+python scripts/submissions/run_easi_eval.py \
+  --model sensenova/SenseNova-SI-1.3-InternVL3-8B \
+  --nproc 4
 ```
-Please refer to the Configuration section below for the full list of available models and benchmarks. See `run.py` for the full list of arguments.
 
-**Example** 
-
-Evaluate `SenseNova-SI-1.3-InternVL3-8B` on `MindCubeBench_tiny_raw_qa`:
-
+**lmms-eval backend:**
 ```bash
+# Run EASI-8 core benchmarks on 4 GPUs
+python scripts/submissions/run_easi_eval.py \
+  --backend lmms-eval \
+  --model internvl2 \
+  --model-args "pretrained=sensenova/SenseNova-SI-1.3-InternVL3-8B" \
+  --nproc 4
+```
+
+**With automated submission:**
+```bash
+python scripts/submissions/run_easi_eval.py \
+  --backend lmms-eval \
+  --model internvl2 \
+  --model-args "pretrained=sensenova/SenseNova-SI-1.3-InternVL3-8B" \
+  --nproc 4 \
+  --submit \
+  --submission-configs '{
+    "modelName": "sensenova/SenseNova-SI-1.3-InternVL3-8B",
+    "modelType": "instruction",
+    "precision": "bfloat16"
+  }'
+```
+
+**More options:**
+```bash
+# Run specific benchmarks only
+python scripts/submissions/run_easi_eval.py \
+  --model Qwen/Qwen2.5-VL-7B-Instruct \
+  --benchmarks vsi_bench,blink,sitebench
+
+# Include extra benchmarks (MMSI-Video, OmniSpatial, SPAR-Bench, VSI-Debiased)
+python scripts/submissions/run_easi_eval.py \
+  --model Qwen/Qwen2.5-VL-7B-Instruct \
+  --nproc 8 --include-extra
+
+# Force re-evaluation (ignore previous results)
+python scripts/submissions/run_easi_eval.py \
+  --model Qwen/Qwen2.5-VL-7B-Instruct \
+  --nproc 8 --rerun
+
+# lmms-eval OOM recovery: complete failed benchmarks in single-GPU mode
+python scripts/submissions/run_easi_eval.py \
+  --backend lmms-eval \
+  --model qwen3_vl \
+  --model-args "pretrained=Qwen/Qwen3-VL-8B-Instruct,attn_implementation=flash_attention_2" \
+  --no-accelerate
+```
+
+Full CLI options and submission config details at 👉 **[Submission Guide](docs/Submit_results.md)**.
+
+---
+
+#### Using Backends Directly
+
+For advanced usage or custom model integration, you can also call the backends directly:
+
+**VLMEvalKit:**
+```bash
+cd VLMEvalKit/
 python run.py --data MindCubeBench_tiny_raw_qa \
               --model SenseNova-SI-1.3-InternVL3-8B \
               --verbose --reuse --judge extract_matching
 ```
-This uses regex-based answer extraction. For LLM-based judging (e.g., on SpatialVizBench_CoT), switch to the OpenAI judge:
-```bash
-export OPENAI_API_KEY=YOUR_KEY
-python run.py --data SpatialVizBench_CoT \
-              --model {MODEL_NAME} \
-              --verbose --reuse --judge gpt-4o-1120
-```
 
----
-
-#### Backend 2: lmms-eval
-
-lmms-eval provides accelerate-based distributed evaluation with support for multi-GPU inference.
-
-**General command**
-```bash
-lmms-eval --model {MODEL_TYPE} \
-          --model_args pretrained={MODEL_PATH} \
-          --tasks {TASK_NAME} \
-          --batch_size 1 \
-          --log_samples \
-          --output_path ./logs/
-```
-
-**Example: Single GPU**
-
-Evaluate `SenseNova-SI-1.1-Qwen2.5-VL-3B` on `site_bench_image`:
-
-```bash
-lmms-eval --model qwen2_5_vl \
-          --model_args pretrained=sensenova/SenseNova-SI-1.1-Qwen2.5-VL-3B \
-          --tasks site_bench_image \
-          --batch_size 1 \
-          --log_samples \
-          --output_path ./logs/
-```
-
-**Example: Multi-GPU with accelerate**
-
+**lmms-eval:**
 ```bash
 CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
-    --num_processes=4 \
-    --num_machines=1 \
-    --mixed_precision=no \
-    --dynamo_backend=no \
-    --main_process_port=12346 \
-    -m lmms_eval \
-    --model qwen2_5_vl \
-    --model_args pretrained=sensenova/SenseNova-SI-1.1-Qwen2.5-VL-3B,attn_implementation=flash_attention_2 \
-    --tasks site_bench_image \
-    --batch_size 1 \
-    --log_samples \
-    --output_path ./logs/
+    --num_processes=4 -m lmms_eval \
+    --model internvl2 \
+    --model_args=pretrained=sensenova/SenseNova-SI-1.3-InternVL3-8B \
+    --tasks vsibench_multiimage \
+    --batch_size 1 --log_samples --output_path ./logs/
 ```
 
-**List available tasks**
-```bash
-lmms-eval --tasks list
-```
-
-For more details on lmms-eval usage, refer to the documentation in [lmms-eval/docs/](lmms-eval/docs/), including [model guide](lmms-eval/docs/model_guide.md), [task guide](lmms-eval/docs/task_guide.md), and [run examples](lmms-eval/docs/run_examples.md).
+For more details, refer to the [VLMEvalKit documentation](VLMEvalKit/README.md) and [lmms-eval documentation](lmms-eval/README.md).
 
 ---
 
 ### Configuration
 
-**EASI (backend=VLMEvalKit)**
-- **Models**: Defined in `vlmeval/config.py`. Verify inference with `vlmutil check {MODEL_NAME}`.
-- **Benchmarks**: Full list of supported Benchmarks at [VLMEvalKit Supported Benchmarks](https://aicarrier.feishu.cn/wiki/Qp7wwSzQ9iK1Y6kNUJVcr6zTnPe?table=tblsdEpLieDoCxtb&view=vewa8sGZrY). 
-- **EASI Specifics**: For [EASI Leaderboard](https://easi.lmms-lab.com/leaderboard/), related benchmarks are summarized in [Supported Models & Benchmarks](docs/Support_bench_models.md). 
-
-**EASI (backend=lmms-eval)**
-- **Models**: lmms-eval supports various model types including `qwen2_5_vl`, `llava`, `internvl2`, and more. Use `--model_args` to specify model parameters like `pretrained`, `attn_implementation`, etc.
-
-- **Tasks**: Tasks are defined in `lmms-eval/lmms_eval/tasks/`. To list all available tasks:
-  ```bash
-  lmms-eval --tasks list
-  ```
-
-  Example tasks for spatial intelligence evaluation:
-  | Task Name | Description |
-  |-----------|-------------|
-  | `site_bench_image` | SITE-Bench image evaluation |
-  | `site_bench_video` | SITE-Bench video evaluation |
-
-  For more details on lmms-eval usage, refer to the [lmms-eval documentation](lmms-eval/README.md).
-
+- **Supported Models & Benchmarks**: Summarized in [Supported Models & Benchmarks](docs/Support_bench_models.md).
+- **VLMEvalKit Models**: Defined in `vlmeval/config.py`. Verify inference with `vlmutil check {MODEL_NAME}`.
+- **lmms-eval Models**: Supports various model types (`qwen2_5_vl`, `llava`, `internvl2`, etc.). See the [lmms-eval models directory](lmms-eval/lmms_eval/models/).
 
 ### Submission
 
