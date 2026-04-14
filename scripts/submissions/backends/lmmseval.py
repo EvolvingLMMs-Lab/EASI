@@ -389,32 +389,30 @@ class LmmsEvalAdapter(BackendAdapter):
     def get_result_files(self, model_dir: Path, model_name: str) -> list[Path]:
         """Return only the latest result files per task for the archive.
 
-        For results JSONs: include the latest file that contains each task.
+        For results JSONs: include only the latest file that contributes
+        each task (not stale files from previous runs).
         For sample JSONLs: include only the latest file per task name.
-        This ensures the archive matches the scores in the submission payload.
+        This ensures the archive matches exactly the scores submitted.
         """
         files: list[Path] = []
 
-        # Results JSONs: find which file is the latest contributor per task
-        used_results: set[Path] = set()
+        # Results JSONs: walk newest-first, track which tasks are covered.
+        # Only include a file if it contributes at least one not-yet-covered task.
+        covered_tasks: set[str] = set()
         for path in sorted(model_dir.glob("*_results.json"), reverse=True):
             try:
                 data = json.loads(path.read_text())
                 tasks_in_file = set(data.get("results", {}).keys())
             except (json.JSONDecodeError, OSError):
                 continue
-            if tasks_in_file:
-                used_results.add(path)
-                # Only need the latest file per task — but since files may
-                # each contain different tasks (per-benchmark runs), include
-                # any file that has at least one task not yet covered.
-                # Simpler: include all results files (they're small).
-        files.extend(used_results)
+            new_tasks = tasks_in_file - covered_tasks
+            if new_tasks:
+                files.append(path)
+                covered_tasks.update(new_tasks)
 
         # Sample JSONLs: latest per task name
         seen_tasks: set[str] = set()
         for path in sorted(model_dir.glob("*_samples_*.jsonl"), reverse=True):
-            # Extract task name from filename: {timestamp}_samples_{task_name}.jsonl
             name = path.name
             samples_idx = name.find("_samples_")
             if samples_idx < 0:
