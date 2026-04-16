@@ -140,7 +140,11 @@ class LHPRVLNBridge(BaseBridge):
         # Build feedback reporting action outcome only
         # (subtask progress/distance is shown separately in Environmental Feedback)
         if action == "stop":
-            if geo_dis < sim.success_distance:
+            # After stop, sim.stage has already advanced. Check success of the
+            # previous subtask via sim.successes[stage - 1] instead of geo_dis,
+            # because sim.info now reflects the NEXT subtask's distance.
+            prev_stage = sim.stage - 1
+            if prev_stage >= 0 and sim.successes[prev_stage]:
                 feedback = "Subtask completed successfully."
             else:
                 feedback = f"Stop failed: too far from target ({geo_dis:.1f}m away, need < {sim.success_distance}m)."
