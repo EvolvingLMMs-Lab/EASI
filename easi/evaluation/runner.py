@@ -52,7 +52,7 @@ class EvaluationRunner:
         task_name: str,
         agent_type: str = "react",
         output_dir: Path | str = "./logs",
-        data_dir: Path | str = "./datasets",
+        data_dir: Path | str | None = None,
         episodes: str | None = None,
         llm_base_url: str | None = None,
         agent_seed: int | None = None,
@@ -79,7 +79,13 @@ class EvaluationRunner:
         self.task_name = task_name
         self.agent_type = agent_type
         self.output_dir = Path(output_dir)
-        self.data_dir = Path(data_dir)
+        if data_dir is not None:
+            self.data_dir = Path(data_dir)
+        else:
+            from easi.utils.paths import get_datasets_dir
+            self.data_dir = get_datasets_dir()
+        # Update cli_options with resolved value so config.json is accurate
+        self._cli_options["data_dir"] = "./datasets" if data_dir is None else str(self.data_dir)
         self.episodes_filter = episodes
         self.llm_base_url = llm_base_url
         self.agent_seed = agent_seed

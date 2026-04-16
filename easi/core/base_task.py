@@ -374,12 +374,12 @@ class BaseTask(ABC):
         repo_id = config["repo_id"]
         lock_path = get_locks_dir() / f"dataset_{repo_id.replace('/', '_')}.lock"
 
-        # Use data_dir if set, otherwise default datasets dir
+        # Use data_dir if set, otherwise default (./datasets)
         if self._data_dir:
             base_dir = self._data_dir
         else:
             from easi.utils.paths import get_datasets_dir
-            base_dir = get_datasets_dir()
+            base_dir = get_datasets_dir()  # returns ./datasets
 
         with file_lock(lock_path):
             target = base_dir / repo_id.replace("/", "_")
