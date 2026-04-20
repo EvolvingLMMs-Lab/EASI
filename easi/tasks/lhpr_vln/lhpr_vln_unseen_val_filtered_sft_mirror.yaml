@@ -1,0 +1,11 @@
+extends: _base.yaml
+name: lhpr_vln_unseen_val_filtered_sft_mirror
+display_name: "LHPR-VLN Unseen Val Filtered (SFT, Mirror)"
+description: "Mirror-experiment variant: images flipped horizontally, left/right actions swapped. A/B pair with lhpr_vln_unseen_val_filtered_sft."
+dataset:
+  split: "unseen_val_filtered"
+agent:
+  prompt_builder: "easi.tasks.lhpr_vln.prompts.mirror_sft.LHPRVLNMirrorSFTPromptBuilder"
+  prompt_builder_kwargs:
+    window_size: 5
+    max_history_images: 20

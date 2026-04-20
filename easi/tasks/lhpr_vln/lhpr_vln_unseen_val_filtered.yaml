@@ -1,0 +1,6 @@
+extends: _base.yaml
+name: lhpr_vln_unseen_val_filtered
+display_name: "LHPR-VLN Unseen Val (Filtered)"
+description: "LHPR-VLN unseen validation split (scene_id 700-799), filtered by visible_ratio=1.0"
+dataset:
+  split: "unseen_val_filtered"

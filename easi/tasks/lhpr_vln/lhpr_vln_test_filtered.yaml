@@ -1,0 +1,6 @@
+extends: _base.yaml
+name: lhpr_vln_test_filtered
+display_name: "LHPR-VLN Test (Filtered)"
+description: "LHPR-VLN test split (batch_7 + batch_8), filtered by visible_ratio=1.0"
+dataset:
+  split: "test_filtered"

@@ -1,0 +1,11 @@
+extends: _base.yaml
+name: lhpr_vln_unseen_test_filtered_sft
+display_name: "LHPR-VLN Unseen Test Filtered (SFT)"
+description: "LHPR-VLN unseen test split (scene_id 800+), filtered by visible_ratio=1.0, SFT prompt builder"
+dataset:
+  split: "unseen_test_filtered"
+agent:
+  prompt_builder: "easi.tasks.lhpr_vln.prompts.sft.LHPRVLNSFTPromptBuilder"
+  prompt_builder_kwargs:
+    window_size: 5
+    max_history_images: 20

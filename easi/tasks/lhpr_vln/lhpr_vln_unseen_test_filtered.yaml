@@ -1,0 +1,6 @@
+extends: _base.yaml
+name: lhpr_vln_unseen_test_filtered
+display_name: "LHPR-VLN Unseen Test (Filtered)"
+description: "LHPR-VLN unseen test split (scene_id 800+), filtered by visible_ratio=1.0"
+dataset:
+  split: "unseen_test_filtered"
