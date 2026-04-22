@@ -25,7 +25,7 @@ _TASK_MAP: dict[str, str] = {
     "site_image": "site_bench_image",
     "site_video": "site_bench_video_multiimage",
     "blink": "blink",
-    "3dsrbench": "3dsrbench",
+    "3dsrbench": "3dsrbench_circular",
     "embspatial": "embspatial",
     "mmsi_video_bench": "mmsi_video_u50",
     "omnispatial_(manual_cot)": "omnispatial_test",
@@ -112,7 +112,7 @@ _METRIC_MAP: dict[str, dict] = {
         "sub_scores": {},
     },
     "3dsrbench": {
-        "task_name": "3dsrbench",
+        "task_name": "3dsrbench_circular",
         "overall_metric": "vanilla_accuracy",
         "scale": 100,
         "sub_scores": {
@@ -128,6 +128,8 @@ _METRIC_MAP: dict[str, dict] = {
             "orientation_in_front_of": "orientation_in_front_of_accuracy",
             "orientation_on_the_left": "orientation_on_the_left_accuracy",
             "orientation_viewpoint": "orientation_viewpoint_accuracy",
+            # Circular eval scores
+            "circ_eval_overall": "circular_accuracy",
         },
     },
     "embspatial": {
