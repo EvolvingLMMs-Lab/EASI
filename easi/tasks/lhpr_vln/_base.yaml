@@ -47,3 +47,7 @@ agent:
     temperature: 0
     max_tokens: 4096
     top_p: 0.95
+    # SFT checkpoints emit action tokens <|forward|>/<|left|>/... which vLLM
+    # strips by default when decoding via the OpenAI chat endpoint. Keep them
+    # in the response so prompt builders can parse the action block.
+    skip_special_tokens: false
