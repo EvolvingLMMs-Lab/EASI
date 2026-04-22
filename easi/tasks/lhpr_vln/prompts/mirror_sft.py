@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import base64
 import io
+import os
+from pathlib import Path
 
 from easi.agents.prompt_builder import _encode_image_base64 as _base_encode
 from easi.core.episode import Action
@@ -26,6 +28,12 @@ from easi.utils.logging import get_logger
 logger = get_logger(__name__)
 
 _ACTION_REMAP = {"turn_left": "turn_right", "turn_right": "turn_left"}
+
+# Debug env: when set to a directory, the builder writes every flipped PNG it
+# emits per call under <dir>/step_NNNN_<slot>.png (current views) and
+# <dir>/step_NNNN_history_MMM.png (sampled historical front-views). Used to
+# verify the mirror transformation matches the sim-rendered frames.
+_DEBUG_DIR_ENV = "MIRROR_DEBUG_DIR"
 
 
 def _encode_image_flipped(path: str) -> str | None:
@@ -50,8 +58,34 @@ def _encode_image_flipped(path: str) -> str | None:
     return f"data:{mime};base64,{base64.b64encode(buf.getvalue()).decode('utf-8')}"
 
 
+def _resolve_debug_dir() -> Path | None:
+    raw = os.environ.get(_DEBUG_DIR_ENV)
+    if not raw:
+        return None
+    path = Path(raw).expanduser()
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _dump_data_url(data_url: str | None, dest: Path) -> None:
+    if data_url is None:
+        return
+    try:
+        _, b64 = data_url.split(",", 1)
+        dest.write_bytes(base64.b64decode(b64))
+    except Exception as e:  # noqa: BLE001 — debug-only path, never fatal
+        logger.warning("failed to write debug frame %s: %s", dest, e)
+
+
 class LHPRVLNMirrorSFTPromptBuilder(LHPRVLNSFTPromptBuilder):
     """SFT builder that mirrors observations and swaps left/right actions."""
+
+    def build_messages(self, memory: AgentMemory) -> list[dict]:
+        # Record the step index so ``_build_content`` can label debug dumps.
+        # ``memory.steps`` holds completed steps; the NEXT emission maps to
+        # index ``len(memory.steps)``.
+        self._debug_step_idx = len(memory.steps)
+        return super().build_messages(memory)
 
     def _build_content(
         self,
@@ -81,14 +115,25 @@ class LHPRVLNMirrorSFTPromptBuilder(LHPRVLNSFTPromptBuilder):
             "<|forward|><|forward|><|forward|><|left|><|forward|> or <|stop|>"
         )})
 
+        debug_dir = _resolve_debug_dir()
+        step_idx = getattr(self, "_debug_step_idx", 0)
+
         if history_paths:
             content.append({"type": "text", "text": "\n# Your historical pictures are: "})
-            for path in history_paths:
+            for h_idx, path in enumerate(history_paths):
                 img_url = _encode_image_flipped(path)
                 if img_url:
                     content.append({"type": "image_url", "image_url": {"url": img_url}})
+                if debug_dir is not None:
+                    _dump_data_url(
+                        img_url,
+                        debug_dir / f"step_{step_idx:04d}_history_{h_idx:03d}.png",
+                    )
 
         view_labels = ["left side", "front side", "right side"]
+        # Slot name used for the filename (`left_side` -> `left` etc.) so it's
+        # easy to diff against the sim-rendered ``step_NNNN_<cam>.png`` files.
+        slot_filenames = ["left", "front", "right"]
         content.append({"type": "text", "text": "\n# Your current observations are "})
         for i, path in enumerate(swapped_views):
             if i > 0:
@@ -97,6 +142,11 @@ class LHPRVLNMirrorSFTPromptBuilder(LHPRVLNSFTPromptBuilder):
             img_url = _encode_image_flipped(path)
             if img_url:
                 content.append({"type": "image_url", "image_url": {"url": img_url}})
+            if debug_dir is not None and i < len(slot_filenames):
+                _dump_data_url(
+                    img_url,
+                    debug_dir / f"step_{step_idx:04d}_{slot_filenames[i]}.png",
+                )
 
         content.append({"type": "text", "text": (
             f"\n# Your mission is: {instruction}\n"
