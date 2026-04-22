@@ -1075,21 +1075,23 @@ Examples (lmms-eval):
                 k: v for k, v in all_benchmarks.items() if v not in DEFAULT_JUDGE
             }
 
-            # Invocation 1: ALL benchmarks with exact_matching (inference + fast eval)
-            all_data_names = list(all_benchmarks.values())
-            cmd = _build_cmd(all_data_names, judge="exact_matching")
-            _run_vlmevalkit(cmd, "Running evaluation (exact_matching)")
+            # Invocation 1: exact_matching benchmarks (inference + eval)
+            # LLM-judge benchmarks are excluded — they run separately to avoid
+            # VLMEvalKit creating conflicting result files.
+            if exact_benchmarks:
+                exact_data_names = list(exact_benchmarks.values())
+                cmd = _build_cmd(exact_data_names, judge="exact_matching")
+                _run_vlmevalkit(cmd, "Running evaluation (exact_matching)")
 
-            # Invocation 2: LLM-judge benchmarks only (reuses inference, re-evaluates)
+            # Invocation 2+: LLM-judge benchmarks (inference + judge eval in one pass)
             if llm_judge_benchmarks:
                 for key, data_name in llm_judge_benchmarks.items():
                     judge_model = DEFAULT_JUDGE[data_name]
-                    # Reset eval status so the display shows re-evaluation in progress
                     if display:
                         with display._lock:
                             display.eval_status[key] = ProgressDisplay.PENDING
                     cmd = _build_cmd([data_name], judge=judge_model)
-                    _run_vlmevalkit(cmd, f"Re-evaluating {data_name} (judge: {judge_model})")
+                    _run_vlmevalkit(cmd, f"Running {data_name} (judge: {judge_model})")
 
     elapsed = time.time() - start
 
