@@ -271,8 +271,18 @@ def load_acc_csv(path: Path | str) -> dict[str, float]:
 # ---------------------------------------------------------------------------
 
 def _find_acc_csv(model_dir: Path, pattern: str) -> Path | None:
-    """Find the first matching acc.csv in model_dir (follows symlinks)."""
+    """Find the first matching acc.csv in model_dir or its subdirectories.
+
+    VLMEvalKit writes result files inside ``T{date}_G{hash}/`` subdirectories
+    and creates symlinks at the model_dir root. Some runs may not create the
+    root-level symlinks, so we also search subdirectories.
+    """
+    # Try root level first (fast, catches symlinks)
     matches = sorted(model_dir.glob(pattern))
+    if matches:
+        return matches[0]
+    # Fall back to recursive search inside T* subdirectories
+    matches = sorted(model_dir.glob(f"*/{pattern}"))
     return matches[0] if matches else None
 
 
