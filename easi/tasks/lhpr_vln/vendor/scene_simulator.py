@@ -77,8 +77,15 @@ class SceneSimulator:
         # Initial observation
         self.observations = self.sim.step("move_forward")
 
-        # Subtask tracking
-        self.step = -1
+        # Subtask tracking.
+        # ``self.step`` counts actor() calls including the implicit initial
+        # ``sim.step("move_forward")`` above, so after N calls into ``actor()``
+        # the counter is N. Historically this was -1 and the first ``actor``
+        # call short-circuited to bump it to 0; that absorbed one agent action
+        # without bookkeeping and caused the max_step timeout branch to never
+        # fire under the standard runner loop (see docs/superpowers/plans/
+        # 2026-04-22-lhpr-vln-step-offbyone.md).
+        self.step = 0
         self.stage = 0
         self.target_num = len(targets)
         self.nav_steps = []
@@ -94,13 +101,16 @@ class SceneSimulator:
         self.episode_over = False
 
     def actor(self, action: str):
-        """Perform one action. Returns (observations, done, info)."""
+        """Perform one action. Returns (observations, done, info).
+
+        Every call (including the first) goes through the full
+        step-increment → info-refresh → oracle/stop/max-step pipeline.
+        No ``step == -1`` short-circuit: dropping it fixed a silent bug
+        where a first-action stop was ignored AND made the max_step
+        timeout branch fire reliably under the standard runner loop.
+        """
         if action != "stop":
             self.observations = self.sim.step(action)
-
-        if self.step == -1:
-            self.step += 1
-            return self.observations, self.done, self.info
 
         self.step += 1
         self.info = self._get_info()
