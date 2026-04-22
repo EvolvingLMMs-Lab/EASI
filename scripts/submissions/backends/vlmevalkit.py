@@ -523,7 +523,7 @@ class VLMEvalKitAdapter(BackendAdapter):
                 scores[key] = BenchmarkScores()
                 continue
 
-            result = _extract_scores(model_dir, model_name, key)
+            result = _extract_scores(key, model_dir, model_name)
             if result is None:
                 scores[key] = BenchmarkScores()
             else:
