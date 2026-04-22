@@ -121,9 +121,10 @@ METRIC_MAP: dict[str, dict] = {
     },
     "3dsrbench": {
         "data_name": "3DSRBench",
-        "acc_pattern": "*_3DSRBench_acc.csv",
+        "acc_pattern": "*_3DSRBench_full_acc.csv",
         "overall_key": "Overall",
         "scale": 100,
+        "settings": ["vanilla", "circ_eval"],  # extract both settings
         "sub_scores": {
             "height_higher": "height_higher",
             "location_above": "location_above",
@@ -286,6 +287,31 @@ def _find_acc_csv(model_dir: Path, pattern: str) -> Path | None:
     return matches[0] if matches else None
 
 
+def _load_acc_csv_by_setting(path: Path | str) -> dict[str, dict[str, float]]:
+    """Load a multi-setting ``_full_acc.csv`` into ``{setting: {metric: value}}``.
+
+    Returns a dict keyed by setting name.  Falls back to a single
+    ``{"vanilla": ...}`` entry if no ``setting`` column is present.
+    """
+    df = pd.read_csv(path, sep=None, engine="python")
+    if "setting" not in df.columns:
+        # Single-setting file — treat as vanilla
+        return {"vanilla": load_acc_csv(path)}
+    result: dict[str, dict[str, float]] = {}
+    for _, row in df.iterrows():
+        setting = str(row["setting"])
+        metrics: dict[str, float] = {}
+        for col in df.columns:
+            if col == "setting":
+                continue
+            try:
+                metrics[col] = float(row[col])
+            except (ValueError, TypeError):
+                pass
+        result[setting] = metrics
+    return result
+
+
 def _extract_scores(
     benchmark_key: str,
     model_dir: Path,
@@ -309,17 +335,52 @@ def _extract_scores(
     if csv_path is None:
         return None, {}
 
-    metrics = load_acc_csv(csv_path)
     scale = config.get("scale", 1)
+    settings = config.get("settings")
 
-    # Overall score
+    # Multi-setting extraction (e.g., 3DSRBench vanilla + circ_eval)
+    if settings:
+        all_settings = _load_acc_csv_by_setting(csv_path)
+        # Primary setting is the first one listed (used for overall score)
+        primary = settings[0]
+        primary_metrics = all_settings.get(primary, {})
+
+        overall_key = config["overall_key"]
+        overall = primary_metrics.get(overall_key)
+        if overall is not None:
+            overall = round(overall * scale, 4)
+
+        sub_scores: dict[str, float | None] = {}
+        for setting in settings:
+            setting_metrics = all_settings.get(setting, {})
+            # Use prefix for non-primary settings
+            prefix = "" if setting == primary else f"{setting}_"
+            # Overall for non-primary settings
+            if setting != primary:
+                val = setting_metrics.get(overall_key)
+                if val is not None:
+                    sub_scores[f"{prefix}overall"] = round(val * scale, 4)
+                else:
+                    sub_scores[f"{prefix}overall"] = None
+            # Sub-scores
+            for payload_key, csv_key in config["sub_scores"].items():
+                val = setting_metrics.get(csv_key)
+                if val is not None:
+                    sub_scores[f"{prefix}{payload_key}"] = round(val * scale, 4)
+                else:
+                    sub_scores[f"{prefix}{payload_key}"] = None
+
+        return overall, sub_scores
+
+    # Standard single-setting extraction
+    metrics = load_acc_csv(csv_path)
+
     overall_key = config["overall_key"]
     overall = metrics.get(overall_key)
     if overall is not None:
         overall = round(overall * scale, 4)
 
-    # Sub-scores
-    sub_scores: dict[str, float | None] = {}
+    sub_scores = {}
     for payload_key, csv_key in config["sub_scores"].items():
         val = metrics.get(csv_key)
         if val is not None:
