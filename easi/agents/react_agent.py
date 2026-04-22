@@ -137,10 +137,10 @@ class ReActAgent(BaseAgent):
         self.memory.task_description = task_description
 
         messages = self.prompt_builder.build_messages(self.memory)
+        prompt_text = _format_messages_for_log(messages)
 
         logger.trace("Step %d prompt (%d messages):\n%s",
-                     self._step_count + 1, len(messages),
-                     _format_messages_for_log(messages))
+                     self._step_count + 1, len(messages), prompt_text)
 
         # Query builder for response_format (optional method)
         get_rf = getattr(self.prompt_builder, 'get_response_format', None)
@@ -160,7 +160,9 @@ class ReActAgent(BaseAgent):
         # If still no actions after fallback, use the default action
         if not actions:
             action = self._default_fallback_action()
-            self.memory.record_step(observation, action, llm_response=response)
+            self.memory.record_step(
+                observation, action, llm_response=response, prompt_text=prompt_text,
+            )
             self._step_count += 1
             self.triggered_fallback = True
             self._consecutive_fallbacks += 1
@@ -179,7 +181,9 @@ class ReActAgent(BaseAgent):
 
         self.triggered_fallback = False
         self._consecutive_fallbacks = 0
-        self.memory.record_step(observation, actions[0], llm_response=response)
+        self.memory.record_step(
+            observation, actions[0], llm_response=response, prompt_text=prompt_text,
+        )
         self._step_count += 1
 
         if len(actions) > 1:

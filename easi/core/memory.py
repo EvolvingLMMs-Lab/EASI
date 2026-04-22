@@ -14,6 +14,10 @@ class StepRecord:
     action: Action | None = None
     feedback: str | None = None
     llm_response: str | None = None  # None for buffered actions
+    # Flattened text preview of the prompt sent to the LLM on this step.
+    # ``None`` for buffered / fallback steps that didn't re-query. Image
+    # blocks are replaced with ``[img_N]`` markers to keep the string small.
+    prompt_text: str | None = None
     step_number: int = 0
 
 
@@ -45,6 +49,7 @@ class AgentMemory:
         observation: Observation,
         action: Action,
         llm_response: str | None,
+        prompt_text: str | None = None,
     ) -> None:
         """Record a completed step (action taken, awaiting feedback)."""
         self.steps.append(
@@ -52,6 +57,7 @@ class AgentMemory:
                 observation=observation,
                 action=action,
                 llm_response=llm_response,
+                prompt_text=prompt_text,
                 step_number=len(self.steps),
             )
         )

@@ -591,10 +591,15 @@ class EvaluationRunner:
             step_result = sim.step(action)
             trajectory.append(step_result)
 
-            # Get LLM response from agent memory (None for buffered actions)
+            # Get LLM response + prompt text from agent memory. Both are
+            # ``None`` for buffered actions (the agent didn't re-query the
+            # LLM this step).
             llm_response = None
+            prompt_text = None
             if hasattr(agent, "memory") and agent.memory.steps:
-                llm_response = agent.memory.steps[-1].llm_response
+                last_step = agent.memory.steps[-1]
+                llm_response = last_step.llm_response
+                prompt_text = last_step.prompt_text
 
             # Write step entry to trajectory
             triggered_fallback = getattr(agent, "triggered_fallback", False)
@@ -605,6 +610,7 @@ class EvaluationRunner:
                     "type": "step",
                     "action": action.action_name,
                     "llm_response": llm_response,
+                    "prompt": prompt_text,
                     "triggered_fallback": triggered_fallback,
                     "rgb_path": Path(step_result.observation.rgb_path).name,
                     "agent_pose": step_result.observation.agent_pose,
