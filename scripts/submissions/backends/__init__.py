@@ -1,7 +1,7 @@
 """Backend adapter factory."""
 from __future__ import annotations
 
-from .base import BackendAdapter, BenchmarkScores, FileState
+from .base import BackendAdapter, BenchmarkScores, ExtractionReport, FileState
 
 
 def get_backend(name: str, **kwargs) -> BackendAdapter:
@@ -21,4 +21,4 @@ def get_backend(name: str, **kwargs) -> BackendAdapter:
         raise ValueError(f"Unknown backend: {name!r}. Choose 'vlmevalkit' or 'lmms-eval'.")
 
 
-__all__ = ["get_backend", "BackendAdapter", "BenchmarkScores", "FileState"]
+__all__ = ["get_backend", "BackendAdapter", "BenchmarkScores", "ExtractionReport"]

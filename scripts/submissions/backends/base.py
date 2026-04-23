@@ -21,6 +21,15 @@ class FileState:
     sample_count: int = 0
 
 
+@dataclass
+class ExtractionReport:
+    """Extraction quality stats for a single benchmark."""
+    total: int
+    failed: int
+    failure_rate: float
+    method: str  # "extract_matching" or "multiple_choice"
+
+
 class BackendAdapter(ABC):
     """Interface for evaluation backend adapters.
 
@@ -64,6 +73,38 @@ class BackendAdapter(ABC):
         benchmarks: dict[str, str],
     ) -> dict[str, FileState] | None:
         """Poll filesystem for progress. Returns None if not supported."""
+        return None
+
+    def check_extraction_quality(
+        self,
+        model_dir: Path,
+        model_name: str,
+        benchmarks: dict[str, str],
+    ) -> dict[str, ExtractionReport]:
+        """Check extraction quality per benchmark. Empty dict if not supported."""
+        return {}
+
+    def archive_artifacts(
+        self,
+        model_dir: Path,
+        model_name: str,
+        data_name: str,
+    ) -> None:
+        """Archive existing artifacts before judge re-evaluation."""
+        pass
+
+    def build_judge_cmd(
+        self,
+        model: str,
+        benchmarks: dict[str, str],
+        output_dir: Path,
+        nproc: int,
+        judge_model: str,
+        *,
+        extra_args: list[str] | None = None,
+        **kwargs,
+    ) -> list[str] | None:
+        """Build command for judge re-evaluation. None if not supported."""
         return None
 
     @abstractmethod
