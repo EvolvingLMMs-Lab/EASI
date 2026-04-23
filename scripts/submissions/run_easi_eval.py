@@ -41,14 +41,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from backends import get_backend
 from backends.vlmevalkit import (
     VLMEvalKitAdapter,
-    DEFAULT_JUDGE,
     verify_results,
     BenchmarkResult,
     prepare_datasets,
     _count_tsv_rows,
-    _has_acc_csv,
-    _has_result_file,
-    _count_pkl_predictions,
 )
 
 # ---------------------------------------------------------------------------
@@ -124,19 +120,15 @@ class ProgressDisplay:
         self,
         model_name: str,
         benchmarks: dict[str, str],
-        totals: dict[str, int],
         display_items: list[str | tuple[str, list[str]]],
-        backend: str = "vlmevalkit",
     ):
         self.model_name = model_name
         self.benchmarks = benchmarks  # flat key -> data_name
-        self.totals = totals
         self.display_items = display_items
-        self.backend = backend
-        # Dual-phase tracking: inference and evaluation
-        self.infer_status: dict[str, str] = {k: self.PENDING for k in benchmarks}
-        self.infer_completed: dict[str, int] = {k: 0 for k in benchmarks}
-        self.eval_status: dict[str, str] = {k: self.PENDING for k in benchmarks}
+        # Single status per benchmark: pending / running / done / failed
+        self.status: dict[str, str] = {k: self.PENDING for k in benchmarks}
+        self.status_detail: dict[str, str] = {}  # optional "(0.8% failures)" etc.
+        self._spinner_frame: int = 0
         self.phase: str = ""
         # Dataset preparation tracking per benchmark key.
         # status: "pending" | "downloading" | "done" | "failed"
@@ -162,35 +154,20 @@ class ProgressDisplay:
         with self._lock:
             return self._render()
 
-    @staticmethod
-    def _aggregate_status(statuses: list[str] | set[str], ordered: list[str]) -> str:
-        """Return the first status in *ordered* that matches the aggregate rule.
-
-        - If all statuses are the same, return that status.
-        - Otherwise return the first entry in *ordered* that any status matches,
-          treating a mixed set containing both done and pending as "running".
-        """
-        status_set = set(statuses)
-        if len(status_set) == 1:
-            return next(iter(status_set))
-        for candidate in ordered:
-            if candidate in status_set:
-                return candidate
-        return ordered[-1] if ordered else next(iter(status_set))
-
-    def _benchmark_overall_status(self, key: str) -> str:
-        """Derive overall status from both phases for a single benchmark."""
-        if self.eval_status[key] == self.DONE:
-            return self.DONE
-        if self.infer_status[key] == self.FAILED or self.eval_status[key] == self.FAILED:
-            return self.FAILED
-        if self.infer_status[key] in (self.RUNNING, self.DONE):
-            return self.RUNNING
-        return self.PENDING
+    def _status_icon(self, status: str) -> str:
+        """Return styled icon for status, including spinner frame for RUNNING."""
+        if status == self.DONE:
+            return "[green]\u2713[/green]"
+        if status == self.FAILED:
+            return "[red]\u2717[/red]"
+        if status == self.RUNNING:
+            frames = "\u280b\u2819\u2839\u2838\u283c\u2834\u2826\u2827"
+            return f"[yellow]{frames[self._spinner_frame % len(frames)]}[/yellow]"
+        return "[dim]\u2500[/dim]"  # pending
 
     def _group_status(self, children: list[str]) -> str:
-        """Derive a group's aggregate status from its children's overall status."""
-        statuses = {self._benchmark_overall_status(c) for c in children}
+        """Aggregate child statuses into a group status."""
+        statuses = {self.status[c] for c in children}
         if statuses == {self.DONE}:
             return self.DONE
         if self.FAILED in statuses:
@@ -198,20 +175,6 @@ class ProgressDisplay:
         if self.RUNNING in statuses or (self.DONE in statuses and self.PENDING in statuses):
             return self.RUNNING
         return self.PENDING
-
-    @staticmethod
-    def _progress_bar(completed: int, total: int, bar_len: int = 20) -> str:
-        if total <= 0:
-            return f"{completed}/?" if completed > 0 else ""
-        pct = min(completed * 100 // total, 100)
-        filled = min(bar_len * completed // total, bar_len)
-        bar = (
-            "[green]" + "\u2588" * filled + "[/green]"
-            + "[dim]" + "\u2591" * (bar_len - filled) + "[/dim]"
-        )
-        # Fixed-width count: right-align "completed/total" to 11 chars
-        count = f"{completed}/{total}"
-        return f"{bar} {count:>11s} ({pct:>3d}%)"
 
     def _render_data_prep_icon(self, status: str) -> str:
         if status == "done":
@@ -240,10 +203,15 @@ class ProgressDisplay:
             for item in self.display_items:
                 if isinstance(item, tuple):
                     group_name, children = item
-                    child_statuses = [self.data_prep.get(c, ("pending", ""))[0] for c in children]
-                    grp_icon = self._render_data_prep_icon(
-                        self._aggregate_status(child_statuses, ordered=["done", "failed", "downloading", "pending"])
-                    )
+                    child_statuses = {self.data_prep.get(c, ("pending", ""))[0] for c in children}
+                    if len(child_statuses) == 1:
+                        grp_status = next(iter(child_statuses))
+                    else:
+                        grp_status = next(
+                            (s for s in ("done", "failed", "downloading", "pending") if s in child_statuses),
+                            "pending",
+                        )
+                    grp_icon = self._render_data_prep_icon(grp_status)
                     lines.append(f" {grp_icon} {group_name}")
                     for child in children:
                         lines.append(self._render_data_prep_row(child, indent="  "))
@@ -261,52 +229,14 @@ class ProgressDisplay:
                 summary += f"  {failed_str}"
             return summary
 
-    def _phase_icon(self, status: str) -> str:
-        """Render a phase status icon (same style as data prep icons)."""
-        if status == self.DONE:
-            return "[green]\u2713[/green]"
-        if status == self.FAILED:
-            return "[red]\u2717[/red]"
-        if status == self.RUNNING:
-            return "[yellow]\u25D4[/yellow]"
-        return "[dim]\u2013[/dim]"  # pending
-
-    def _add_benchmark_row(self, table, key: str, indent: str = "",
-                           pending_warnings: list | None = None):
-        """Add a benchmark row with dual-phase icons (vlmevalkit) or single status (lmms-eval)."""
-        if self.backend != "vlmevalkit":
-            # Simplified: single status, no progress bar
-            overall = self._benchmark_overall_status(key)
-            name = f"{indent}[dim]{key}[/dim]" if indent else key
-            status_str = f"{self._phase_icon(overall)} {overall}"
-            table.add_row(name, status_str, "")
-        else:
-            infer_st = self.infer_status[key]
-            eval_st = self.eval_status[key]
-            completed = self.infer_completed[key]
-            total = self.totals.get(key, 0)
-            name = f"{indent}[dim]{key}[/dim]" if indent else key
-
-            # Build phase string: "✓ infer  ◔ eval"
-            phases = f"{self._phase_icon(infer_st)} infer"
-            if infer_st in (self.DONE, self.FAILED):
-                phases += f"  {self._phase_icon(eval_st)} eval"
-
-            # Progress bar: show inference progress when inferring, keep at 100% after
-            if infer_st in (self.PENDING, self.FAILED):
-                progress = ""
-            else:
-                progress = self._progress_bar(completed, total)
-
-            table.add_row(name, phases, progress)
-        if key in self.warnings and pending_warnings is not None:
-            pending_warnings.append((key, self.warnings[key]))
-
     def _render(self):
         from rich.panel import Panel
         from rich.table import Table
         from rich.text import Text
         from rich.console import Group as RichGroup
+
+        # Advance spinner each frame
+        self._spinner_frame += 1
 
         parts: list = []
 
@@ -314,7 +244,7 @@ class ProgressDisplay:
         if self.env_checks:
             env_lines = [" [bold]\u2500\u2500 Environment \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500[/bold]"]
             for name, status, detail in self.env_checks:
-                icon = self._phase_icon(
+                icon = self._status_icon(
                     self.DONE if status == "ok" else self.FAILED
                 )
                 env_lines.append(f" {icon} {name}  [dim]{detail}[/dim]")
@@ -332,8 +262,7 @@ class ProgressDisplay:
         # Benchmark table
         table = Table(show_header=False, box=None, padding=(0, 2))
         table.add_column("Benchmark", min_width=20, style="bold")
-        table.add_column("Phases", min_width=22)
-        table.add_column("Progress", min_width=16, justify="right")
+        table.add_column("Status", min_width=30)
 
         display_count = len(self.display_items)
         done_display = 0
@@ -343,56 +272,30 @@ class ProgressDisplay:
             if isinstance(item, tuple):
                 group_name, children = item
                 grp_status = self._group_status(children)
-
-                if self.backend != "vlmevalkit":
-                    # Simplified group row: single aggregate status
-                    grp_icon = self._phase_icon(grp_status)
-                    table.add_row(group_name, f"{grp_icon} {grp_status}", "")
-                    for child in children:
-                        self._add_benchmark_row(table, child, indent="  ",
-                                                pending_warnings=pending_warnings)
-                else:
-                    grp_completed = sum(self.infer_completed[c] for c in children)
-                    grp_total = sum(self.totals.get(c, 0) for c in children)
-
-                    # Group phase icons: aggregate from children
-                    any_infer_terminal = any(self.infer_status[c] in (self.DONE, self.FAILED) for c in children)
-                    any_infer_failed = any(self.infer_status[c] == self.FAILED for c in children)
-                    all_infer_done = all(self.infer_status[c] == self.DONE for c in children)
-                    grp_infer_icon = self._phase_icon(
-                        self.FAILED if any_infer_failed else
-                        self.DONE if all_infer_done else
-                        self.RUNNING if any(self.infer_status[c] == self.RUNNING for c in children) else
-                        self.PENDING
-                    )
-                    grp_phases = f"{grp_infer_icon} infer"
-                    if any_infer_terminal:
-                        any_eval_failed = any(self.eval_status[c] == self.FAILED for c in children)
-                        all_eval_done = all(self.eval_status[c] == self.DONE for c in children)
-                        any_eval_running = any(self.eval_status[c] == self.RUNNING for c in children)
-                        grp_eval_icon = self._phase_icon(
-                            self.FAILED if any_eval_failed else
-                            self.DONE if all_eval_done else
-                            self.RUNNING if any_eval_running else
-                            self.PENDING
-                        )
-                        grp_phases += f"  {grp_eval_icon} eval"
-
+                grp_icon = self._status_icon(grp_status)
+                table.add_row(group_name, f"{grp_icon} {grp_status}")
+                for child in children:
+                    child_status = self.status[child]
+                    child_icon = self._status_icon(child_status)
+                    detail = self.status_detail.get(child, "")
+                    detail_str = f"  [dim]{detail}[/dim]" if detail else ""
                     table.add_row(
-                        group_name,
-                        grp_phases,
-                        self._progress_bar(grp_completed, grp_total) if grp_status != self.PENDING else "",
+                        f"  [dim]{child}[/dim]",
+                        f"{child_icon} {child_status}{detail_str}",
                     )
-                    for child in children:
-                        self._add_benchmark_row(table, child, indent="  ",
-                                                pending_warnings=pending_warnings)
+                    if child in self.warnings:
+                        pending_warnings.append((child, self.warnings[child]))
                 if grp_status in (self.DONE, self.FAILED):
                     done_display += 1
             else:
-                self._add_benchmark_row(table, item,
-                                        pending_warnings=pending_warnings)
-                overall = self._benchmark_overall_status(item)
-                if overall in (self.DONE, self.FAILED):
+                status = self.status[item]
+                icon = self._status_icon(status)
+                detail = self.status_detail.get(item, "")
+                detail_str = f"  [dim]{detail}[/dim]" if detail else ""
+                table.add_row(item, f"{icon} {status}{detail_str}")
+                if item in self.warnings:
+                    pending_warnings.append((item, self.warnings[item]))
+                if status in (self.DONE, self.FAILED):
                     done_display += 1
 
         parts.append(table)
@@ -459,7 +362,7 @@ class ProgressDisplay:
         )
 
         # Show hint when nothing has started yet
-        any_started = any(s != self.PENDING for s in self.infer_status.values())
+        any_started = any(s != self.PENDING for s in self.status.values())
         if not any_started and self.phase not in ("Preparing datasets", ""):
             footer_parts.append(" [dim]Initializing (loading model / building datasets)...[/dim]")
             if self._log_path:
@@ -491,37 +394,27 @@ class ProgressDisplay:
         if hasattr(self, "_orig_stdout"):
             sys.stdout = self._orig_stdout
 
-    def update_infer(self, key: str, completed: int):
+    def mark_done(self, key: str, detail: str = ""):
         with self._lock:
-            self.infer_completed[key] = completed
-            if self.infer_status[key] == self.PENDING and completed > 0:
-                self.infer_status[key] = self.RUNNING
+            self.status[key] = self.DONE
+            if detail:
+                self.status_detail[key] = detail
+            elif key in self.status_detail:
+                del self.status_detail[key]
 
-    def mark_infer_done(self, key: str):
+    def mark_running(self, key: str, detail: str = ""):
         with self._lock:
-            if self.infer_status[key] == self.FAILED:
-                return  # don't overwrite a failure
-            self.infer_status[key] = self.DONE
-            # Set completed = total so bar shows 100%
-            total = self.totals.get(key, 0)
-            if total > 0:
-                self.infer_completed[key] = total
+            self.status[key] = self.RUNNING
+            if detail:
+                self.status_detail[key] = detail
+            elif key in self.status_detail:
+                del self.status_detail[key]
 
-    def mark_eval_running(self, key: str):
+    def mark_failed(self, key: str, detail: str = ""):
         with self._lock:
-            self.eval_status[key] = self.RUNNING
-
-    def mark_eval_done(self, key: str):
-        with self._lock:
-            self.eval_status[key] = self.DONE
-
-    def mark_failed(self, key: str):
-        with self._lock:
-            # Fail both phases
-            if self.infer_status[key] != self.DONE:
-                self.infer_status[key] = self.FAILED
-            else:
-                self.eval_status[key] = self.FAILED
+            self.status[key] = self.FAILED
+            if detail:
+                self.status_detail[key] = detail
 
     def set_phase(self, phase: str):
         with self._lock:
@@ -535,91 +428,6 @@ class ProgressDisplay:
         with self._lock:
             self.warnings[key] = warning
 
-
-
-def _poll_progress(
-    display: ProgressDisplay,
-    model_dir: Path,
-    model_name: str,
-    benchmarks: dict[str, str],
-    detect_failures: bool = False,
-):
-    """Single pass: update display from PKL/xlsx/_acc.csv files on disk.
-
-    Args:
-        detect_failures: If True, detect failed benchmarks from sequential
-            ordering. Only enable this after the subprocess has exited —
-            during live monitoring, later benchmarks may have results from
-            a previous ``--reuse`` run, not the current one.
-    """
-    # Phase 1: Collect file state outside the lock (disk I/O)
-    file_state: dict[str, tuple[bool, bool, int]] = {}
-    for key, data_name in benchmarks.items():
-        has_acc = _has_acc_csv(model_dir, model_name, data_name)
-        has_result = _has_result_file(model_dir, model_name, data_name)
-        pkl_count = _count_pkl_predictions(model_dir, data_name) if not has_result else 0
-        file_state[key] = (has_acc, has_result, pkl_count)
-
-    # Phase 2: Update display state under the lock
-    with display._lock:
-        for key in benchmarks:
-            # Skip terminal states
-            if (display.eval_status[key] in (ProgressDisplay.DONE, ProgressDisplay.FAILED)
-                    or display.infer_status[key] == ProgressDisplay.FAILED):
-                continue
-
-            has_acc, has_result, pkl_count = file_state[key]
-
-            if has_acc:
-                display.infer_status[key] = ProgressDisplay.DONE
-                total = display.totals.get(key, 0)
-                if total > 0:
-                    display.infer_completed[key] = total
-                display.eval_status[key] = ProgressDisplay.DONE
-            elif has_result:
-                display.infer_status[key] = ProgressDisplay.DONE
-                total = display.totals.get(key, 0)
-                if total > 0:
-                    display.infer_completed[key] = total
-                if display.eval_status[key] == ProgressDisplay.PENDING:
-                    display.eval_status[key] = ProgressDisplay.RUNNING
-            elif pkl_count > 0:
-                display.infer_completed[key] = pkl_count
-                if display.infer_status[key] == ProgressDisplay.PENDING:
-                    display.infer_status[key] = ProgressDisplay.RUNNING
-
-        # Phase 3: Detect failed benchmarks from sequential ordering.
-        # Only run after subprocess exits — during live monitoring, later
-        # benchmarks may have results from a previous --reuse run.
-        if detect_failures:
-            keys_list = list(benchmarks.keys())
-            for i, key in enumerate(keys_list):
-                if display.infer_status[key] != ProgressDisplay.RUNNING:
-                    continue
-                has_acc, has_result, _ = file_state[key]
-                if has_result:
-                    continue  # has xlsx, not stuck
-                # Check if any later benchmark has NEW activity (pkl that
-                # wasn't there before, or newly appeared result/acc files
-                # that Phase 2 just transitioned to RUNNING/DONE)
-                for later_key in keys_list[i + 1:]:
-                    later_acc, later_result, later_pkl = file_state[later_key]
-                    if later_acc or later_result or later_pkl > 0:
-                        display.infer_status[key] = ProgressDisplay.FAILED
-                        break
-
-
-def _monitor_loop(
-    display: ProgressDisplay,
-    model_dir: Path,
-    model_name: str,
-    benchmarks: dict[str, str],
-    stop_event: threading.Event,
-):
-    """Background thread: poll PKL/xlsx files and update the display."""
-    while not stop_event.is_set():
-        _poll_progress(display, model_dir, model_name, benchmarks)
-        stop_event.wait(1)
 
 
 # ---------------------------------------------------------------------------
@@ -785,8 +593,7 @@ Examples (lmms-eval):
     # The display redirects stdout, so subsequent print() calls are captured.
     display: ProgressDisplay | None = None
     if use_rich:
-        display = ProgressDisplay(model_name, all_benchmarks, {}, display_items,
-                                  backend=args.backend)
+        display = ProgressDisplay(model_name, all_benchmarks, display_items)
         display._log_path = str(log_path)
         display.start()  # starts stdout redirect
 
@@ -871,10 +678,6 @@ Examples (lmms-eval):
                 print("Fix network issues and rerun, or press Ctrl+C to abort.\n")
             # In rich mode, the data prep section already shows X for failed datasets
 
-        # Now that TSVs are downloaded, compute totals for progress tracking
-        if display:
-            for key, data_name in all_benchmarks.items():
-                display.totals[key] = adapter.count_tsv_rows(dataset_dir, data_name)
     else:
         # lmms-eval manages its own datasets
         datasets_ok = True
@@ -891,8 +694,7 @@ Examples (lmms-eval):
         completed = adapter.find_completed_tasks(model_dir, model_name, all_benchmarks)
         if display:
             for key in completed:
-                display.mark_infer_done(key)
-                display.mark_eval_done(key)
+                display.mark_done(key)
 
     pending_benchmarks = {k: v for k, v in all_benchmarks.items() if k not in completed}
 
@@ -946,7 +748,7 @@ Examples (lmms-eval):
             # different datasets simultaneously.
             for key, task_name in pending_benchmarks.items():
                 if display:
-                    display.infer_status[key] = ProgressDisplay.RUNNING
+                    display.mark_running(key)
 
                 single = {key: task_name}
                 cmd = adapter.build_cmd(args.model, single, output_dir, args.nproc,
@@ -957,8 +759,7 @@ Examples (lmms-eval):
                 completion = adapter.detect_completion(model_dir, model_name, {key: task_name})
                 if display:
                     if completion.get(key):
-                        display.mark_infer_done(key)
-                        display.mark_eval_done(key)
+                        display.mark_done(key)
                     else:
                         display.mark_failed(key)
                 elif not completion.get(key):
@@ -996,10 +797,9 @@ Examples (lmms-eval):
             return cmd
 
         def _run_vlmevalkit(cmd: list[str], phase_label: str):
-            """Run a single VLMEvalKit invocation with monitoring."""
+            """Run a single VLMEvalKit invocation."""
             if use_rich:
                 display.set_phase(phase_label)
-                stop_event = threading.Event()
                 proc = None
 
                 try:
@@ -1010,19 +810,8 @@ Examples (lmms-eval):
                         proc = subprocess.Popen(
                             cmd, stdout=log_f, stderr=subprocess.STDOUT, env=env,
                         )
-                        monitor = threading.Thread(
-                            target=_monitor_loop,
-                            args=(display, model_dir, model_name, all_benchmarks, stop_event),
-                            daemon=True,
-                        )
-                        monitor.start()
                         proc.wait()
-                        stop_event.set()
-                        monitor.join()
-                        _poll_progress(display, model_dir, model_name, all_benchmarks,
-                                       detect_failures=True)
                 except KeyboardInterrupt:
-                    stop_event.set()
                     display.stop()
                     if proc is not None:
                         proc.terminate()
@@ -1087,9 +876,6 @@ Examples (lmms-eval):
             if llm_judge_benchmarks:
                 for key, data_name in llm_judge_benchmarks.items():
                     judge_model = DEFAULT_JUDGE[data_name]
-                    if display:
-                        with display._lock:
-                            display.eval_status[key] = ProgressDisplay.PENDING
                     cmd = _build_cmd([data_name], judge=judge_model)
                     _run_vlmevalkit(cmd, f"Running {data_name} (judge: {judge_model})")
 
@@ -1115,8 +901,7 @@ Examples (lmms-eval):
             if not display:
                 return
             if r.success:
-                display.mark_infer_done(key)
-                display.mark_eval_done(key)
+                display.mark_done(key)
             else:
                 display.mark_failed(key)
             if r.errors:
@@ -1162,8 +947,7 @@ Examples (lmms-eval):
         if display:
             for key, done in completion.items():
                 if done:
-                    display.mark_infer_done(key)
-                    display.mark_eval_done(key)
+                    display.mark_done(key)
                 else:
                     display.mark_failed(key)
         if not use_rich:
