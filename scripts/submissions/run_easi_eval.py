@@ -381,7 +381,14 @@ class ProgressDisplay:
         # only captures stray print() calls, not rich's own rendering.
         console = Console(file=self._orig_stdout)
         sys.stdout = _DisplayWriter()
-        self._live = Live(self, refresh_per_second=8, console=console)
+        # screen=True uses alternate screen buffer — prevents smearing
+        # on terminal resize and gives clean redraws.
+        self._live = Live(
+            self,
+            refresh_per_second=8,
+            console=console,
+            screen=True,
+        )
         self._live.start()
 
     def stop(self):
