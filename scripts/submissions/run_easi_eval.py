@@ -449,8 +449,12 @@ Examples (VLMEvalKit):
   # Run specific benchmarks only
   python scripts/submissions/run_easi_eval.py --model Qwen/Qwen2.5-VL-7B-Instruct --benchmarks vsi_bench,blink,site
 
-  # With data parallelism and LLM judge
-  python scripts/submissions/run_easi_eval.py --model Qwen/Qwen2.5-VL-7B-Instruct --nproc 8 --judge chatgpt-0125
+  # With data parallelism (auto-judge re-runs benchmarks whose extraction
+  # failure rate exceeds --extraction-threshold using --judge-model)
+  python scripts/submissions/run_easi_eval.py --model Qwen/Qwen2.5-VL-7B-Instruct --nproc 8
+
+  # Skip the extraction quality check and trust exact_matching scores
+  python scripts/submissions/run_easi_eval.py --model Qwen/Qwen2.5-VL-7B-Instruct --no-judge
 
 Examples (lmms-eval):
   # Run EASI-8 via lmms-eval
@@ -469,9 +473,12 @@ Examples (lmms-eval):
     parser.add_argument("--include-extra", action="store_true", help="Also run extra benchmarks")
     parser.add_argument("--benchmarks", default=None, help="Comma-separated benchmark keys (e.g. vsi_bench,blink,site)")
     parser.add_argument("--nproc", type=int, default=1, help="Number of GPUs for data parallelism via torchrun")
-    parser.add_argument("--judge", type=str, default=None,
-                        help="Judge model for answer extraction. If not specified, VLMEvalKit "
-                             "uses per-benchmark defaults (e.g. chatgpt-0125 for MCQ benchmarks).")
+    parser.add_argument("--no-judge", action="store_true",
+                        help="VLMEvalKit only: skip extraction quality check, use exact_matching scores")
+    parser.add_argument("--judge-model", type=str, default="gpt-4o-1120",
+                        help="VLMEvalKit only: judge model for auto re-evaluation (default: gpt-4o-1120)")
+    parser.add_argument("--extraction-threshold", type=float, default=0.025,
+                        help="VLMEvalKit only: extraction failure rate threshold for triggering judge (default: 0.025)")
     parser.add_argument("--dataset-dir", default=None, help="Dataset directory (default: ./datasets in repo root)")
     parser.add_argument("--verbose", action="store_true", help="Pass --verbose to VLMEvalKit (prints per-sample model responses)")
     parser.add_argument("--no-rich", action="store_true", help="Disable rich progress display (passthrough raw subprocess output)")
@@ -499,8 +506,8 @@ Examples (lmms-eval):
         if not args.model_args:
             print("ERROR: --model-args is required with --backend lmms-eval")
             sys.exit(1)
-        if args.judge:
-            print("WARNING: --judge is ignored for lmms-eval backend")
+        if args.no_judge:
+            print("WARNING: --no-judge is ignored for lmms-eval backend")
     elif args.backend == "vlmevalkit":
         if args.model_args:
             print("WARNING: --model-args is ignored for vlmevalkit backend")
@@ -698,6 +705,9 @@ Examples (lmms-eval):
 
     pending_benchmarks = {k: v for k, v in all_benchmarks.items() if k not in completed}
 
+    # Track benchmarks that got re-evaluated with LLM judge (VLMEvalKit only)
+    judged_benchmarks: dict[str, str] = {}  # key -> judge_model
+
     if args.backend == "lmms-eval":
         # ---- lmms-eval subprocess (one benchmark at a time) ----
         def _run_lmmseval(cmd: list[str], phase_label: str):
@@ -777,31 +787,11 @@ Examples (lmms-eval):
             print("Run: git submodule update --init VLMEvalKit")
             sys.exit(1)
 
-        def _build_cmd(data_names: list[str], judge: str | None = None) -> list[str]:
-            if args.nproc > 1:
-                cmd = ["torchrun", f"--nproc-per-node={args.nproc}", str(run_py)]
-            else:
-                cmd = [sys.executable, str(run_py)]
-            cmd += [
-                "--data", *data_names,
-                "--model", args.model,
-                "--work-dir", str(output_dir),
-            ]
-            if not args.rerun:
-                cmd.append("--reuse")
-            if judge:
-                cmd += ["--judge", judge]
-            if args.verbose:
-                cmd.append("--verbose")
-            cmd += extra_args
-            return cmd
-
-        def _run_vlmevalkit(cmd: list[str], phase_label: str):
-            """Run a single VLMEvalKit invocation."""
+        def _run_subprocess(cmd: list[str], phase_label: str):
+            """Run a VLMEvalKit subprocess with log capture."""
             if use_rich:
                 display.set_phase(phase_label)
                 proc = None
-
                 try:
                     env = os.environ.copy()
                     env["PYTHONUNBUFFERED"] = "1"
@@ -819,14 +809,13 @@ Examples (lmms-eval):
                     elapsed = time.time() - start
                     print(f"\n\nInterrupted after {elapsed:.0f}s. Partial results may be available.")
                     print(f"Log file: {log_path}")
-                    print("Rerun with --reuse to resume.")
+                    print("Rerun to resume.")
                     sys.exit(130)
             else:
                 print(f"\n{'='*60}")
                 print(phase_label)
                 print(f"Command: {' '.join(cmd)}")
                 print(f"{'='*60}\n")
-
                 proc = None
                 try:
                     env = os.environ.copy()
@@ -847,37 +836,105 @@ Examples (lmms-eval):
                         proc.wait()
                     elapsed = time.time() - start
                     print(f"\n\nInterrupted after {elapsed:.0f}s. Partial results may be available.")
-                    print("Rerun with --reuse to resume.")
+                    print("Rerun to resume.")
                     sys.exit(130)
 
-        if args.judge:
-            # User explicitly specified judge — single invocation for all benchmarks
-            data_names = list(all_benchmarks.values())
-            cmd = _build_cmd(data_names, judge=args.judge)
-            _run_vlmevalkit(cmd, f"Running evaluation (judge: {args.judge})")
-        else:
-            # Split benchmarks by default judge
-            llm_judge_benchmarks = {
-                k: v for k, v in all_benchmarks.items() if v in DEFAULT_JUDGE
+        # --- Phase 2a: Run ALL pending benchmarks with exact_matching ---
+        if pending_benchmarks:
+            if display:
+                for key in pending_benchmarks:
+                    display.mark_running(key)
+            cmd = adapter.build_cmd(
+                args.model, pending_benchmarks, output_dir, args.nproc,
+                extra_args=extra_args, judge="exact_matching", verbose=args.verbose,
+            )
+            _run_subprocess(cmd, "Evaluating (exact_matching)")
+
+            # Update status from completion check
+            completion = adapter.detect_completion(model_dir, model_name, pending_benchmarks)
+            if display:
+                for key, done in completion.items():
+                    if done:
+                        display.mark_done(key)
+                    else:
+                        display.mark_failed(key)
+
+        # --- Phase 2b: Extraction quality check + judge re-run ---
+        if not args.no_judge:
+            if display:
+                display.set_phase("Checking extraction quality")
+
+            # Check across ALL benchmarks (not just pending) — if user reran
+            # with existing results, still check them
+            reports = adapter.check_extraction_quality(model_dir, model_name, all_benchmarks)
+
+            # Write extraction report
+            report_data = {
+                "threshold": args.extraction_threshold,
+                "judge_model": args.judge_model,
+                "benchmarks": {
+                    key: {
+                        "total": r.total,
+                        "failed": r.failed,
+                        "failure_rate": round(r.failure_rate, 4),
+                        "method": r.method,
+                    }
+                    for key, r in reports.items()
+                },
             }
-            exact_benchmarks = {
-                k: v for k, v in all_benchmarks.items() if v not in DEFAULT_JUDGE
+            report_path = output_dir / "extraction_report.json"
+            report_path.write_text(json.dumps(report_data, indent=2))
+
+            # Identify benchmarks needing judge re-evaluation
+            needs_judge = {
+                key: all_benchmarks[key]
+                for key, r in reports.items()
+                if r.failure_rate > args.extraction_threshold
             }
 
-            # Invocation 1: exact_matching benchmarks (inference + eval)
-            # LLM-judge benchmarks are excluded — they run separately to avoid
-            # VLMEvalKit creating conflicting result files.
-            if exact_benchmarks:
-                exact_data_names = list(exact_benchmarks.values())
-                cmd = _build_cmd(exact_data_names, judge="exact_matching")
-                _run_vlmevalkit(cmd, "Running evaluation (exact_matching)")
+            # Update display with failure rate details
+            if display:
+                for key, r in reports.items():
+                    pct = f"{r.failure_rate*100:.1f}%"
+                    if key in needs_judge:
+                        display.mark_running(key, f"needs judge ({pct} failures)")
+                    else:
+                        display.mark_done(key, f"({pct} failures)")
 
-            # Invocation 2+: LLM-judge benchmarks (inference + judge eval in one pass)
-            if llm_judge_benchmarks:
-                for key, data_name in llm_judge_benchmarks.items():
-                    judge_model = DEFAULT_JUDGE[data_name]
-                    cmd = _build_cmd([data_name], judge=judge_model)
-                    _run_vlmevalkit(cmd, f"Running {data_name} (judge: {judge_model})")
+            # --- Phase 2c: Re-evaluate failing benchmarks with judge ---
+            if needs_judge:
+                if display:
+                    display.set_phase(f"Re-evaluating with {args.judge_model}")
+
+                for key, data_name in needs_judge.items():
+                    # Archive existing exact_matching artifacts
+                    adapter.archive_artifacts(model_dir, model_name, data_name)
+
+                    if display:
+                        display.mark_running(key, "(judge)")
+
+                    single = {key: data_name}
+                    judge_cmd = adapter.build_judge_cmd(
+                        args.model, single, output_dir, args.nproc,
+                        args.judge_model, extra_args=extra_args,
+                    )
+                    _run_subprocess(
+                        judge_cmd,
+                        f"Re-evaluating {key} ({args.judge_model})",
+                    )
+
+                    # Track that this benchmark was re-evaluated
+                    judged_benchmarks[key] = args.judge_model
+
+                    # Update completion
+                    completion = adapter.detect_completion(model_dir, model_name, single)
+                    if display:
+                        if completion.get(key):
+                            display.mark_done(key, "(judge)")
+                        else:
+                            display.mark_failed(key, "(judge failed)")
+        elif not use_rich:
+            print("--no-judge: skipping extraction quality check")
 
     elapsed = time.time() - start
 
@@ -971,8 +1028,10 @@ Examples (lmms-eval):
             rerun_cmd += f" --model-args '{args.model_args}'"
         if args.nproc > 1:
             rerun_cmd += f" --nproc {args.nproc}"
-        if args.judge:
-            rerun_cmd += f" --judge {args.judge}"
+        if args.no_judge:
+            rerun_cmd += " --no-judge"
+        if args.judge_model and args.judge_model != "gpt-4o-1120":
+            rerun_cmd += f" --judge-model {args.judge_model}"
         if args.dataset_dir:
             rerun_cmd += f" --dataset-dir {args.dataset_dir}"
         if str(output_dir) != "./eval_results":
