@@ -40,7 +40,8 @@ _TSV_URLS = {
 # When --judge is not passed, benchmarks needing LLM judge are run in a
 # separate VLMEvalKit invocation after the main exact_matching run.
 DEFAULT_JUDGE: dict[str, str] = {
-    "BLINK": "gpt-4o-1120",  # 7.5% regex extraction failures with exact_matching
+    "BLINK": "gpt-4o-1120",
+    "3DSRBench": "gpt-4o-1120",
 }
 
 _MAX_RETRIES = 5
@@ -517,18 +518,20 @@ class VLMEvalKitAdapter(BackendAdapter):
         from postprocess import _extract_scores, METRIC_MAP
 
         scores: dict[str, BenchmarkScores] = {}
-        for key, data_name in benchmarks.items():
-            config = METRIC_MAP.get(key)
-            if config is None:
-                scores[key] = BenchmarkScores()
+        processed: set[str] = set()
+        for key in benchmarks:
+            # site_image/site_video -> site (combined)
+            metric_key = "site" if key in ("site_image", "site_video") else key
+            if metric_key in processed or metric_key not in METRIC_MAP:
                 continue
+            processed.add(metric_key)
 
-            result = _extract_scores(key, model_dir, model_name)
+            result = _extract_scores(metric_key, model_dir, model_name)
             if result is None:
-                scores[key] = BenchmarkScores()
+                scores[metric_key] = BenchmarkScores()
             else:
                 overall, sub = result
-                scores[key] = BenchmarkScores(overall=overall, sub_scores=sub)
+                scores[metric_key] = BenchmarkScores(overall=overall, sub_scores=sub)
         return scores
 
     def get_env_overrides(self) -> dict[str, str]:
