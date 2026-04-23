@@ -351,15 +351,13 @@ def _extract_scores(
         sub_scores: dict[str, float | None] = {}
         for setting in settings:
             setting_metrics = all_settings.get(setting, {})
-            # Use prefix for non-primary settings
             prefix = "" if setting == primary else f"{setting}_"
-            # Overall for non-primary settings
-            if setting != primary:
-                val = setting_metrics.get(overall_key)
-                if val is not None:
-                    sub_scores[f"{prefix}overall"] = round(val * scale, 4)
-                else:
-                    sub_scores[f"{prefix}overall"] = None
+            # Overall for each setting
+            val = setting_metrics.get(overall_key)
+            if val is not None:
+                sub_scores[f"{prefix}overall"] = round(val * scale, 4)
+            else:
+                sub_scores[f"{prefix}overall"] = None
             # Sub-scores
             for payload_key, csv_key in config["sub_scores"].items():
                 val = setting_metrics.get(csv_key)
