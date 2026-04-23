@@ -1,7 +1,7 @@
 """Backend adapter factory."""
 from __future__ import annotations
 
-from .base import BackendAdapter, BenchmarkScores, ExtractionReport, FileState
+from .base import BackendAdapter, BenchmarkScores, ExtractionReport
 
 
 def get_backend(name: str, **kwargs) -> BackendAdapter:

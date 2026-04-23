@@ -14,14 +14,6 @@ class BenchmarkScores:
 
 
 @dataclass
-class FileState:
-    """Progress state for a single benchmark from disk polling."""
-    has_result: bool = False
-    has_eval: bool = False
-    sample_count: int = 0
-
-
-@dataclass
 class ExtractionReport:
     """Extraction quality stats for a single benchmark."""
     total: int
@@ -65,15 +57,6 @@ class BackendAdapter(ABC):
         Default: no-op (returns True). Override for backends that need prep.
         """
         return True
-
-    def poll_progress(
-        self,
-        model_dir: Path,
-        model_name: str,
-        benchmarks: dict[str, str],
-    ) -> dict[str, FileState] | None:
-        """Poll filesystem for progress. Returns None if not supported."""
-        return None
 
     def check_extraction_quality(
         self,

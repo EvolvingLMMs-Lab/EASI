@@ -44,7 +44,6 @@ from backends.vlmevalkit import (
     verify_results,
     BenchmarkResult,
     prepare_datasets,
-    _count_tsv_rows,
 )
 
 # ---------------------------------------------------------------------------
@@ -128,7 +127,6 @@ class ProgressDisplay:
         # Single status per benchmark: pending / running / done / failed
         self.status: dict[str, str] = {k: self.PENDING for k in benchmarks}
         self.status_detail: dict[str, str] = {}  # optional "(0.8% failures)" etc.
-        self._spinner_frame: int = 0
         self.phase: str = ""
         # Dataset preparation tracking per benchmark key.
         # status: "pending" | "downloading" | "done" | "failed"
@@ -162,7 +160,9 @@ class ProgressDisplay:
             return "[red]\u2717[/red]"
         if status == self.RUNNING:
             frames = "\u280b\u2819\u2839\u2838\u283c\u2834\u2826\u2827"
-            return f"[yellow]{frames[self._spinner_frame % len(frames)]}[/yellow]"
+            # Time-based frame selection: stable at ~8 FPS regardless of render rate
+            idx = int(time.time() * 8) % len(frames)
+            return f"[yellow]{frames[idx]}[/yellow]"
         return "[dim]\u2500[/dim]"  # pending
 
     def _group_status(self, children: list[str]) -> str:
@@ -234,9 +234,6 @@ class ProgressDisplay:
         from rich.table import Table
         from rich.text import Text
         from rich.console import Group as RichGroup
-
-        # Advance spinner each frame
-        self._spinner_frame += 1
 
         parts: list = []
 
@@ -384,7 +381,7 @@ class ProgressDisplay:
         # only captures stray print() calls, not rich's own rendering.
         console = Console(file=self._orig_stdout)
         sys.stdout = _DisplayWriter()
-        self._live = Live(self, refresh_per_second=1, console=console)
+        self._live = Live(self, refresh_per_second=8, console=console)
         self._live.start()
 
     def stop(self):
@@ -889,8 +886,15 @@ Examples (lmms-eval):
             needs_judge = {
                 key: all_benchmarks[key]
                 for key, r in reports.items()
-                if r.failure_rate > args.extraction_threshold
+                if r.method != "skipped_no_artifact" and r.failure_rate > args.extraction_threshold
             }
+
+            # If either site_image or site_video needs judge, include both —
+            # the combined site score requires consistent extraction method.
+            if "site_image" in needs_judge or "site_video" in needs_judge:
+                for k in ("site_image", "site_video"):
+                    if k in all_benchmarks:
+                        needs_judge[k] = all_benchmarks[k]
 
             # Update display with failure rate details
             if display:

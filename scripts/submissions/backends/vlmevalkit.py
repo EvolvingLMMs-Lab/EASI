@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .base import BackendAdapter, BenchmarkScores, ExtractionReport, FileState
+from .base import BackendAdapter, BenchmarkScores, ExtractionReport
 
 # ---------------------------------------------------------------------------
 # VLMEvalKit-specific constants
@@ -519,12 +519,8 @@ class VLMEvalKitAdapter(BackendAdapter):
                 continue
             processed.add(metric_key)
 
-            result = _extract_scores(metric_key, model_dir, model_name)
-            if result is None:
-                scores[metric_key] = BenchmarkScores()
-            else:
-                overall, sub = result
-                scores[metric_key] = BenchmarkScores(overall=overall, sub_scores=sub)
+            overall, sub = _extract_scores(metric_key, model_dir, model_name)
+            scores[metric_key] = BenchmarkScores(overall=overall, sub_scores=sub)
         return scores
 
     def _extract_scores_from_dir(
@@ -629,12 +625,11 @@ class VLMEvalKitAdapter(BackendAdapter):
                         if raw.overall is not None or raw.sub_scores:
                             scores[f"{metric_key}_exact_matching"] = raw
 
-                # Judge scores from current files
+                # Judge scores from current files — emit even if None so downstream knows judge was attempted
                 judge_overall, judge_subs = _extract_scores(metric_key, model_dir, model_name)
-                if judge_overall is not None or judge_subs:
-                    scores[f"{metric_key}_{judge_model}"] = BenchmarkScores(
-                        overall=judge_overall, sub_scores=judge_subs,
-                    )
+                scores[f"{metric_key}_{judge_model}"] = BenchmarkScores(
+                    overall=judge_overall, sub_scores=judge_subs,
+                )
             else:
                 # Normal extraction
                 overall, subs = _extract_scores(metric_key, model_dir, model_name)
@@ -668,6 +663,12 @@ class VLMEvalKitAdapter(BackendAdapter):
                 report = self._check_extract_matching(model_dir, model_name, data_name)
             if report is not None:
                 reports[key] = report
+            else:
+                # Artifact missing — emit zero-sample report so user sees skip in extraction_report.json
+                reports[key] = ExtractionReport(
+                    total=0, failed=0, failure_rate=0.0,
+                    method="skipped_no_artifact",
+                )
         return reports
 
     def _check_extract_matching(
@@ -683,7 +684,11 @@ class VLMEvalKitAdapter(BackendAdapter):
             return None
         total = len(df)
         if "pred_extracted" in df.columns:
-            failed = int((df["pred_extracted"] == False).sum())
+            # Handle mixed dtypes (bool, string "False", 0, NaN)
+            col = df["pred_extracted"]
+            failed = int(
+                col.isin([False, "False", "FALSE", "false", 0, "0"]).sum()
+            )
         else:
             failed = 0
         return ExtractionReport(
@@ -726,11 +731,15 @@ class VLMEvalKitAdapter(BackendAdapter):
         model_name: str,
         data_name: str,
     ) -> None:
-        """Move exact_matching artifacts to backup dir before judge re-run."""
-        t_dir = _find_t_dir(model_dir)
-        if t_dir is None:
+        """Move exact_matching artifacts to backup dir (in newest T) before judge re-run.
+
+        Also removes same-named artifacts from OLDER T dirs to prevent stale
+        acc.csv from shadowing judge results via mtime selection.
+        """
+        newest_t = _find_t_dir(model_dir)
+        if newest_t is None:
             return
-        backup = t_dir / "exact_matching_backup"
+        backup = newest_t / "exact_matching_backup"
         backup.mkdir(exist_ok=True)
 
         if data_name in MCQ_BENCHMARKS:
@@ -745,22 +754,55 @@ class VLMEvalKitAdapter(BackendAdapter):
             suffixes = [
                 "_extract_matching.xlsx",
                 "_extract_matching_acc.csv",
+                "_acc.csv",
+                "_full_acc.csv",
                 "_result.pkl",
+                "_PREV.pkl",
             ]
 
-        for suffix in suffixes:
-            src = t_dir / f"{model_name}_{data_name}{suffix}"
-            if src.exists() and not src.is_symlink():
-                dest = backup / src.name
-                if dest.exists():
-                    dest.unlink()
-                shutil.move(str(src), str(dest))
+        # Collect all T dirs (newest first so we archive newest, delete from older)
+        all_t_dirs = sorted(
+            [p for p in model_dir.glob("T*_G*") if p.is_dir()],
+            reverse=True,
+        )
+
+        for i, t_dir in enumerate(all_t_dirs):
+            for suffix in suffixes:
+                src = t_dir / f"{model_name}_{data_name}{suffix}"
+                if not src.exists():
+                    continue
+                if src.is_symlink():
+                    src = src.resolve()
+                if i == 0:
+                    # Archive files from newest T dir
+                    dest = backup / src.name
+                    if dest.exists():
+                        dest.unlink()
+                    shutil.move(str(src), str(dest))
+                else:
+                    # Delete from older T dirs to prevent shadowing
+                    src.unlink()
+
+            # Same for _llm_* files
+            for llm_file in t_dir.glob(f"{model_name}_{data_name}_llm_*"):
+                if llm_file.is_symlink():
+                    llm_file = llm_file.resolve()
+                if i == 0:
+                    dest = backup / llm_file.name
+                    if dest.exists():
+                        dest.unlink()
+                    shutil.move(str(llm_file), str(dest))
+                else:
+                    llm_file.unlink()
 
         # Remove root-level symlinks so VLMEvalKit doesn't pick them up
         for suffix in suffixes:
             link = model_dir / f"{model_name}_{data_name}{suffix}"
             if link.is_symlink():
                 link.unlink()
+        for llm_link in model_dir.glob(f"{model_name}_{data_name}_llm_*"):
+            if llm_link.is_symlink():
+                llm_link.unlink()
 
     def build_judge_cmd(
         self,
@@ -783,10 +825,11 @@ class VLMEvalKitAdapter(BackendAdapter):
         cmd += [
             "--data", *data_names,
             "--model", model,
-            "--reuse",
             "--work-dir", str(output_dir),
             "--judge", judge_model,
         ]
+        if not self.rerun:
+            cmd.append("--reuse")
         if extra_args:
             cmd += extra_args
         return cmd
