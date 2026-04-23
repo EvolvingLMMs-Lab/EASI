@@ -527,6 +527,122 @@ class VLMEvalKitAdapter(BackendAdapter):
                 scores[metric_key] = BenchmarkScores(overall=overall, sub_scores=sub)
         return scores
 
+    def _extract_scores_from_dir(
+        self, search_dir: Path, model_name: str, benchmark_key: str,
+    ) -> BenchmarkScores:
+        """Extract scores for benchmark_key but reading from a specific directory
+        (used for reading archived exact_matching backups)."""
+        # Import locally to avoid circular dependency
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from postprocess import METRIC_MAP, load_acc_csv, _load_acc_csv_by_setting
+
+        config = METRIC_MAP.get(benchmark_key)
+        if config is None:
+            return BenchmarkScores()
+
+        # Special handling for site (combined) not supported in backup path
+        if "data_names" in config:
+            return BenchmarkScores()
+
+        # Find acc.csv inside search_dir
+        matches = list(search_dir.glob(config["acc_pattern"]))
+        if not matches:
+            return BenchmarkScores()
+        csv_path = max(matches, key=lambda p: p.resolve().stat().st_mtime)
+
+        scale = config.get("scale", 1)
+        settings = config.get("settings")
+
+        if settings:
+            all_settings = _load_acc_csv_by_setting(csv_path)
+            primary = settings[0]
+            primary_metrics = all_settings.get(primary, {})
+            overall_key = config["overall_key"]
+            overall = primary_metrics.get(overall_key)
+            if overall is not None:
+                overall = round(overall * scale, 4)
+            sub_scores: dict[str, float | None] = {}
+            for setting in settings:
+                setting_metrics = all_settings.get(setting, {})
+                prefix = "" if setting == primary else f"{setting}_"
+                val = setting_metrics.get(overall_key)
+                sub_scores[f"{prefix}overall"] = round(val * scale, 4) if val is not None else None
+                for payload_key, csv_key in config["sub_scores"].items():
+                    val = setting_metrics.get(csv_key)
+                    sub_scores[f"{prefix}{payload_key}"] = round(val * scale, 4) if val is not None else None
+            return BenchmarkScores(overall=overall, sub_scores=sub_scores)
+
+        metrics = load_acc_csv(csv_path)
+        overall_key = config["overall_key"]
+        overall = metrics.get(overall_key)
+        if overall is not None:
+            overall = round(overall * scale, 4)
+        sub_scores = {}
+        for payload_key, csv_key in config["sub_scores"].items():
+            val = metrics.get(csv_key)
+            sub_scores[payload_key] = round(val * scale, 4) if val is not None else None
+        return BenchmarkScores(overall=overall, sub_scores=sub_scores)
+
+    def extract_scores_dual(
+        self,
+        model_dir: Path,
+        model_name: str,
+        benchmarks: dict[str, str],
+        judged_benchmarks: dict[str, str],
+    ) -> dict[str, BenchmarkScores]:
+        """Extract scores with dual keys for judged benchmarks.
+
+        judged_benchmarks: {user_facing_key: judge_model_name}
+        Returns a dict that may have keys like:
+            "vsi_bench"              -- normal (not judged)
+            "blink_exact_matching"   -- raw (when judged)
+            "blink_gpt-4o-1120"      -- judge scores (when judged)
+        """
+        # Import locally
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from postprocess import _extract_scores, METRIC_MAP
+
+        scores: dict[str, BenchmarkScores] = {}
+        processed: set[str] = set()
+
+        # Normalize judged_benchmarks keys (site_image/site_video -> site)
+        judged_metric_keys: dict[str, str] = {}
+        for key, judge_model in judged_benchmarks.items():
+            metric_key = "site" if key in ("site_image", "site_video") else key
+            judged_metric_keys[metric_key] = judge_model
+
+        for key in benchmarks:
+            metric_key = "site" if key in ("site_image", "site_video") else key
+            if metric_key in processed or metric_key not in METRIC_MAP:
+                continue
+            processed.add(metric_key)
+
+            if metric_key in judged_metric_keys:
+                judge_model = judged_metric_keys[metric_key]
+
+                # Raw scores from exact_matching backup
+                t_dir = _find_t_dir(model_dir)
+                if t_dir is not None:
+                    backup_dir = t_dir / "exact_matching_backup"
+                    if backup_dir.exists():
+                        raw = self._extract_scores_from_dir(backup_dir, model_name, metric_key)
+                        if raw.overall is not None or raw.sub_scores:
+                            scores[f"{metric_key}_exact_matching"] = raw
+
+                # Judge scores from current files
+                judge_overall, judge_subs = _extract_scores(metric_key, model_dir, model_name)
+                if judge_overall is not None or judge_subs:
+                    scores[f"{metric_key}_{judge_model}"] = BenchmarkScores(
+                        overall=judge_overall, sub_scores=judge_subs,
+                    )
+            else:
+                # Normal extraction
+                overall, subs = _extract_scores(metric_key, model_dir, model_name)
+                if overall is not None or subs:
+                    scores[metric_key] = BenchmarkScores(overall=overall, sub_scores=subs)
+
+        return scores
+
     def get_env_overrides(self) -> dict[str, str]:
         """PYTHONUNBUFFERED=1 + LMUData if set."""
         env = {"PYTHONUNBUFFERED": "1"}

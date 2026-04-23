@@ -1046,8 +1046,11 @@ Examples (lmms-eval):
     if display:
         display.set_phase("Building submission")
 
-    payload = build_payload(model_dir, model_name, all_benchmarks, submission_configs,
-                            backend_adapter=adapter)
+    payload = build_payload(
+        model_dir, model_name, all_benchmarks, submission_configs,
+        backend_adapter=adapter,
+        judged_benchmarks=judged_benchmarks or None,
+    )
     json_path = output_dir / "easi_results.json"
     json_path.write_text(json.dumps(payload, indent=2))
 

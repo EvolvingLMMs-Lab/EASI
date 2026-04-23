@@ -427,6 +427,7 @@ def build_payload(
     benchmarks: dict[str, str],
     submission_configs: dict | None = None,
     backend_adapter=None,
+    judged_benchmarks: dict[str, str] | None = None,
 ) -> dict:
     """Build the EASI leaderboard submission payload.
 
@@ -438,6 +439,11 @@ def build_payload(
         backend_adapter: Optional backend adapter; when provided, delegates score
             extraction to ``adapter.extract_scores()``.  When ``None``, falls
             back to the VLMEvalKit-specific logic.
+        judged_benchmarks: Optional ``{benchmark_key: judge_model_name}`` for
+            benchmarks re-evaluated with an LLM judge. When provided together
+            with a backend adapter that supports ``extract_scores_dual``,
+            emits dual keys (``{bench}_exact_matching`` and
+            ``{bench}_{judge_model}``) for each re-evaluated benchmark.
 
     Returns:
         JSON-serializable dict matching the API schema (camelCase fields).
@@ -449,7 +455,14 @@ def build_payload(
 
     if backend_adapter is not None:
         # Adapter path: delegate score extraction to the backend adapter
-        bench_scores = backend_adapter.extract_scores(model_dir, model_name, benchmarks)
+        if judged_benchmarks and hasattr(backend_adapter, "extract_scores_dual"):
+            bench_scores = backend_adapter.extract_scores_dual(
+                model_dir, model_name, benchmarks, judged_benchmarks,
+            )
+        else:
+            bench_scores = backend_adapter.extract_scores(
+                model_dir, model_name, benchmarks,
+            )
         for bench_key, bs in sorted(bench_scores.items()):
             scores[bench_key] = bs.overall
             if bs.sub_scores:
