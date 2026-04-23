@@ -7,13 +7,15 @@ standalone adapter conforming to :class:`BackendAdapter`.
 from __future__ import annotations
 
 import os
-import pickle
+import shutil
 import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .base import BackendAdapter, BenchmarkScores, FileState
+import pandas as pd
+
+from .base import BackendAdapter, BenchmarkScores, ExtractionReport, FileState
 
 # ---------------------------------------------------------------------------
 # VLMEvalKit-specific constants
@@ -36,14 +38,6 @@ _TSV_URLS = {
     "VSI-Bench-Debiased_32frame": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/VSI-Bench-Debiased.tsv",
 }
 
-# Per-benchmark default judge. Benchmarks not listed here use exact_matching.
-# When --judge is not passed, benchmarks needing LLM judge are run in a
-# separate VLMEvalKit invocation after the main exact_matching run.
-DEFAULT_JUDGE: dict[str, str] = {
-    "BLINK": "gpt-4o-1120",
-    "3DSRBench": "gpt-4o-1120",
-}
-
 _MAX_RETRIES = 5
 _RETRY_DELAY = 10  # seconds
 
@@ -63,6 +57,10 @@ _TASK_MAP = {
     "spar_bench": "SparBench",
     "vsi_debiased": "VSI-Bench-Debiased_32frame",
 }
+
+# Benchmarks using VLMEvalKit's multiple_choice evaluation path
+# (not extract_matching). These produce different artifact file names.
+MCQ_BENCHMARKS = {"BLINK", "3DSRBench"}
 
 
 # ---------------------------------------------------------------------------
@@ -367,25 +365,6 @@ def _count_tsv_rows(dataset_dir: Path, data_name: str) -> int:
     return 0
 
 
-def _count_pkl_predictions(model_dir: Path, data_name: str) -> int:
-    """Count predictions in VLMEvalKit's intermediate PKL files for a dataset.
-
-    VLMEvalKit writes ``{rank}{world_size}_{dataset_name}.pkl`` every 10 samples.
-    These are dicts mapping sample index -> response.
-    """
-    total = 0
-    # Search all eval_id subdirectories (T{date}_G{hash}/)
-    for pkl in model_dir.glob(f"*/*_{data_name}.pkl"):
-        try:
-            with open(pkl, "rb") as f:
-                data = pickle.load(f)
-            if isinstance(data, dict):
-                total += len(data)
-        except Exception:
-            pass  # file may be mid-write
-    return total
-
-
 def _has_result_file(model_dir: Path, model_name: str, data_name: str) -> bool:
     """Check if VLMEvalKit has written the final result file (xlsx/tsv/json)."""
     for ext in ("xlsx", "tsv", "json"):
@@ -397,6 +376,39 @@ def _has_result_file(model_dir: Path, model_name: str, data_name: str) -> bool:
 def _has_acc_csv(model_dir: Path, model_name: str, data_name: str) -> bool:
     """Check if VLMEvalKit has written the _acc.csv (evaluation complete)."""
     return bool(list(model_dir.glob(f"*/{model_name}_{data_name}*_acc.csv")))
+
+
+def _find_t_dir(model_dir: Path) -> Path | None:
+    """Find the latest T{date}_G{hash}/ subdirectory."""
+    t_dirs = sorted(
+        [p for p in model_dir.glob("T*_G*") if p.is_dir()],
+        reverse=True,
+    )
+    return t_dirs[0] if t_dirs else None
+
+
+def _artifact_path(
+    model_dir: Path, model_name: str, data_name: str, suffix: str,
+) -> Path | None:
+    """Construct exact artifact path. Checks T*/ subdirs and root symlinks.
+
+    Returns newest existing match by mtime, or None.
+    """
+    candidates: list[Path] = []
+    # Root level (symlinks)
+    root = model_dir / f"{model_name}_{data_name}{suffix}"
+    if root.exists():
+        candidates.append(root)
+    # T*/ subdirectories
+    for t_dir in sorted(model_dir.glob("T*_G*"), reverse=True):
+        if not t_dir.is_dir():
+            continue
+        p = t_dir / f"{model_name}_{data_name}{suffix}"
+        if p.exists():
+            candidates.append(p)
+    if not candidates:
+        return None
+    return max(candidates, key=lambda p: p.resolve().stat().st_mtime)
 
 
 # ---------------------------------------------------------------------------
@@ -464,25 +476,6 @@ class VLMEvalKitAdapter(BackendAdapter):
         """Delegate to the module-level prepare_datasets()."""
         return prepare_datasets(dataset_dir, benchmarks, display=display)
 
-    def poll_progress(
-        self,
-        model_dir: Path,
-        model_name: str,
-        benchmarks: dict[str, str],
-    ) -> dict[str, FileState] | None:
-        """Return dict[str, FileState] from pkl/xlsx/acc.csv polling."""
-        result: dict[str, FileState] = {}
-        for key, data_name in benchmarks.items():
-            has_eval = _has_acc_csv(model_dir, model_name, data_name)
-            has_result = _has_result_file(model_dir, model_name, data_name)
-            pkl_count = _count_pkl_predictions(model_dir, data_name) if not has_result else 0
-            result[key] = FileState(
-                has_result=has_result,
-                has_eval=has_eval,
-                sample_count=pkl_count,
-            )
-        return result
-
     def detect_completion(
         self,
         model_dir: Path,
@@ -542,12 +535,147 @@ class VLMEvalKitAdapter(BackendAdapter):
             env["LMUData"] = lmu
         return env
 
-    # ---- Utility methods ----
+    # ---- Extraction quality & judge re-run ----
 
-    @staticmethod
-    def get_default_judge() -> dict[str, str]:
-        """Return the DEFAULT_JUDGE mapping."""
-        return DEFAULT_JUDGE
+    def check_extraction_quality(
+        self,
+        model_dir: Path,
+        model_name: str,
+        benchmarks: dict[str, str],
+    ) -> dict[str, ExtractionReport]:
+        """Check extraction quality per benchmark."""
+        reports: dict[str, ExtractionReport] = {}
+        for key, data_name in benchmarks.items():
+            if data_name in MCQ_BENCHMARKS:
+                report = self._check_mcq_extraction(model_dir, model_name, data_name)
+            else:
+                report = self._check_extract_matching(model_dir, model_name, data_name)
+            if report is not None:
+                reports[key] = report
+        return reports
+
+    def _check_extract_matching(
+        self, model_dir: Path, model_name: str, data_name: str,
+    ) -> ExtractionReport | None:
+        """Check pred_extracted == False rate in extract_matching xlsx."""
+        path = _artifact_path(model_dir, model_name, data_name, "_extract_matching.xlsx")
+        if path is None:
+            return None
+        try:
+            df = pd.read_excel(path)
+        except Exception:
+            return None
+        total = len(df)
+        if "pred_extracted" in df.columns:
+            failed = int((df["pred_extracted"] == False).sum())
+        else:
+            failed = 0
+        return ExtractionReport(
+            total=total,
+            failed=failed,
+            failure_rate=(failed / total) if total > 0 else 0.0,
+            method="extract_matching",
+        )
+
+    def _check_mcq_extraction(
+        self, model_dir: Path, model_name: str, data_name: str,
+    ) -> ExtractionReport | None:
+        """Check 'Failed in Prefetch' rate in MCQ exact_matching result xlsx."""
+        path = _artifact_path(
+            model_dir, model_name, data_name, "_exact_matching_result.xlsx",
+        )
+        if path is None:
+            return None
+        try:
+            df = pd.read_excel(path)
+        except Exception:
+            return None
+        total = len(df)
+        if "log" in df.columns:
+            failed = int(
+                df["log"].astype(str).str.contains("Failed in Prefetch", na=False).sum()
+            )
+        else:
+            failed = 0
+        return ExtractionReport(
+            total=total,
+            failed=failed,
+            failure_rate=(failed / total) if total > 0 else 0.0,
+            method="multiple_choice",
+        )
+
+    def archive_artifacts(
+        self,
+        model_dir: Path,
+        model_name: str,
+        data_name: str,
+    ) -> None:
+        """Move exact_matching artifacts to backup dir before judge re-run."""
+        t_dir = _find_t_dir(model_dir)
+        if t_dir is None:
+            return
+        backup = t_dir / "exact_matching_backup"
+        backup.mkdir(exist_ok=True)
+
+        if data_name in MCQ_BENCHMARKS:
+            suffixes = [
+                "_exact_matching_result.xlsx",
+                "_exact_matching_result.pkl",
+                "_acc.csv",
+                "_full_acc.csv",
+                "_PREV.pkl",
+            ]
+        else:
+            suffixes = [
+                "_extract_matching.xlsx",
+                "_extract_matching_acc.csv",
+                "_result.pkl",
+            ]
+
+        for suffix in suffixes:
+            src = t_dir / f"{model_name}_{data_name}{suffix}"
+            if src.exists() and not src.is_symlink():
+                dest = backup / src.name
+                if dest.exists():
+                    dest.unlink()
+                shutil.move(str(src), str(dest))
+
+        # Remove root-level symlinks so VLMEvalKit doesn't pick them up
+        for suffix in suffixes:
+            link = model_dir / f"{model_name}_{data_name}{suffix}"
+            if link.is_symlink():
+                link.unlink()
+
+    def build_judge_cmd(
+        self,
+        model: str,
+        benchmarks: dict[str, str],
+        output_dir: Path,
+        nproc: int,
+        judge_model: str,
+        *,
+        extra_args: list[str] | None = None,
+        **kwargs,
+    ) -> list[str]:
+        """Build VLMEvalKit command for judge re-evaluation of single benchmark."""
+        run_py = self.repo_root / "VLMEvalKit" / "run.py"
+        data_names = list(benchmarks.values())
+        if nproc > 1:
+            cmd = ["torchrun", f"--nproc-per-node={nproc}", str(run_py)]
+        else:
+            cmd = [sys.executable, str(run_py)]
+        cmd += [
+            "--data", *data_names,
+            "--model", model,
+            "--reuse",
+            "--work-dir", str(output_dir),
+            "--judge", judge_model,
+        ]
+        if extra_args:
+            cmd += extra_args
+        return cmd
+
+    # ---- Utility methods ----
 
     @staticmethod
     def count_tsv_rows(dataset_dir: Path, data_name: str) -> int:
