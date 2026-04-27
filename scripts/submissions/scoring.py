@@ -139,13 +139,20 @@ def score_benchmark(model_dir: Path | str, model_name: str, data_name: str) -> d
 def score_sitebench(model_dir: Path | str, model_name: str) -> dict | None:
     """Score SiteBench by combining image and video extract_matching results.
 
-    Returns combined CAA/accuracy, or ``None`` if neither file is found.
+    Falls back to LLM-judge xlsx (``_llm_*.xlsx``) when ``_extract_matching.xlsx``
+    not present — happens after a judge re-run archives the exact_matching
+    artifacts.
+
+    Returns combined CAA/accuracy, or ``None`` if neither file variant is found.
     """
     model_dir = Path(model_dir)
     dfs: list[pd.DataFrame] = []
 
     for data_name in ("SiteBenchImage", "SiteBenchVideo_32frame"):
         xlsx = find_extract_matching(model_dir, model_name, data_name)
+        if xlsx is None:
+            # Fallback: pick any LLM-judge xlsx for this data_name
+            xlsx = _find_result_file(model_dir, model_name, data_name, "_llm_*.xlsx")
         if xlsx is not None:
             df = load_extract_matching(xlsx)
             if df is not None:

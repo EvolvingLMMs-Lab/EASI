@@ -488,6 +488,47 @@ class VLMEvalKitAdapter(BackendAdapter):
             for key, data_name in benchmarks.items()
         }
 
+    def detect_judged_benchmarks(
+        self,
+        model_dir: Path,
+        model_name: str,
+        benchmarks: dict[str, str],
+    ) -> dict[str, str]:
+        """Scan disk for judge artifacts → {key: judge_model}.
+
+        Detects two filename patterns:
+        - extract_matching path: ``_llm_<judge>_acc.csv``
+          (vsi_bench, mmsi_bench, viewspatial, mindcube, embspatial, site_*)
+        - MCQ path: ``_<judge>_result.xlsx`` (BLINK, 3DSRBench)
+
+        Used after a merged-dir run to recover dual-key score reporting
+        when this run did not itself trigger a judge re-run.
+        """
+        import re as _re
+        judged: dict[str, str] = {}
+        for key, data_name in benchmarks.items():
+            # Pattern A: extract_matching → _llm_<judge>_acc.csv
+            for path in model_dir.glob(f"*/{model_name}_{data_name}_llm_*_acc.csv"):
+                m = _re.match(
+                    rf"{_re.escape(model_name)}_{_re.escape(data_name)}_llm_(.+)_acc\.csv$",
+                    path.name,
+                )
+                if m:
+                    judged[key] = m.group(1)
+                    break
+            if key in judged:
+                continue
+            # Pattern B: MCQ → _<judge>_result.xlsx (excluding _exact_matching_result.xlsx)
+            for path in model_dir.glob(f"*/{model_name}_{data_name}_*_result.xlsx"):
+                m = _re.match(
+                    rf"{_re.escape(model_name)}_{_re.escape(data_name)}_(.+)_result\.xlsx$",
+                    path.name,
+                )
+                if m and m.group(1) != "exact_matching":
+                    judged[key] = m.group(1)
+                    break
+        return judged
+
     def get_result_files(self, model_dir: Path, model_name: str) -> list[Path]:
         """Glob for *_acc.csv, *_extract_matching.xlsx, etc."""
         patterns = [
@@ -536,9 +577,10 @@ class VLMEvalKitAdapter(BackendAdapter):
         if config is None:
             return BenchmarkScores()
 
-        # Special handling for site (combined) not supported in backup path
-        if "data_names" in config:
-            return BenchmarkScores()
+        # Site special case: combine SiteBenchImage + SiteBenchVideo
+        # extract_matching xlsx files inside the backup dir.
+        if benchmark_key == "site" and "data_names" in config:
+            return self._extract_site_scores_from_dir(search_dir, model_name, config)
 
         # Find acc.csv inside search_dir
         matches = list(search_dir.glob(config["acc_pattern"]))
@@ -579,6 +621,42 @@ class VLMEvalKitAdapter(BackendAdapter):
             sub_scores[payload_key] = round(val * scale, 4) if val is not None else None
         return BenchmarkScores(overall=overall, sub_scores=sub_scores)
 
+    def _extract_site_scores_from_dir(
+        self, search_dir: Path, model_name: str, config: dict,
+    ) -> BenchmarkScores:
+        """Combine SiteBenchImage+Video extract_matching xlsx files in a dir."""
+        import pandas as pd
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from scoring import load_extract_matching, compute_caa
+
+        dfs: list = []
+        for data_name in config["data_names"]:
+            # Match {model}_{data}*_extract_matching.xlsx in search_dir
+            matches = list(search_dir.glob(
+                f"{model_name}_{data_name}*_extract_matching.xlsx"
+            ))
+            if not matches:
+                continue
+            xlsx = max(matches, key=lambda p: p.resolve().stat().st_mtime)
+            df = load_extract_matching(xlsx)
+            if df is not None:
+                dfs.append(df)
+
+        if not dfs:
+            return BenchmarkScores()
+
+        combined = pd.concat(dfs, ignore_index=True)
+        result = compute_caa(combined)
+        scale = config.get("scale", 100)
+        overall_caa = result.get("overall", {}).get("caa")
+        overall = round(overall_caa * scale, 4) if overall_caa is not None else None
+        sub_scores: dict[str, float | None] = {}
+        for payload_key, csv_key in config["sub_scores"].items():
+            cat = result.get(csv_key, {})
+            caa = cat.get("caa")
+            sub_scores[payload_key] = round(caa * scale, 4) if caa is not None else None
+        return BenchmarkScores(overall=overall, sub_scores=sub_scores)
+
     def extract_scores_dual(
         self,
         model_dir: Path,
@@ -616,14 +694,18 @@ class VLMEvalKitAdapter(BackendAdapter):
             if metric_key in judged_metric_keys:
                 judge_model = judged_metric_keys[metric_key]
 
-                # Raw scores from exact_matching backup
-                t_dir = _find_t_dir(model_dir)
-                if t_dir is not None:
+                # Raw scores from exact_matching backup — search ALL T-dirs
+                # since merged result dirs may have backups split across them.
+                for t_dir in sorted(model_dir.glob("T*_G*"), reverse=True):
+                    if not t_dir.is_dir():
+                        continue
                     backup_dir = t_dir / "exact_matching_backup"
-                    if backup_dir.exists():
-                        raw = self._extract_scores_from_dir(backup_dir, model_name, metric_key)
-                        if raw.overall is not None or raw.sub_scores:
-                            scores[f"{metric_key}_exact_matching"] = raw
+                    if not backup_dir.exists():
+                        continue
+                    raw = self._extract_scores_from_dir(backup_dir, model_name, metric_key)
+                    if raw.overall is not None or raw.sub_scores:
+                        scores[f"{metric_key}_exact_matching"] = raw
+                        break
 
                 # Judge scores from current files — emit even if None so downstream knows judge was attempted
                 judge_overall, judge_subs = _extract_scores(metric_key, model_dir, model_name)

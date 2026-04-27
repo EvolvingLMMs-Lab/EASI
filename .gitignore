@@ -1,5 +1,6 @@
 /logs
 /datasets
 /eval_results
+/eval_archive
 *__pycache__/
 .env
