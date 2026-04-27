@@ -1,1 +1,5 @@
 /logs
+/datasets
+/eval_results
+*__pycache__/
+.env
