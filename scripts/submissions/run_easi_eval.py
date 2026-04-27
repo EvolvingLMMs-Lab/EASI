@@ -30,11 +30,13 @@ Installation (lmms-eval):
 import argparse
 import json
 import os
+import pickle
 import re
 import subprocess
 import sys
 import threading
 import time
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -562,6 +564,32 @@ class ProgressDisplay:
         with self._lock:
             return self._render()
 
+    def _tail_log(self, n: int = 3, max_chars: int = 160) -> list[str]:
+        """Read the last *n* non-empty lines from the subprocess log.
+
+        Handles tqdm \\r-overwrites by splitting on both \\r and \\n.
+        Cheap (last 8KB only) — safe to call on every render tick.
+        """
+        if not self._log_path:
+            return []
+        try:
+            path = Path(self._log_path)
+            if not path.exists():
+                return []
+            with open(path, "rb") as f:
+                f.seek(0, 2)
+                size = f.tell()
+                f.seek(max(0, size - 8192))
+                chunk = f.read().decode(errors="replace")
+            lines = [
+                l.strip()[:max_chars]
+                for l in chunk.replace("\r", "\n").split("\n")
+                if l.strip()
+            ]
+            return lines[-n:]
+        except Exception:
+            return []
+
     def _status_icon(self, status: str) -> str:
         """Return styled icon for status, including spinner frame for RUNNING."""
         if status == self.DONE:
@@ -717,6 +745,8 @@ class ProgressDisplay:
         # Log path (under evaluation section)
         if self._log_path and self.phase not in ("Preparing datasets", ""):
             parts.append(Text.from_markup(f"\n [dim]Log: {self._log_path}[/dim]"))
+            for tail_line in self._tail_log(3):
+                parts.append(Text.from_ansi(f"   {tail_line}", style="dim"))
 
         # Results section (post-processing)
         if self.results_info is not None or self.phase == "Building submission":
