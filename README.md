@@ -30,7 +30,7 @@
 ```bash
 cd VLMEvalKit/
 python run.py --data MindCubeBench_tiny_raw_qa \
-              --model SenseNova-SI-1.3-InternVL3-8B \
+              --model SenseNova-SI-1.5-InternVL3-8B \
               --verbose --reuse --judge extract_matching
 ```
 
@@ -48,7 +48,7 @@ lmms-eval --model qwen2_5_vl \
 
 EASI is a unified evaluation suite for Spatial Intelligence. It benchmarks state-of-the-art proprietary and open-source multimodal LLMs across a growing set of spatial benchmarks.
 
-- **Comprehensive Support**: Currently EASI([v0.2.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.1)) supports **23 Spatial Intelligence models** and **27 spatial benchmarks**.
+- **Comprehensive Support**: Currently EASI([v0.2.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.1)) supports **26 Spatial Intelligence models** and **27 spatial benchmarks**.
 - **Dual Backends**:
   - **VLMEvalKit**: Rich model zoo with built-in judging capabilities.
   - **lmms-eval**: Lightweight, accelerate-based distributed evaluation.
@@ -57,6 +57,9 @@ Full details are available at 👉 **[Supported Models & Benchmarks](docs/Suppor
 
 
 ## 🗓️ News
+
+🌟 **[2026-04-27]** [EASI v0.2.2](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.2) is released. Major updates include:
+- **Expanded model support**: Supported SenseNova-SI latest models.
 
 🌟 **[2026-02-09]** [EASI v0.2.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.1) is released. Major updates include:
 - **Expanded benchmark support**: Added ERIQ and OSI-Bench.
@@ -124,7 +127,7 @@ Evaluate `SenseNova-SI-1.3-InternVL3-8B` on `MindCubeBench_tiny_raw_qa`:
 
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
-              --model SenseNova-SI-1.3-InternVL3-8B \
+              --model SenseNova-SI-1.5-InternVL3-8B \
               --verbose --reuse --judge extract_matching
 ```
 This uses regex-based answer extraction. For LLM-based judging (e.g., on SpatialVizBench_CoT), switch to the OpenAI judge:

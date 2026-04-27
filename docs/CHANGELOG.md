@@ -4,6 +4,14 @@ All notable changes to **EASI** are documented in this file.
 
 ---
 
+## [v0.2.2] – 2026-04-27
+
+### Added
+- 3 new models:
+  - SenseNova-SI-1.4-InternVL3-8B, SenseNova-SI-1.5-InternVL3-8B, SenseNova-SI-1.3-Qwen3-VL-8B
+
+---
+
 ## [v0.2.1] – 2026-02-09
 
 ### Added

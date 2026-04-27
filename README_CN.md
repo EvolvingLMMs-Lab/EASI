@@ -30,7 +30,7 @@
 ```bash
 cd VLMEvalKit/
 python run.py --data MindCubeBench_tiny_raw_qa \
-              --model SenseNova-SI-1.3-InternVL3-8B \
+              --model SenseNova-SI-1.5-InternVL3-8B \
               --verbose --reuse --judge extract_matching
 ```
 
@@ -48,7 +48,7 @@ lmms-eval --model qwen2_5_vl \
 
 EASI 是一个面向空间智能的统一评测套件，用于在不断扩展的空间基准上评估最先进的闭源和开源多模态大模型。
 
-- **广泛支持**：目前 EASI([v0.2.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.1))支持 **23 个空间智能模型**和 **27 个空间基准测试**。
+- **广泛支持**：目前 EASI([v0.2.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.1))支持 **26 个空间智能模型**和 **27 个空间基准测试**。
 - **双后端支持**：
   - **VLMEvalKit**：丰富的模型库，内置评判功能。
   - **lmms-eval**：轻量级、基于 accelerate 的分布式评测，支持大量任务。
@@ -56,6 +56,9 @@ EASI 是一个面向空间智能的统一评测套件，用于在不断扩展的
 更多详情请参阅 👉 **[Supported Models & Benchmarks](docs/Support_bench_models.md)**。EASI 同时提供透明的 👉 **[Benchmark Verification](docs/Benchmark_Verification.md)** 以供与官方分数对比。
 
 ## 🗓️ 最新动态
+
+🌟 **[2026-04-27]** [EASI v0.2.2](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.2) 发布。主要更新包括：
+- **模型支持扩展**：支持 SenseNova-SI 最新模型。
 
 🌟 **[2026-02-09]** [EASI v0.2.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.1) 发布。主要更新包括：
 - **新增基准支持**：新增 ERIQ 和 OSI-Bench。
@@ -101,7 +104,7 @@ bash dockerfiles/EASI/build_runtime_docker.sh
 docker run --gpus all -it --rm \
   -v /path/to/your/data:/mnt/data \
   --name easi-runtime \
-  vlmevalkit_EASI:latest \
+  VLMEvalKit_EASI:latest \
   /bin/bash
 ```
 
@@ -121,11 +124,11 @@ python run.py --data {BENCHMARK_NAME} --model {MODEL_NAME} --judge {JUDGE_MODE} 
 
 **示例**
 
-在 `MindCubeBench_tiny_raw_qa` 上评测 `SenseNova-SI-1.3-InternVL3-8B`：
+在 `MindCubeBench_tiny_raw_qa` 上评测 `SenseNova-SI-1.5-InternVL3-8B`：
 
 ```bash
 python run.py --data MindCubeBench_tiny_raw_qa \
-              --model SenseNova-SI-1.3-InternVL3-8B \
+              --model SenseNova-SI-1.5-InternVL3-8B \
               --verbose --reuse --judge extract_matching
 ```
 这将使用正则表达式来提取答案。如果您想使用基于 LLM 的评判系统（例如，在评估 SpatialVizBench_CoT 时），您可以将评判系统切换到 OpenAI：
@@ -154,11 +157,11 @@ lmms-eval --model {MODEL_TYPE} \
 
 **示例：单 GPU**
 
-在 `site_bench_image` 上评测 `Qwen2.5-VL-3B-Instruct`：
+在 `site_bench_image` 上评测 `SenseNova-SI-1.1-Qwen2.5-VL-3B`：
 
 ```bash
 lmms-eval --model qwen2_5_vl \
-          --model_args pretrained=Qwen/Qwen2.5-VL-3B-Instruct \
+          --model_args pretrained=sensenova/SenseNova-SI-1.1-Qwen2.5-VL-3B \
           --tasks site_bench_image \
           --batch_size 1 \
           --log_samples \
@@ -176,7 +179,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
     --main_process_port=12346 \
     -m lmms_eval \
     --model qwen2_5_vl \
-    --model_args pretrained=Qwen/Qwen2.5-VL-3B-Instruct,attn_implementation=flash_attention_2 \
+    --model_args pretrained=sensenova/SenseNova-SI-1.1-Qwen2.5-VL-3B,attn_implementation=flash_attention_2 \
     --tasks site_bench_image \
     --batch_size 1 \
     --log_samples \
@@ -219,6 +222,16 @@ lmms-eval --tasks list
 你可以通过 👉 **[EASI Leaderboard Submission](https://easi.lmms-lab.com/submit/)** 提交评测结果。
 
 详细提交要求和文件示例请见 👉 **[Submission Guide](docs/Submit_results.md)**。
+
+## 🤝 贡献
+
+EASI 是一个开放且持续演进的评测套件。我们欢迎社区贡献，包括：
+- 新的空间基准
+- 新的模型基线
+- 评测工具
+
+如果你有兴趣贡献，或对集成有任何问题，请通过以下邮箱联系我们：
+📧 easi-lmms-lab@outlook.com
 
 ## 🖊️ 引用
 
