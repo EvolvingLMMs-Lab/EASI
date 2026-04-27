@@ -28,12 +28,8 @@
 
 **Using VLMEvalKit backend (default):**
 ```bash
-cd VLMEvalKit/
-python run.py --data MindCubeBench_tiny_raw_qa \
-              --model SenseNova-SI-1.5-InternVL3-8B \
-              --verbose --reuse --judge extract_matching
 python scripts/submissions/run_easi_eval.py \
-  --model sensenova/SenseNova-SI-1.3-InternVL3-8B \
+  --model sensenova/SenseNova-SI-1.5-InternVL3-8B \
   --nproc 4
 ```
 
@@ -42,7 +38,7 @@ python scripts/submissions/run_easi_eval.py \
 python scripts/submissions/run_easi_eval.py \
   --backend lmms-eval \
   --model internvl2 \
-  --model-args "pretrained=sensenova/SenseNova-SI-1.3-InternVL3-8B" \
+  --model-args "pretrained=sensenova/SenseNova-SI-1.5-InternVL3-8B" \
   --nproc 4
 ```
 
@@ -52,7 +48,7 @@ python scripts/submissions/run_easi_eval.py \
 
 EASI is a unified evaluation suite for Spatial Intelligence. It benchmarks state-of-the-art proprietary and open-source multimodal LLMs across a growing set of spatial benchmarks.
 
-- **Comprehensive Support**: Currently EASI([v0.2.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.1)) supports **26 Spatial Intelligence models** and **27 spatial benchmarks**.
+- **Comprehensive Support**: Currently EASI([v0.2.2](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.2)) supports **26 Spatial Intelligence models** and **27 spatial benchmarks**.
 - **Dual Backends**:
   - **VLMEvalKit**: Rich model zoo with built-in judging capabilities.
   - **lmms-eval**: Lightweight, accelerate-based distributed evaluation.
@@ -64,15 +60,7 @@ Full details are available at 👉 **[Supported Models & Benchmarks](docs/Suppor
 
 🌟 **[2026-04-27]** [EASI v0.2.2](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.2) is released. Major updates include:
 - **Expanded model support**: Supported SenseNova-SI latest models.
-
-🌟 **[2026-02-09]** [EASI v0.2.1](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.1) is released. Major updates include:
-- **Expanded benchmark support**: Added ERIQ and OSI-Bench.
-- **Bug fixes**: Fixed VLMEvalKit evaluation issues on MuirBench.
-- **Benchmark verification**: Added more lmms-eval benchmark verification entries.
-
-🌟 **[2026-01-16]** [EASI v0.2.0](https://github.com/EvolvingLMMs-Lab/EASI/releases/tag/0.2.0) is released. Major updates include:
-- **New Backend Support**: Integrated lmms-eval alongside VLMEvalKit, offering flexible evaluation options.
-- **Expanded benchmark support**: Added DSR-Bench. 
+- **Unified CLI support**: Added a one-command workflow for EASI-8 evaluation across VLMEvalKit and lmms-eval, with automated result collection and optional leaderboard submission.
 
 
 For the full release history and detailed changelog, please see 👉 **[Changelog](docs/CHANGELOG.md)**.
@@ -116,7 +104,7 @@ EASI provides a unified evaluation script that supports both VLMEvalKit and lmms
 ```bash
 # Run EASI-8 core benchmarks on 4 GPUs
 python scripts/submissions/run_easi_eval.py \
-  --model sensenova/SenseNova-SI-1.3-InternVL3-8B \
+  --model sensenova/SenseNova-SI-1.5-InternVL3-8B \
   --nproc 4
 ```
 
@@ -126,7 +114,7 @@ python scripts/submissions/run_easi_eval.py \
 python scripts/submissions/run_easi_eval.py \
   --backend lmms-eval \
   --model internvl2 \
-  --model-args "pretrained=sensenova/SenseNova-SI-1.3-InternVL3-8B" \
+  --model-args "pretrained=sensenova/SenseNova-SI-1.5-InternVL3-8B" \
   --nproc 4
 ```
 
@@ -135,11 +123,11 @@ python scripts/submissions/run_easi_eval.py \
 python scripts/submissions/run_easi_eval.py \
   --backend lmms-eval \
   --model internvl2 \
-  --model-args "pretrained=sensenova/SenseNova-SI-1.3-InternVL3-8B" \
+  --model-args "pretrained=sensenova/SenseNova-SI-1.5-InternVL3-8B" \
   --nproc 4 \
   --submit \
   --submission-configs '{
-    "modelName": "sensenova/SenseNova-SI-1.3-InternVL3-8B",
+    "modelName": "sensenova/SenseNova-SI-1.5-InternVL3-8B",
     "modelType": "instruction",
     "precision": "bfloat16"
   }'
@@ -182,7 +170,7 @@ For advanced usage or custom model integration, you can also call the backends d
 ```bash
 cd VLMEvalKit/
 python run.py --data MindCubeBench_tiny_raw_qa \
-              --model SenseNova-SI-1.3-InternVL3-8B \
+              --model SenseNova-SI-1.5-InternVL3-8B \
               --verbose --reuse --judge extract_matching
 ```
 
@@ -191,7 +179,7 @@ python run.py --data MindCubeBench_tiny_raw_qa \
 CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
     --num_processes=4 -m lmms_eval \
     --model internvl2 \
-    --model_args=pretrained=sensenova/SenseNova-SI-1.3-InternVL3-8B \
+    --model_args=pretrained=sensenova/SenseNova-SI-1.5-InternVL3-8B \
     --tasks vsibench_multiimage \
     --batch_size 1 --log_samples --output_path ./logs/
 ```
