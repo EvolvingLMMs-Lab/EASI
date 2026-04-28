@@ -505,12 +505,17 @@ class VLMEvalKitAdapter(BackendAdapter):
         when this run did not itself trigger a judge re-run.
         """
         import re as _re
+        # Judge model names contain no underscores (e.g. "gpt-4o-1120",
+        # "claude-3-5-sonnet"). Anchoring `[^_]+` prevents capturing
+        # adjacent benchmark suffixes (e.g. data_name="BLINK" vs a
+        # hypothetical "BLINK_extra_..._result.xlsx").
+        _judge_token = r"[^_/]+"
         judged: dict[str, str] = {}
         for key, data_name in benchmarks.items():
             # Pattern A: extract_matching → _llm_<judge>_acc.csv
             for path in model_dir.glob(f"*/{model_name}_{data_name}_llm_*_acc.csv"):
                 m = _re.match(
-                    rf"{_re.escape(model_name)}_{_re.escape(data_name)}_llm_(.+)_acc\.csv$",
+                    rf"{_re.escape(model_name)}_{_re.escape(data_name)}_llm_({_judge_token})_acc\.csv$",
                     path.name,
                 )
                 if m:
@@ -521,7 +526,7 @@ class VLMEvalKitAdapter(BackendAdapter):
             # Pattern B: MCQ → _<judge>_result.xlsx (excluding _exact_matching_result.xlsx)
             for path in model_dir.glob(f"*/{model_name}_{data_name}_*_result.xlsx"):
                 m = _re.match(
-                    rf"{_re.escape(model_name)}_{_re.escape(data_name)}_(.+)_result\.xlsx$",
+                    rf"{_re.escape(model_name)}_{_re.escape(data_name)}_({_judge_token})_result\.xlsx$",
                     path.name,
                 )
                 if m and m.group(1) != "exact_matching":

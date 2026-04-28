@@ -30,13 +30,11 @@ Installation (lmms-eval):
 import argparse
 import json
 import os
-import pickle
 import re
 import subprocess
 import sys
 import threading
 import time
-from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -90,359 +88,6 @@ EASI_8_DISPLAY_ORDER: list[str | tuple[str, list[str]]] = [
 # Progress display
 # ---------------------------------------------------------------------------
 
-_HF_REPO = "lmms-lab-si/EASI-Leaderboard-Data"
-_TSV_URLS = {
-    "VSI-Bench_32frame": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/VSI-Bench.tsv",
-    "MMSIBench_wo_circular": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/MMSIBench_wo_circular.tsv",
-    "MindCubeBench_tiny_raw_qa": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/MindCubeBench_tiny_raw_qa.tsv",
-    "ViewSpatialBench": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/ViewSpatialBench.tsv",
-    "SiteBenchImage": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/SiteBenchImage.tsv",
-    "SiteBenchVideo_32frame": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/SiteBenchVideo.tsv",
-    "BLINK": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/BLINK.tsv",
-    "3DSRBench": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/3DSRBench.tsv",
-    "EmbSpatialBench": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/EmbSpatialBench.tsv",
-    "MMSIVideoBench_50frame": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/MMSIVideoBench.tsv",
-    "OmniSpatialBench_manual_cot": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/OmniSpatialBench.tsv",
-    "SparBench": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/SparBench.tsv",
-    "VSI-Bench-Debiased_32frame": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/VSI-Bench-Debiased.tsv",
-}
-
-_MAX_RETRIES = 5
-_RETRY_DELAY = 10  # seconds
-
-
-# ---------------------------------------------------------------------------
-# Dataset preparation (runs before GPU work)
-# ---------------------------------------------------------------------------
-
-def _retry(fn, retries: int = _MAX_RETRIES) -> bool:
-    """Call *fn* with retry logic and exponential back-off. Returns True on success.
-
-    Does not retry on HTTP 4xx client errors (e.g. 404 Not Found).
-    """
-    for attempt in range(1, retries + 1):
-        try:
-            fn()
-            return True
-        except Exception as e:
-            # Don't retry on 4xx client errors (file not found, unauthorized, etc.)
-            err_str = str(e)
-            if any(f"{code} Client Error" in err_str for code in range(400, 500)):
-                print(f"    FAILED: {e}")
-                return False
-            if attempt < retries:
-                print(f"    Retry {attempt}/{retries}: {e}")
-                time.sleep(_RETRY_DELAY * attempt)
-            else:
-                print(f"    FAILED after {retries} attempts: {e}")
-                return False
-    return False
-
-
-def _download_tsv(url: str, dest: Path, retries: int = _MAX_RETRIES) -> bool:
-    """Download a TSV file with retry logic for flaky networks."""
-    from huggingface_hub import hf_hub_download
-    from urllib.parse import urlparse
-
-    parsed = urlparse(url)
-    parts = parsed.path.strip("/").split("/")
-    # HF format: /datasets/{org}/{repo}/resolve/{branch}/{filename}
-    if len(parts) >= 6 and parts[0] == "datasets" and parts[3] == "resolve":
-        repo_id = f"{parts[1]}/{parts[2]}"
-        filename = "/".join(parts[5:])
-    else:
-        import urllib.request
-        return _retry(lambda: urllib.request.urlretrieve(url, str(dest)), retries)
-
-    def _hf_download():
-        downloaded = Path(hf_hub_download(
-            repo_id=repo_id,
-            filename=filename,
-            repo_type="dataset",
-            local_dir=str(dest.parent),
-        ))
-        if downloaded != dest and downloaded.exists():
-            downloaded.rename(dest)
-
-    return _retry(_hf_download, retries)
-
-
-def prepare_datasets(
-    dataset_dir: Path,
-    benchmarks: dict[str, str],
-    display: "ProgressDisplay | None" = None,
-) -> bool:
-    """Download all required datasets before evaluation. Returns True if all OK."""
-    def _log(msg: str):
-        if not display:
-            print(msg)
-
-    def _set_prep(key: str, status: str, detail: str = ""):
-        if display:
-            display.set_data_prep(key, status, detail)
-
-    # Disable hf_transfer if not installed — causes non-transient failures
-    # that waste all retry attempts.
-    if os.environ.get("HF_HUB_ENABLE_HF_TRANSFER") == "1":
-        try:
-            import hf_transfer  # noqa: F401
-        except ImportError:
-            os.environ.pop("HF_HUB_ENABLE_HF_TRANSFER", None)
-            _log("Note: Disabled HF_HUB_ENABLE_HF_TRANSFER (hf_transfer not installed)")
-
-    if display:
-        display.set_phase("Preparing datasets")
-    else:
-        print(f"\n{'='*60}")
-        print("PREPARING DATASETS")
-        print(f"{'='*60}")
-
-    all_ok = True
-
-    for key, data_name in benchmarks.items():
-        url = _TSV_URLS.get(data_name)
-        if url:
-            tsv_filename = url.split("/")[-1]
-            tsv_path = dataset_dir / tsv_filename
-            tsv_path_alt = dataset_dir / f"{data_name}.tsv"
-            if tsv_path.exists() or tsv_path_alt.exists():
-                existing = tsv_path if tsv_path.exists() else tsv_path_alt
-                _set_prep(key, "done", existing.name)
-                if not display:
-                    print(f"  [OK] {data_name} TSV ({existing.name})")
-            else:
-                _set_prep(key, "downloading", f"Downloading {tsv_filename}...")
-                if not display:
-                    print(f"  Downloading {tsv_filename}...")
-                if _download_tsv(url, tsv_path):
-                    _set_prep(key, "done", tsv_filename)
-                    if not display:
-                        print(f"  [OK] {tsv_filename}")
-                else:
-                    _set_prep(key, "failed", f"{tsv_filename} download failed")
-                    if not display:
-                        print(f"  [FAIL] {tsv_filename}")
-                    all_ok = False
-
-    if not display:
-        status = "ready" if all_ok else "some downloads failed"
-        print(f"\nDataset preparation: {status}")
-        print(f"{'='*60}\n")
-    return all_ok
-
-
-# ---------------------------------------------------------------------------
-# Result verification
-# ---------------------------------------------------------------------------
-
-@dataclass
-class BenchmarkResult:
-    key: str
-    data_name: str
-    success: bool
-    completed: int       # samples with predictions
-    total: int           # total samples (0 = unknown)
-    has_acc_csv: bool
-    errors: list[str] = field(default_factory=list)
-
-
-def count_xlsx_predictions(xlsx_path: Path) -> tuple[int, int]:
-    """Count (completed, total) predictions in a VLMEvalKit xlsx."""
-    if not xlsx_path.exists():
-        return 0, 0
-    try:
-        import pandas as pd
-        df = pd.read_excel(xlsx_path, engine="openpyxl")
-        total = len(df)
-        if "prediction" in df.columns:
-            completed = int(df["prediction"].notna().sum())
-        else:
-            completed = total
-        return completed, total
-    except Exception:
-        return -1, -1
-
-
-def diagnose_missing_predictions(xlsx_path: Path) -> str | None:
-    """Analyze why predictions are missing in a VLMEvalKit xlsx.
-
-    Returns a human-readable diagnosis string, or None if all predictions present.
-    """
-    if not xlsx_path.exists():
-        return None
-    try:
-        import pandas as pd
-        df = pd.read_excel(xlsx_path, engine="openpyxl")
-    except Exception:
-        return None
-
-    if "prediction" not in df.columns:
-        return None
-
-    missing = df[df["prediction"].isna()]
-    if len(missing) == 0:
-        return None
-
-    n_missing = len(missing)
-    n_total = len(df)
-
-    # Check if it's a video/image loading issue:
-    # If ALL samples for a given media file are missing, likely a load failure.
-    media_col = None
-    for col in ("video", "image", "image_path"):
-        if col in df.columns:
-            media_col = col
-            break
-
-    media_failures = 0
-    inference_failures = 0
-    if media_col:
-        missing_media = set(missing[media_col].dropna().unique())
-        for media in missing_media:
-            all_for_media = df[df[media_col] == media]
-            all_missing = all_for_media["prediction"].isna().all()
-            n_in_group = len(all_for_media)
-            n_missing_in_group = int(all_for_media["prediction"].isna().sum())
-            if all_missing:
-                media_failures += n_missing_in_group
-            else:
-                inference_failures += n_missing_in_group
-    else:
-        inference_failures = n_missing
-
-    # Build diagnosis
-    parts = [f"{n_missing}/{n_total} samples missing"]
-    if media_failures > 0:
-        parts.append(f"{media_failures} media load failure(s)")
-    if inference_failures > 0:
-        parts.append(
-            f"{inference_failures} model inference failure(s) "
-            "(empty response, scored as 0 — rerun with --judge gpt-4o-1120, or ignore if acceptable)"
-        )
-
-    # Add question type breakdown if available
-    if "question_type" in missing.columns:
-        type_counts = missing["question_type"].value_counts()
-        if len(type_counts) <= 3:
-            type_str = ", ".join(f"{t}({c})" for t, c in type_counts.items())
-            parts.append(f"affected types: {type_str}")
-
-    return "; ".join(parts)
-
-
-def parse_errors(stderr: str) -> list[str]:
-    """Extract VLMEvalKit ERROR lines from stderr."""
-    errors = []
-    for line in stderr.splitlines():
-        if "ERROR" in line and ("combination failed" in line or "AssertionError" in line):
-            errors.append(line.strip())
-    return list(dict.fromkeys(errors))
-
-
-def verify_results(
-    output_dir: Path,
-    model_name: str,
-    benchmarks: dict[str, str],
-    stderr: str,
-) -> list[BenchmarkResult]:
-    """Verify all benchmark results after a single VLMEvalKit run."""
-    model_dir = output_dir / model_name
-    errors = parse_errors(stderr)
-    results = []
-
-    for key, data_name in benchmarks.items():
-        xlsx_path = model_dir / f"{model_name}_{data_name}.xlsx"
-        completed, total = count_xlsx_predictions(xlsx_path)
-        has_acc = find_acc_csv(model_dir, model_name, data_name) is not None
-
-        # Match errors to this benchmark
-        bench_errors = [e for e in errors if data_name in e]
-
-        if completed <= 0 and total <= 0:
-            success = False  # no predictions at all (xlsx missing)
-        elif completed <= 0 and total > 0:
-            success = False
-        elif not has_acc:
-            success = False
-        else:
-            success = True
-
-        # Warn if some samples were skipped (results may be inaccurate)
-        if total > 0 and completed < total:
-            diagnosis = diagnose_missing_predictions(xlsx_path)
-            if diagnosis:
-                bench_errors.append(f"WARNING: {diagnosis}")
-            else:
-                skipped = total - completed
-                bench_errors.append(
-                    f"WARNING: {skipped}/{total} samples missing"
-                )
-
-        results.append(BenchmarkResult(
-            key=key, data_name=data_name, success=success,
-            completed=completed, total=total, has_acc_csv=has_acc,
-            errors=bench_errors,
-        ))
-
-    return results
-
-
-# ---------------------------------------------------------------------------
-# Progress monitoring
-# ---------------------------------------------------------------------------
-
-def _count_tsv_rows(dataset_dir: Path, data_name: str) -> int:
-    """Count data rows in a benchmark's TSV file (excluding header).
-
-    Uses pandas to correctly handle cells with embedded newlines
-    (e.g. base64-encoded images) and large fields.
-    """
-    url = _TSV_URLS.get(data_name, "")
-    tsv_filename = url.split("/")[-1] if url else f"{data_name}.tsv"
-    for candidate in [dataset_dir / tsv_filename, dataset_dir / f"{data_name}.tsv"]:
-        if candidate.exists():
-            try:
-                import pandas as pd
-                # Only read the index column to avoid loading large image data
-                df = pd.read_csv(candidate, sep="\t", usecols=["index"])
-                return len(df)
-            except Exception:
-                pass
-    return 0
-
-
-def _count_pkl_predictions(model_dir: Path, data_name: str) -> int:
-    """Count predictions in VLMEvalKit's intermediate PKL files for a dataset.
-
-    VLMEvalKit writes ``{rank}{world_size}_{dataset_name}.pkl`` every 10 samples.
-    These are dicts mapping sample index -> response.
-    """
-    total = 0
-    # Search all eval_id subdirectories (T{date}_G{hash}/)
-    for pkl in model_dir.glob(f"*/*_{data_name}.pkl"):
-        try:
-            with open(pkl, "rb") as f:
-                data = pickle.load(f)
-            if isinstance(data, dict):
-                total += len(data)
-        except Exception:
-            pass  # file may be mid-write
-    return total
-
-
-def _has_result_file(model_dir: Path, model_name: str, data_name: str) -> bool:
-    """Check if VLMEvalKit has written the final result file (xlsx/tsv/json)."""
-    for ext in ("xlsx", "tsv", "json"):
-        if list(model_dir.glob(f"*/{model_name}_{data_name}.{ext}")):
-            return True
-    return False
-
-
-def _has_acc_csv(model_dir: Path, model_name: str, data_name: str) -> bool:
-    """Check if VLMEvalKit has written the _acc.csv (evaluation complete)."""
-    return bool(list(model_dir.glob(f"*/{model_name}_{data_name}*_acc.csv")))
-
-
 class _DisplayWriter:
     """Silently consume stdout writes while the rich display is active.
 
@@ -483,9 +128,8 @@ class _LogTailWatcher:
         self._stop = threading.Event()
 
     def run(self) -> None:
-        # Seek to end of file at start so we only see lines emitted from
-        # this subprocess invocation forward — avoids replaying past
-        # ``finished!`` markers from earlier phases.
+        # Seek to end at start so we only see lines from THIS subprocess
+        # invocation forward — avoids replaying past ``finished!`` markers.
         try:
             pos = self.log_path.stat().st_size if self.log_path.exists() else 0
         except OSError:
@@ -558,6 +202,11 @@ class ProgressDisplay:
         self._live = None
         self._start_time = time.time()
         self._log_path: str | None = None
+        # Tail cache + throttle — reads at ~0.5 Hz instead of every render
+        # tick, with size-unchanged short-circuit.
+        self._tail_cache: list[str] = []
+        self._tail_last_read: float = 0.0
+        self._tail_last_size: int = -1
 
     def __rich__(self):
         """Let rich.live.Live call this on each refresh cycle."""
@@ -565,30 +214,40 @@ class ProgressDisplay:
             return self._render()
 
     def _tail_log(self, n: int = 3, max_chars: int = 160) -> list[str]:
-        """Read the last *n* non-empty lines from the subprocess log.
+        """Return last *n* non-empty lines from the subprocess log.
 
-        Handles tqdm \\r-overwrites by splitting on both \\r and \\n.
-        Cheap (last 8KB only) — safe to call on every render tick.
+        Throttled to ~0.5 Hz with size-unchanged short-circuit — avoids
+        hammering disk I/O inside the render lock.
         """
         if not self._log_path:
             return []
+        now = time.time()
+        if now - self._tail_last_read < 2.0:
+            return self._tail_cache
         try:
             path = Path(self._log_path)
             if not path.exists():
-                return []
+                self._tail_last_read = now
+                return self._tail_cache
+            size = path.stat().st_size
+            if size == self._tail_last_size:
+                self._tail_last_read = now
+                return self._tail_cache
             with open(path, "rb") as f:
-                f.seek(0, 2)
-                size = f.tell()
-                f.seek(max(0, size - 8192))
+                f.seek(max(0, size - 4096))
                 chunk = f.read().decode(errors="replace")
             lines = [
                 l.strip()[:max_chars]
                 for l in chunk.replace("\r", "\n").split("\n")
                 if l.strip()
             ]
-            return lines[-n:]
+            self._tail_cache = lines[-n:]
+            self._tail_last_size = size
+            self._tail_last_read = now
+            return self._tail_cache
         except Exception:
-            return []
+            self._tail_last_read = now
+            return self._tail_cache
 
     def _status_icon(self, status: str) -> str:
         """Return styled icon for status, including spinner frame for RUNNING."""
@@ -598,8 +257,9 @@ class ProgressDisplay:
             return "[red]\u2717[/red]"
         if status == self.RUNNING:
             frames = "\u280b\u2819\u2839\u2838\u283c\u2834\u2826\u2827"
-            # Time-based frame selection: stable at ~8 FPS regardless of render rate
-            idx = int(time.time() * 8) % len(frames)
+            # 2 FPS spinner \u2014 matches refresh rate budget so Rich's diff
+            # short-circuits unchanged spinner cells on intervening frames.
+            idx = int(time.time() * 2) % len(frames)
             return f"[yellow]{frames[idx]}[/yellow]"
         return "[dim]\u2500[/dim]"  # pending
 
@@ -742,11 +402,15 @@ class ProgressDisplay:
                 warning_lines.append(f" [yellow]!! {key}: {warning}[/yellow]")
             parts.append(Text.from_markup("\n".join(warning_lines)))
 
-        # Log path (under evaluation section)
+        # Log path + last 3 lines of subprocess log
         if self._log_path and self.phase not in ("Preparing datasets", ""):
             parts.append(Text.from_markup(f"\n [dim]Log: {self._log_path}[/dim]"))
-            for tail_line in self._tail_log(3):
-                parts.append(Text.from_ansi(f"   {tail_line}", style="dim"))
+            tail = self._tail_log(3)
+            if tail:
+                # Single Text node so Rich diff has 1 cell to compare, not 3.
+                parts.append(Text.from_ansi(
+                    "\n".join(f"   {l}" for l in tail), style="dim",
+                ))
 
         # Results section (post-processing)
         if self.results_info is not None or self.phase == "Building submission":
@@ -821,11 +485,19 @@ class ProgressDisplay:
         # only captures stray print() calls, not rich's own rendering.
         console = Console(file=self._orig_stdout)
         sys.stdout = _DisplayWriter()
+        # Refresh rate tuned by terminal: VSCode/Cursor's xterm.js parses
+        # ANSI ~10x slower than native terminals. tmux/screen launched FROM
+        # an embedded terminal inherits TERM_PROGRAM but is actually fast,
+        # so check TERM as well.
+        term = os.environ.get("TERM", "")
+        in_multiplexer = term.startswith(("screen", "tmux"))
+        embedded_terminal = os.environ.get("TERM_PROGRAM") in ("vscode", "cursor")
+        refresh = 2 if (embedded_terminal and not in_multiplexer) else 4
         # screen=True uses alternate screen buffer — prevents smearing
         # on terminal resize and gives clean redraws.
         self._live = Live(
             self,
-            refresh_per_second=8,
+            refresh_per_second=refresh,
             console=console,
             screen=True,
         )
@@ -1136,7 +808,25 @@ Examples (lmms-eval):
             for key in all_benchmarks:
                 display.set_data_prep(key, "done", "managed by lmms-eval")
 
-    # ---- Capture run kwargs (sampling config) for embed into payload ----
+    # ---- Phase 2: Run benchmarks ----
+    start = time.time()
+
+    # Resume logic: find already-completed tasks
+    completed = set()
+    if not args.rerun:
+        completed = adapter.find_completed_tasks(model_dir, model_name, all_benchmarks)
+        if display:
+            for key in completed:
+                display.mark_done(key)
+
+    pending_benchmarks = {k: v for k, v in all_benchmarks.items() if k not in completed}
+
+    # Track benchmarks that got re-evaluated with LLM judge (VLMEvalKit only)
+    judged_benchmarks: dict[str, str] = {}  # key -> judge_model
+
+    # Capture generation kwargs from supported_VLM[model].keywords + class
+    # DEFAULT_SAMPLING + AST-extract setdefault literals from generate_inner.
+    # Embedded into easi_results.json under "generationConfig".
     generation_config: dict | None = None
     if args.backend == "vlmevalkit":
         try:
@@ -1147,9 +837,7 @@ Examples (lmms-eval):
                 kw = dict(entry.keywords)
                 for drop_key in ("key", "api_base", "api_bases", "verbose"):
                     kw.pop(drop_key, None)
-                # Inspect class's generate_inner across MRO to recover
-                # kwargs.setdefault(...) literals (top_p, top_k, etc) that
-                # are NOT in partial keywords but are injected at runtime.
+                # AST: pull literal kwargs.setdefault calls from MRO
                 import ast
                 import inspect
                 import textwrap
@@ -1179,29 +867,24 @@ Examples (lmms-eval):
                                 )
                             except (ValueError, SyntaxError):
                                 pass
-                # Partial kwargs win over class defaults if conflict
                 for k, v in injected.items():
                     kw.setdefault(k, v)
-                kw["timestamp"] = datetime.now().isoformat(timespec="seconds")
+                # DEFAULT_SAMPLING class attr (for classes that pop kwargs in
+                # __init__ then setdefault from self attrs — AST can't see those).
+                for klass in cls.__mro__:
+                    defaults = getattr(klass, "DEFAULT_SAMPLING", None)
+                    if isinstance(defaults, dict):
+                        for k, v in defaults.items():
+                            if v is not None:
+                                kw.setdefault(k, v)
+                        break
+                kw["runStartedAt"] = datetime.now().isoformat(timespec="seconds")
                 generation_config = kw
-        except Exception:
+        except Exception as _e:
+            # AST walk / supported_VLM lookup failed — log to stderr (which
+            # rich Live's screen=True can swallow, but log file may capture).
+            print(f"[generation_config] capture failed: {_e}", file=sys.stderr)
             generation_config = None
-
-    # ---- Phase 2: Run benchmarks ----
-    start = time.time()
-
-    # Resume logic: find already-completed tasks
-    completed = set()
-    if not args.rerun:
-        completed = adapter.find_completed_tasks(model_dir, model_name, all_benchmarks)
-        if display:
-            for key in completed:
-                display.mark_done(key)
-
-    pending_benchmarks = {k: v for k, v in all_benchmarks.items() if k not in completed}
-
-    # Track benchmarks that got re-evaluated with LLM judge (VLMEvalKit only)
-    judged_benchmarks: dict[str, str] = {}  # key -> judge_model
 
     if args.backend == "lmms-eval":
         # ---- lmms-eval subprocess (one benchmark at a time) ----
@@ -1322,6 +1005,8 @@ Examples (lmms-eval):
                 except KeyboardInterrupt:
                     if watcher is not None:
                         watcher.stop()
+                        if watcher_thread is not None:
+                            watcher_thread.join(timeout=2)
                     display.stop()
                     if proc is not None:
                         proc.terminate()
@@ -1574,8 +1259,8 @@ Examples (lmms-eval):
     if display:
         display.set_phase("Building submission")
 
-    # Augment judged_benchmarks with any judge artifacts found on disk
-    # (handles merged dirs where Phase 2c didn't fire this run).
+    # Augment judged_benchmarks with judge artifacts found on disk —
+    # handles merged result dirs where Phase 2c didn't fire this run.
     if hasattr(adapter, "detect_judged_benchmarks"):
         disk_judged = adapter.detect_judged_benchmarks(
             model_dir, model_name, all_benchmarks,
