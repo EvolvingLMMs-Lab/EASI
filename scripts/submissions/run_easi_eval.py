@@ -547,6 +547,56 @@ class ProgressDisplay:
 
 
 # ---------------------------------------------------------------------------
+# Run summary
+# ---------------------------------------------------------------------------
+
+def _print_run_summary(
+    *,
+    success: bool,
+    elapsed: float,
+    model_name: str,
+    summary_lines: list[str] | None = None,
+    json_path: "Path | None" = None,
+    zip_path: "Path | None" = None,
+    log_path: "Path | None" = None,
+    error: str | None = None,
+):
+    """Print a terminal summary after the rich Live display has stopped.
+
+    Always shown — success or failure — so the user knows what happened
+    without tailing the log. On failure, prints the error first line and
+    points to the log for the full traceback.
+    """
+    from rich.console import Console
+    console = Console()
+
+    header = "Run complete" if success else "Run failed"
+    color = "green" if success else "red"
+    mark = "✓" if success else "✗"
+    console.print(
+        f"\n[bold {color}]{mark}[/bold {color}] {header} — {model_name} "
+        f"([dim]{elapsed:.0f}s[/dim])"
+    )
+
+    if summary_lines:
+        console.print("")
+        for line in summary_lines:
+            console.print(line, highlight=False)
+
+    if error:
+        console.print(f"\n[bold red]Error:[/bold red] {error}")
+
+    console.print("")
+    if json_path is not None:
+        console.print(f"  Submission payload: [cyan]{json_path}[/cyan]")
+    if zip_path is not None:
+        console.print(f"  Results archive:    [cyan]{zip_path}[/cyan]")
+    if log_path is not None:
+        suffix = " [dim](full traceback)[/dim]" if error else ""
+        console.print(f"  Log file:           [cyan]{log_path}[/cyan]{suffix}")
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -715,10 +765,45 @@ Examples (lmms-eval):
     # In rich mode, create the display early so ALL logs appear inside the panel.
     # The display redirects stdout, so subsequent print() calls are captured.
     display: ProgressDisplay | None = None
+    main_start = time.time()
     if use_rich:
         display = ProgressDisplay(model_name, all_benchmarks, display_items)
         display._log_path = str(log_path)
         display.start()  # starts stdout redirect
+
+    # Install excepthook: rich Live's alternate screen swallows unhandled
+    # tracebacks, so without this a crash produces no terminal output.  The
+    # hook stops the display, restores stderr, writes the traceback to the
+    # log, and prints a summary pointing at the log file.
+    _orig_excepthook = sys.excepthook
+
+    def _summary_excepthook(exc_type, exc_value, exc_tb):
+        if issubclass(exc_type, (KeyboardInterrupt, SystemExit)):
+            _orig_excepthook(exc_type, exc_value, exc_tb)
+            return
+        if display is not None:
+            try:
+                display.stop()
+            except Exception:
+                pass
+        import traceback
+        tb = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+        sys.stderr.write(tb)
+        try:
+            with open(log_path, "a") as f:
+                f.write("\n\n=== Unhandled exception ===\n")
+                f.write(tb)
+        except Exception:
+            pass
+        _print_run_summary(
+            success=False,
+            elapsed=time.time() - main_start,
+            model_name=model_name,
+            log_path=log_path if log_path.exists() else None,
+            error=f"{exc_type.__name__}: {exc_value}",
+        )
+
+    sys.excepthook = _summary_excepthook
 
     # Print config info (only in non-rich mode; rich panel shows this via its sections)
     if not use_rich:
@@ -824,9 +909,27 @@ Examples (lmms-eval):
     # Track benchmarks that got re-evaluated with LLM judge (VLMEvalKit only)
     judged_benchmarks: dict[str, str] = {}  # key -> judge_model
 
-    # Capture generation kwargs from supported_VLM[model].keywords + class
-    # DEFAULT_SAMPLING + AST-extract setdefault literals from generate_inner.
-    # Embedded into easi_results.json under "generationConfig".
+    # Capture generation kwargs for easi_results.json["generationConfig"].
+    #
+    # Sources, in order of increasing precedence:
+    #   1. __init__ signature defaults walked up the MRO (parent → leaf).
+    #      Catches cases like Qwen2VLChat where top_p/top_k/temperature live
+    #      as parameter defaults rather than in the partial.
+    #   2. AST-extracted literal kwargs.setdefault(...) calls inside
+    #      generate_inner — runtime injection that doesn't show in signatures.
+    #   3. DEFAULT_SAMPLING class attribute, for classes that pop sampling
+    #      kwargs in __init__ then re-inject from self.* (AST can't see those).
+    #   4. partial.keywords from the supported_VLM registry — user-explicit
+    #      overrides, always wins.
+    GEN_KWARG_KEYS = frozenset({
+        "max_new_tokens", "max_tokens",
+        "top_p", "top_k", "min_p", "typical_p",
+        "temperature", "seed",
+        "repetition_penalty", "presence_penalty", "frequency_penalty",
+        "do_sample", "num_beams",
+        "length_penalty", "no_repeat_ngram_size", "early_stopping",
+    })
+
     generation_config: dict | None = None
     if args.backend == "vlmevalkit":
         try:
@@ -834,15 +937,31 @@ Examples (lmms-eval):
             from vlmeval.config import supported_VLM
             entry = supported_VLM.get(args.model)
             if entry is not None and hasattr(entry, "keywords"):
-                kw = dict(entry.keywords)
-                for drop_key in ("key", "api_base", "api_bases", "verbose"):
-                    kw.pop(drop_key, None)
-                # AST: pull literal kwargs.setdefault calls from MRO
                 import ast
                 import inspect
                 import textwrap
                 cls = entry.func
-                injected: dict = {}
+                gen: dict = {}
+
+                # 1. __init__ defaults across MRO (parent first → leaf overrides)
+                for klass in reversed(inspect.getmro(cls)):
+                    if klass is object:
+                        continue
+                    init = klass.__dict__.get("__init__")
+                    if init is None:
+                        continue
+                    try:
+                        sig = inspect.signature(init)
+                    except (ValueError, TypeError):
+                        continue
+                    for name, p in sig.parameters.items():
+                        if (
+                            name in GEN_KWARG_KEYS
+                            and p.default is not inspect.Parameter.empty
+                        ):
+                            gen[name] = p.default
+
+                # 2. AST kwargs.setdefault literals in generate_inner
                 for klass in cls.__mro__:
                     method = klass.__dict__.get("generate_inner")
                     if method is None:
@@ -860,29 +979,31 @@ Examples (lmms-eval):
                             and len(node.args) == 2
                             and isinstance(node.args[0], ast.Constant)
                         ):
+                            key = node.args[0].value
+                            if key not in GEN_KWARG_KEYS:
+                                continue
                             try:
-                                injected.setdefault(
-                                    node.args[0].value,
-                                    ast.literal_eval(node.args[1]),
-                                )
+                                gen.setdefault(key, ast.literal_eval(node.args[1]))
                             except (ValueError, SyntaxError):
                                 pass
-                for k, v in injected.items():
-                    kw.setdefault(k, v)
-                # DEFAULT_SAMPLING class attr (for classes that pop kwargs in
-                # __init__ then setdefault from self attrs — AST can't see those).
+
+                # 3. DEFAULT_SAMPLING class attr
                 for klass in cls.__mro__:
                     defaults = getattr(klass, "DEFAULT_SAMPLING", None)
                     if isinstance(defaults, dict):
                         for k, v in defaults.items():
-                            if v is not None:
-                                kw.setdefault(k, v)
+                            if k in GEN_KWARG_KEYS and v is not None:
+                                gen[k] = v
                         break
-                kw["runStartedAt"] = datetime.now().isoformat(timespec="seconds")
-                generation_config = kw
+
+                # 4. partial.keywords overrides (highest precedence)
+                for k, v in entry.keywords.items():
+                    if k in GEN_KWARG_KEYS:
+                        gen[k] = v
+
+                gen["runStartedAt"] = datetime.now().isoformat(timespec="seconds")
+                generation_config = gen
         except Exception as _e:
-            # AST walk / supported_VLM lookup failed — log to stderr (which
-            # rich Live's screen=True can swallow, but log file may capture).
             print(f"[generation_config] capture failed: {_e}", file=sys.stderr)
             generation_config = None
 
@@ -1333,14 +1454,16 @@ Examples (lmms-eval):
         display.set_phase(f"Complete ({elapsed:.0f}s)")
         time.sleep(0.5)
         display.stop()
-    else:
-        print(f"\n{'='*60}")
-        print(f"EVALUATION SUMMARY (total {elapsed:.0f}s)")
-        print(f"{'='*60}")
-        for line in summary_lines:
-            print(line)
-        print(f"\nSubmission payload: {json_path}")
-        print(f"Results archive: {zip_path}")
+
+    _print_run_summary(
+        success=not failed_keys,
+        elapsed=elapsed,
+        model_name=model_name,
+        summary_lines=summary_lines,
+        json_path=json_path,
+        zip_path=zip_path,
+        log_path=log_path if log_path.exists() else None,
+    )
 
     if failed_keys:
         sys.exit(1)
