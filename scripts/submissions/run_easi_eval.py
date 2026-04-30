@@ -40,10 +40,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from backends import get_backend
+from backends.base import BenchmarkResult
 from backends.vlmevalkit import (
     VLMEvalKitAdapter,
-    verify_results,
-    BenchmarkResult,
     prepare_datasets,
 )
 
@@ -94,13 +93,32 @@ class _DisplayWriter:
     Prevents stray ``print()`` calls from sub-functions (e.g. huggingface_hub)
     from corrupting the terminal. Output is discarded — the rich panel shows
     all relevant info via its own sections.
+
+    Implements isatty/fileno/closed/encoding/errors so libraries that probe
+    these (logging, click, tqdm) don't crash and bleed tracebacks onto the
+    alternate screen.
     """
+
+    encoding = "utf-8"
+    errors = "replace"
+    closed = False
 
     def write(self, s: str) -> int:
         return len(s)
 
     def flush(self) -> None:
         pass
+
+    def isatty(self) -> bool:
+        return False
+
+    def fileno(self) -> int:
+        # Some callers raise UnsupportedOperation gracefully; raising is safer
+        # than returning a real fd we don't own.
+        raise OSError("_DisplayWriter has no underlying file descriptor")
+
+    def writable(self) -> bool:
+        return True
 
 
 class _LogTailWatcher:
@@ -213,11 +231,16 @@ class ProgressDisplay:
         with self._lock:
             return self._render()
 
+    # ANSI CSI / OSC sequences from subprocess logs (tqdm progress bars,
+    # color codes).  Stripping them before rendering prevents stray escapes
+    # from corrupting the alternate screen and growing xterm.js parser state.
+    _ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07")
+
     def _tail_log(self, n: int = 3, max_chars: int = 160) -> list[str]:
         """Return last *n* non-empty lines from the subprocess log.
 
         Throttled to ~0.5 Hz with size-unchanged short-circuit — avoids
-        hammering disk I/O inside the render lock.
+        hammering disk I/O inside the render lock.  ANSI escapes stripped.
         """
         if not self._log_path:
             return []
@@ -237,10 +260,12 @@ class ProgressDisplay:
                 f.seek(max(0, size - 4096))
                 chunk = f.read().decode(errors="replace")
             lines = [
-                l.strip()[:max_chars]
+                self._ANSI_RE.sub("", l).strip()[:max_chars]
                 for l in chunk.replace("\r", "\n").split("\n")
                 if l.strip()
             ]
+            # Drop empties left after ANSI strip
+            lines = [l for l in lines if l]
             self._tail_cache = lines[-n:]
             self._tail_last_size = size
             self._tail_last_read = now
@@ -485,25 +510,68 @@ class ProgressDisplay:
         # only captures stray print() calls, not rich's own rendering.
         console = Console(file=self._orig_stdout)
         sys.stdout = _DisplayWriter()
-        # Refresh rate tuned by terminal: VSCode/Cursor's xterm.js parses
-        # ANSI ~10x slower than native terminals. tmux/screen launched FROM
-        # an embedded terminal inherits TERM_PROGRAM but is actually fast,
-        # so check TERM as well.
+        # Terminal detection:
+        #   * VSCode/Cursor's xterm.js parses ANSI ~10x slower than native
+        #     terminals AND accumulates renderer state under sustained
+        #     alt-screen churn (xtermjs#802, vscode#53782).  Drop screen=True
+        #     there to avoid the 10-min progressive freeze.
+        #   * tmux/screen launched FROM an embedded terminal inherits
+        #     TERM_PROGRAM but renders fast — check TERM to detect.
         term = os.environ.get("TERM", "")
         in_multiplexer = term.startswith(("screen", "tmux"))
         embedded_terminal = os.environ.get("TERM_PROGRAM") in ("vscode", "cursor")
-        refresh = 2 if (embedded_terminal and not in_multiplexer) else 4
-        # screen=True uses alternate screen buffer — prevents smearing
-        # on terminal resize and gives clean redraws.
+        use_alt_screen = not (embedded_terminal and not in_multiplexer)
+        # auto_refresh=False removes rich's internal _RefreshThread.  We
+        # trigger refreshes explicitly on real state changes via
+        # _request_refresh(), plus a low-rate ticker for spinner / elapsed
+        # time updates.  Cuts ANSI traffic ~5x and removes the lock-
+        # contention class flagged in rich#3704.
         self._live = Live(
             self,
-            refresh_per_second=refresh,
             console=console,
-            screen=True,
+            screen=use_alt_screen,
+            auto_refresh=False,
+            vertical_overflow="crop",
         )
         self._live.start()
 
+        # Low-rate ticker: refreshes display ~1x/sec for spinner animation
+        # + elapsed time. Cheap, no lock contention.
+        self._ticker_stop = threading.Event()
+        self._ticker_thread = threading.Thread(
+            target=self._ticker_loop, daemon=True,
+        )
+        self._ticker_thread.start()
+
+    def _ticker_loop(self):
+        """Low-rate refresh loop for spinner + elapsed time."""
+        # 1 Hz native, 0.5 Hz embedded (matches old refresh_per_second
+        # behavior modulo state-change refreshes).
+        term = os.environ.get("TERM", "")
+        in_multiplexer = term.startswith(("screen", "tmux"))
+        embedded_terminal = os.environ.get("TERM_PROGRAM") in ("vscode", "cursor")
+        period = 2.0 if (embedded_terminal and not in_multiplexer) else 1.0
+        while not self._ticker_stop.is_set():
+            self._request_refresh()
+            self._ticker_stop.wait(period)
+
+    def _request_refresh(self):
+        """Trigger a manual Live refresh.  Safe to call from any thread."""
+        live = self._live
+        if live is None:
+            return
+        try:
+            live.refresh()
+        except Exception:
+            # Live may be mid-stop; refresh() can race. Don't crash callers.
+            pass
+
     def stop(self):
+        # Signal ticker first so it stops trying to refresh during teardown.
+        if hasattr(self, "_ticker_stop"):
+            self._ticker_stop.set()
+        if hasattr(self, "_ticker_thread"):
+            self._ticker_thread.join(timeout=2)
         if self._live:
             self._live.stop()
             self._live = None
@@ -517,6 +585,7 @@ class ProgressDisplay:
                 self.status_detail[key] = detail
             elif key in self.status_detail:
                 del self.status_detail[key]
+        self._request_refresh()
 
     def mark_running(self, key: str, detail: str = ""):
         with self._lock:
@@ -525,24 +594,29 @@ class ProgressDisplay:
                 self.status_detail[key] = detail
             elif key in self.status_detail:
                 del self.status_detail[key]
+        self._request_refresh()
 
     def mark_failed(self, key: str, detail: str = ""):
         with self._lock:
             self.status[key] = self.FAILED
             if detail:
                 self.status_detail[key] = detail
+        self._request_refresh()
 
     def set_phase(self, phase: str):
         with self._lock:
             self.phase = phase
+        self._request_refresh()
 
     def set_data_prep(self, key: str, status: str, detail: str = ""):
         with self._lock:
             self.data_prep[key] = (status, detail)
+        self._request_refresh()
 
     def set_warning(self, key: str, warning: str):
         with self._lock:
             self.warnings[key] = warning
+        self._request_refresh()
 
 
 
@@ -672,8 +746,6 @@ Examples (lmms-eval):
         if not args.model_args:
             print("ERROR: --model-args is required with --backend lmms-eval")
             sys.exit(1)
-        if args.no_judge:
-            print("WARNING: --no-judge is ignored for lmms-eval backend")
     elif args.backend == "vlmevalkit":
         if args.model_args:
             print("WARNING: --model-args is ignored for vlmevalkit backend")
@@ -728,11 +800,13 @@ Examples (lmms-eval):
     # Model name and model directory depend on backend
     if args.backend == "lmms-eval":
         model_name = args.model  # model type for display
-        # lmms-eval uses sanitized pretrained path as directory name
-        model_args_dict = dict(kv.split("=", 1) for kv in args.model_args.split(",") if "=" in kv)
-        pretrained = model_args_dict.get("pretrained", args.model)
-        sanitized = pretrained.replace("/", "__")
-        model_dir = output_dir / sanitized
+        # Resolve model_dir via adapter helper that mirrors lmms-eval's
+        # exact source-of-truth logic (GeneralConfigTracker._get_model_name
+        # + utils.sanitize_model_name).  Handles all model_args prefixes
+        # (peft=, delta=, pretrained=, model=, model_version=, model_name=,
+        # model_id=, path=, engine=) and the same special-char sanitization
+        # that lmms-eval applies when constructing its output dir.
+        model_dir = adapter.model_dir(output_dir, fallback_model_name=args.model)
     else:
         model_name = args.model.split("/")[-1]
         model_dir = output_dir / model_name
@@ -823,7 +897,7 @@ Examples (lmms-eval):
             else:
                 print(f"  {item} -> {all_benchmarks[item]}")
 
-    # ---- Phase 0: Check HF token (if --submit) ----
+    # ---- Check HF token (if --submit) ----
     hf_token = None
     if args.submit:
         hf_token = os.environ.get("HF_TOKEN")
@@ -854,6 +928,7 @@ Examples (lmms-eval):
                     display.env_checks.append(("Submit", "ok", "enabled"))
                 else:
                     display.env_checks.append(("HF_TOKEN", "failed", "not found"))
+            display._request_refresh()
 
         if not hf_token:
             if display:
@@ -862,7 +937,7 @@ Examples (lmms-eval):
             print("ERROR: --submit requires HF_TOKEN environment variable or .env file in project root")
             sys.exit(1)
 
-    # ---- Phase 1: Prepare datasets (CPU only, with retries) ----
+    # ---- Prepare datasets (CPU only, with retries) ----
     if args.backend == "vlmevalkit":
         dataset_dir = Path(args.dataset_dir) if args.dataset_dir else repo_root / "datasets"
         dataset_dir.mkdir(parents=True, exist_ok=True)
@@ -893,7 +968,7 @@ Examples (lmms-eval):
             for key in all_benchmarks:
                 display.set_data_prep(key, "done", "managed by lmms-eval")
 
-    # ---- Phase 2: Run benchmarks ----
+    # ---- Run benchmarks ----
     start = time.time()
 
     # Resume logic: find already-completed tasks
@@ -1165,7 +1240,7 @@ Examples (lmms-eval):
                     print("Rerun to resume.")
                     sys.exit(130)
 
-        # --- Phase 2a: Run ALL pending benchmarks with exact_matching ---
+        # --- Run ALL pending benchmarks with exact_matching ---
         if pending_benchmarks:
             if display:
                 for key in pending_benchmarks:
@@ -1185,169 +1260,221 @@ Examples (lmms-eval):
                     else:
                         display.mark_failed(key)
 
-        # --- Phase 2b: Extraction quality check + judge re-run ---
-        if not args.no_judge:
-            if display:
-                display.set_phase("Checking extraction quality")
 
-            # Check across ALL benchmarks (not just pending) — if user reran
-            # with existing results, still check them
-            reports = adapter.check_extraction_quality(model_dir, model_name, all_benchmarks)
+    # --- Extraction quality check + extraction_report.json ---
+    # Backend-agnostic: both VLMEvalKit and lmms-eval implement
+    # ``adapter.check_extraction_quality(...)``.  VLMEvalKit reports per
+    # ``extract_matching`` xlsx / MCQ result xlsx; lmms-eval reports
+    # per samples JSONL (empty filtered_resps + task-specific markers).
+    # ``method`` field in the per-bench report distinguishes the
+    # detection mechanism.
+    extraction_warnings: list[str] = []  # surfaces in final summary
+    extraction_report_path: Path | None = None
+    if not args.no_judge:
+        if display:
+            display.set_phase("Checking extraction quality")
 
-            # Write extraction report
-            report_data = {
-                "threshold": args.extraction_threshold,
-                "judge_model": args.judge_model,
-                "benchmarks": {
-                    key: {
-                        "total": r.total,
-                        "failed": r.failed,
-                        "failure_rate": round(r.failure_rate, 4),
-                        "method": r.method,
-                    }
-                    for key, r in reports.items()
-                },
-            }
-            report_path = output_dir / "extraction_report.json"
-            report_path.write_text(json.dumps(report_data, indent=2))
+        reports = adapter.check_extraction_quality(model_dir, model_name, all_benchmarks)
 
-            # Identify benchmarks needing judge re-evaluation
-            needs_judge = {
-                key: all_benchmarks[key]
+        report_data = {
+            "threshold": args.extraction_threshold,
+            "judge_model": args.judge_model,
+            "benchmarks": {
+                key: {
+                    "total": r.total,
+                    "failed": r.failed,
+                    "failure_rate": round(r.failure_rate, 4),
+                    "method": r.method,
+                }
                 for key, r in reports.items()
-                if r.method != "skipped_no_artifact" and r.failure_rate > args.extraction_threshold
-            }
+            },
+        }
+        report_path = output_dir / "extraction_report.json"
+        report_path.write_text(json.dumps(report_data, indent=2))
+        extraction_report_path = report_path
 
-            # If either site_image or site_video needs judge, include both —
-            # the combined site score requires consistent extraction method.
-            if "site_image" in needs_judge or "site_video" in needs_judge:
-                for k in ("site_image", "site_video"):
-                    if k in all_benchmarks:
-                        needs_judge[k] = all_benchmarks[k]
+        # Identify benchmarks needing judge re-evaluation
+        needs_judge = {
+            key: all_benchmarks[key]
+            for key, r in reports.items()
+            if r.method != "skipped_no_artifact" and r.failure_rate > args.extraction_threshold
+        }
 
-            # Update display with failure rate details
+        # If either site_image or site_video needs judge, include both —
+        # the combined site score requires consistent extraction method.
+        if "site_image" in needs_judge or "site_video" in needs_judge:
+            for k in ("site_image", "site_video"):
+                if k in all_benchmarks:
+                    needs_judge[k] = all_benchmarks[k]
+
+        # Update display with failure rate details
+        if display:
+            for key, r in reports.items():
+                pct = f"{r.failure_rate*100:.1f}%"
+                if key in needs_judge:
+                    display.mark_running(key, f"needs judge ({pct} failures)")
+                else:
+                    display.mark_done(key, f"({pct} failures)")
+
+        # --- Re-evaluate failing benchmarks with judge ---
+        # Gated on adapter exposing a non-trivial ``build_judge_cmd``.
+        # VLMEvalKit returns a real cmd; lmms-eval returns ``None``
+        # (no post-hoc judge mechanism — extraction is inline during
+        # eval).  When the adapter doesn't support judge rerun, we only
+        # surface the report (informational) without attempting rerun.
+        probe_judge_cmd = None
+        if needs_judge:
+            first_key = next(iter(needs_judge))
+            probe_judge_cmd = adapter.build_judge_cmd(
+                args.model, {first_key: needs_judge[first_key]},
+                output_dir, args.nproc, args.judge_model,
+                extra_args=extra_args,
+            )
+
+        if needs_judge and probe_judge_cmd is not None:
             if display:
-                for key, r in reports.items():
-                    pct = f"{r.failure_rate*100:.1f}%"
-                    if key in needs_judge:
-                        display.mark_running(key, f"needs judge ({pct} failures)")
-                    else:
-                        display.mark_done(key, f"({pct} failures)")
+                display.set_phase(f"Re-evaluating with {args.judge_model}")
 
-            # --- Phase 2c: Re-evaluate failing benchmarks with judge ---
-            if needs_judge:
+            for key, data_name in needs_judge.items():
+                # Archive existing exact_matching artifacts
+                adapter.archive_artifacts(model_dir, model_name, data_name)
+
                 if display:
-                    display.set_phase(f"Re-evaluating with {args.judge_model}")
+                    display.mark_running(key, "(judge)")
 
-                for key, data_name in needs_judge.items():
-                    # Archive existing exact_matching artifacts
-                    adapter.archive_artifacts(model_dir, model_name, data_name)
+                single = {key: data_name}
+                judge_cmd = adapter.build_judge_cmd(
+                    args.model, single, output_dir, args.nproc,
+                    args.judge_model, extra_args=extra_args,
+                )
+                _run_subprocess(
+                    judge_cmd,
+                    f"Re-evaluating {key} ({args.judge_model})",
+                    single,
+                )
 
-                    if display:
-                        display.mark_running(key, "(judge)")
+                # Track that this benchmark was re-evaluated
+                judged_benchmarks[key] = args.judge_model
 
-                    single = {key: data_name}
-                    judge_cmd = adapter.build_judge_cmd(
-                        args.model, single, output_dir, args.nproc,
-                        args.judge_model, extra_args=extra_args,
-                    )
-                    _run_subprocess(
-                        judge_cmd,
-                        f"Re-evaluating {key} ({args.judge_model})",
-                        single,
-                    )
+                # Update completion
+                completion = adapter.detect_completion(model_dir, model_name, single)
+                if display:
+                    if completion.get(key):
+                        display.mark_done(key, "(judge)")
+                    else:
+                        display.mark_failed(key, "(judge failed)")
+        elif needs_judge and probe_judge_cmd is None and not use_rich:
+            print(
+                f"NOTE: {len(needs_judge)} benchmark(s) exceeded extraction "
+                f"threshold but the {args.backend} backend has no judge "
+                "rerun mechanism. See extraction_report.json."
+            )
 
-                    # Track that this benchmark was re-evaluated
-                    judged_benchmarks[key] = args.judge_model
-
-                    # Update completion
-                    completion = adapter.detect_completion(model_dir, model_name, single)
-                    if display:
-                        if completion.get(key):
-                            display.mark_done(key, "(judge)")
-                        else:
-                            display.mark_failed(key, "(judge failed)")
-        elif not use_rich:
-            print("--no-judge: skipping extraction quality check")
+        # Build extraction warnings for the final summary.
+        # Two distinct cases:
+        #   1. Bench exceeded threshold AND no judge rerun mechanism →
+        #      warn user that scores reflect raw extraction quality.
+        #   2. Bench exceeded threshold AND was rescored with judge →
+        #      info-level note that the judge salvaged it.
+        threshold_pct = args.extraction_threshold * 100
+        for key, r in reports.items():
+            if r.method == "skipped_no_artifact":
+                continue
+            if r.failure_rate <= args.extraction_threshold:
+                continue
+            pct = r.failure_rate * 100
+            if key in judged_benchmarks:
+                extraction_warnings.append(
+                    f"  [info] {key}: {pct:.1f}% extraction failures "
+                    f"(>{threshold_pct:.1f}% threshold) — rescored with "
+                    f"{args.judge_model}"
+                )
+            elif probe_judge_cmd is None:
+                extraction_warnings.append(
+                    f"  [WARN] {key}: {pct:.1f}% extraction failures "
+                    f"(>{threshold_pct:.1f}% threshold) — backend has no "
+                    f"judge rerun; raw scores may underestimate model"
+                )
+            else:
+                # needs_judge was set but judge rerun didn't reach this
+                # bench (e.g. interrupted) — surface as warning.
+                extraction_warnings.append(
+                    f"  [WARN] {key}: {pct:.1f}% extraction failures "
+                    f"(>{threshold_pct:.1f}% threshold) — judge rerun did "
+                    f"not complete for this bench"
+                )
 
     elapsed = time.time() - start
 
     stderr_text = log_path.read_text(errors="replace") if log_path.exists() else ""
 
-    # ---- Phase 3: Verify results per benchmark ----
+    # ---- Verify results per benchmark ----
     if display:
         display.set_phase("Verifying results")
 
     summary_lines: list[str] = []
 
-    if args.backend == "vlmevalkit":
-        results = verify_results(output_dir, model_name, all_benchmarks, stderr_text)
-        results_by_key = {r.key: r for r in results}
-        failed_keys = [r.key for r in results if not r.success]
+    # Unified verification: same shape regardless of backend.
+    # Each adapter returns ``list[BenchmarkResult]`` with sample counts +
+    # per-bench warnings.  Display rendering below is backend-agnostic.
+    results = adapter.verify_results(model_dir, model_name, all_benchmarks, stderr_text)
+    results_by_key = {r.key: r for r in results}
+    failed_keys = [r.key for r in results if not r.success]
 
-        # Update display status from verification results and collect summary lines
+    def _update_display_for_result(key: str, r: BenchmarkResult):
+        """Update display status and warnings from verification."""
+        if not display:
+            return
+        if r.success:
+            display.mark_done(key)
+        else:
+            display.mark_failed(key)
+        if r.errors:
+            display.set_warning(key, r.errors[0])
 
-        def _update_display_for_result(key: str, r: BenchmarkResult):
-            """Update display status and warnings from verification."""
-            if not display:
-                return
-            if r.success:
-                display.mark_done(key)
-            else:
-                display.mark_failed(key)
-            if r.errors:
-                display.set_warning(key, r.errors[0])
+    def _format_result(r: BenchmarkResult, indent: str = "  ") -> str:
+        total_str = str(r.total) if r.total > 0 else "?"
+        completed_str = str(r.completed) if r.completed >= 0 else "?"
+        status = "OK" if r.success else "FAIL"
+        line = f"{indent}[{status}] {r.key:<25} {completed_str}/{total_str} samples"
+        if r.errors:
+            line += f"\n{indent}     !! {r.errors[0]}"
+        return line
 
-        def _format_result(r: BenchmarkResult, indent: str = "  ") -> str:
-            total_str = str(r.total) if r.total > 0 else "?"
-            completed_str = str(r.completed) if r.completed >= 0 else "?"
-            status = "OK" if r.success else "FAIL"
-            line = f"{indent}[{status}] {r.key:<25} {completed_str}/{total_str} samples"
-            if r.errors:
-                line += f"\n{indent}     !! {r.errors[0]}"
-            return line
+    for item in display_items:
+        if isinstance(item, tuple):
+            group_name, children = item
+            child_results = [results_by_key[c] for c in children if c in results_by_key]
+            all_ok = all(r.success for r in child_results)
+            grp_status = "OK" if all_ok else "FAIL"
+            grp_completed = sum(r.completed for r in child_results if r.completed >= 0)
+            grp_total = sum(r.total for r in child_results if r.total > 0)
+            total_str = str(grp_total) if grp_total > 0 else "?"
+            completed_str = str(grp_completed) if grp_completed >= 0 else "?"
+            summary_lines.append(f"  [{grp_status}] {group_name:<25} {completed_str}/{total_str} samples")
+            for child in children:
+                if child in results_by_key:
+                    r = results_by_key[child]
+                    summary_lines.append(_format_result(r, indent="    "))
+                    _update_display_for_result(child, r)
+        else:
+            if item in results_by_key:
+                r = results_by_key[item]
+                summary_lines.append(_format_result(r))
+                _update_display_for_result(item, r)
 
-        for item in display_items:
-            if isinstance(item, tuple):
-                group_name, children = item
-                child_results = [results_by_key[c] for c in children if c in results_by_key]
-                all_ok = all(r.success for r in child_results)
-                grp_status = "OK" if all_ok else "FAIL"
-                grp_completed = sum(r.completed for r in child_results if r.completed >= 0)
-                grp_total = sum(r.total for r in child_results if r.total > 0)
-                total_str = str(grp_total) if grp_total > 0 else "?"
-                completed_str = str(grp_completed) if grp_completed >= 0 else "?"
-                summary_lines.append(f"  [{grp_status}] {group_name:<25} {completed_str}/{total_str} samples")
-                for child in children:
-                    if child in results_by_key:
-                        r = results_by_key[child]
-                        summary_lines.append(_format_result(r, indent="    "))
-                        _update_display_for_result(child, r)
-            else:
-                if item in results_by_key:
-                    r = results_by_key[item]
-                    summary_lines.append(_format_result(r))
-                    _update_display_for_result(item, r)
+    ok = sum(1 for r in results if r.success)
+    summary_lines.append(f"\n{ok}/{len(results)} sub-benchmarks passed ({len(display_items)} benchmarks)")
 
-        ok = sum(1 for r in results if r.success)
-        summary_lines.append(f"\n{ok}/{len(results)} sub-benchmarks passed ({len(display_items)} benchmarks)")
-    else:
-        # lmms-eval verification
-        completion = adapter.detect_completion(model_dir, model_name, all_benchmarks)
-        failed_keys = [k for k, done in completion.items() if not done]
-        if display:
-            for key, done in completion.items():
-                if done:
-                    display.mark_done(key)
-                else:
-                    display.mark_failed(key)
-        if not use_rich:
-            for key in all_benchmarks:
-                status = "OK" if completion.get(key) else "FAIL"
-                summary_lines.append(f"  [{status}] {key}")
-
-        ok = sum(1 for done in completion.values() if done)
-        summary_lines.append(f"\n{ok}/{len(completion)} benchmarks passed ({len(display_items)} benchmarks)")
+    # Extraction-quality warnings (benches that exceeded threshold).
+    if extraction_warnings:
+        summary_lines.append("")
+        summary_lines.append(
+            f"Extraction-quality flags ({len(extraction_warnings)} bench(es)):"
+        )
+        summary_lines.extend(extraction_warnings)
+        if extraction_report_path is not None:
+            summary_lines.append(f"  See: {extraction_report_path}")
 
     summary_lines.append(f"Results saved to: {output_dir}")
     if log_path.exists():
@@ -1372,7 +1499,7 @@ Examples (lmms-eval):
             rerun_cmd += f" --output-dir {output_dir}"
         summary_lines.append(f"\nRerun failed:\n  {rerun_cmd}")
 
-    # ---- Phase 4: Post-processing (build submission payload + archive) ----
+    # ---- Post-processing (build submission payload + archive) ----
     from postprocess import build_payload, build_results_archive
 
     submission_configs = json.loads(args.submission_configs) if args.submission_configs else {}
@@ -1381,7 +1508,7 @@ Examples (lmms-eval):
         display.set_phase("Building submission")
 
     # Augment judged_benchmarks with judge artifacts found on disk —
-    # handles merged result dirs where Phase 2c didn't fire this run.
+    # handles merged result dirs where the judge rerun didn't fire this run.
     if hasattr(adapter, "detect_judged_benchmarks"):
         disk_judged = adapter.detect_judged_benchmarks(
             model_dir, model_name, all_benchmarks,
@@ -1408,12 +1535,14 @@ Examples (lmms-eval):
             "payload_path": str(json_path),
             "zip_path": str(zip_path),
         }
+        display._request_refresh()
 
-    # ---- Phase 5: Submit to leaderboard (if --submit) ----
+    # ---- Submit to leaderboard (if --submit) ----
     def _set_submission(status: str, detail: str = ""):
         if display:
             with display._lock:
                 display.submission_status = (status, detail)
+            display._request_refresh()
 
     if args.submit and hf_token:
         from postprocess import validate_payload_for_submit, submit_results

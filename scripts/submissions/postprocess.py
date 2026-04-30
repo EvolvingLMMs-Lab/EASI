@@ -40,6 +40,22 @@ METRIC_MAP: dict[str, dict] = {
             "route_planning_accuracy": "route_planning_accuracy",
         },
     },
+    "vsi_bench_128frame": {
+        "data_name": "VSI-Bench_128frame",
+        "acc_pattern": "*_VSI-Bench_128frame*_acc.csv",
+        "overall_key": "overall",
+        "scale": 1,
+        "sub_scores": {
+            "obj_appearance_order_accuracy": "obj_appearance_order_accuracy",
+            "object_abs_distance": "object_abs_distance_MRA:.5:.95:.05",
+            "object_counting": "object_counting_MRA:.5:.95:.05",
+            "object_rel_direction_accuracy": "object_rel_direction_accuracy",
+            "object_rel_distance_accuracy": "object_rel_distance_accuracy",
+            "object_size_estimation": "object_size_estimation_MRA:.5:.95:.05",
+            "room_size_estimation": "room_size_estimation_MRA:.5:.95:.05",
+            "route_planning_accuracy": "route_planning_accuracy",
+        },
+    },
     "mmsi_bench": {
         "data_name": "MMSIBench_wo_circular",
         "acc_pattern": "*_MMSIBench_wo_circular*_acc.csv",

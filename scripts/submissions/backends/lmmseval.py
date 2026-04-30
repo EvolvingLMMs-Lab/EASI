@@ -8,10 +8,132 @@ from __future__ import annotations
 
 import json
 import random
+import re
 from collections import defaultdict
 from pathlib import Path
 
-from .base import BackendAdapter, BenchmarkScores
+from .base import BackendAdapter, BenchmarkResult, BenchmarkScores, ExtractionReport
+
+# ---------------------------------------------------------------------------
+# Log error parsing (LE-04)
+# ---------------------------------------------------------------------------
+
+# Each pattern targets a high-signal failure marker in lmms-eval / accelerate
+# subprocess logs.  Compiled once at module load.  Order matters only for
+# dedup-stability — output is dedup'd via dict.fromkeys.
+_ERROR_PATTERNS: list[re.Pattern] = [
+    # eval_logger.error() lines emitted by lmms_eval itself.
+    re.compile(r"^\[.*?\]\s+ERROR\s+-\s+\S+:\s*(?P<msg>.+)$"),
+    # CUDA OOM
+    re.compile(r"(?P<msg>torch\.cuda\.OutOfMemoryError.+|CUDA out of memory.+)"),
+    # NCCL / torch.distributed
+    re.compile(
+        r"(?P<msg>ProcessGroupNCCL.+|"
+        r"NCCL\s+\w+\s+failed.+|"
+        r"torch\.distributed\.\w+(?:Error|Exception)\b.*)"
+    ),
+    # OS-level kills
+    re.compile(r"(?P<msg>got signal SIG(?:KILL|TERM)\b.*)"),
+    re.compile(r"(?P<msg>^Killed$)", re.MULTILINE),
+    # accelerate launch issues
+    re.compile(r"(?P<msg>Distributed package doesn't have NCCL.*)"),
+    re.compile(r"(?P<msg>accelerate launch failed.*)"),
+    # tokenizer / model load
+    re.compile(r"(?P<msg>OSError: Can't load tokenizer.+)"),
+    re.compile(r"(?P<msg>OSError: We couldn't connect.+)"),
+    re.compile(r"(?P<msg>Can't load (?:tokenizer|the model) for.+)"),
+    # task / dataset registration
+    re.compile(r"(?P<msg>Task\s+['\"]?\S+['\"]?\s+(?:has not been )?(?:registered|found).*)"),
+    re.compile(r"(?P<msg>DatasetNotFoundError.+)"),
+]
+
+# Patterns to drop even if they look error-shaped — they are recoverable
+# noise (HF transient retries, etc.).
+_NOISE_PATTERNS: list[re.Pattern] = [
+    re.compile(r"MaxRetryError.+huggingface\.co"),
+    re.compile(r"thrown while requesting HEAD"),
+    re.compile(r"^\[.*?\]\s+WARNING\s+-"),
+    re.compile(r"Retrying in \d"),
+]
+
+# Traceback recognition.  In IN_TRACEBACK state, any indented line is
+# treated as continuation; the first non-indented non-empty line is the
+# exception summary line.
+_TRACEBACK_START = "Traceback (most recent call last):"
+# Matches "ExceptionName: message" at column 0.  Broad enough to catch
+# KeyboardInterrupt, StopIteration, SystemExit (no Error/Exception/Warning
+# suffix) plus the standard XxxError / XxxException family.
+_EXCEPTION_LINE = re.compile(r"^([A-Z]\w+)\s*:\s*(.+)$")
+
+
+def _is_noise(line: str) -> bool:
+    return any(p.search(line) for p in _NOISE_PATTERNS)
+
+
+def parse_errors_lmmseval(stderr: str) -> list[str]:
+    """Extract human-readable error summaries from lmms-eval subprocess log.
+
+    Returns a deduplicated list of one-line error summaries, ordered by
+    appearance.  Captures:
+
+    * ``eval_logger.error(...)`` lines
+    * Python ``Traceback`` blocks — folded to single ``ExceptionName: msg`` line
+    * CUDA OOM, NCCL / distributed errors
+    * OS-level kills (SIGKILL / SIGTERM / "Killed")
+    * accelerate launch failures
+    * Tokenizer / model-load errors
+    * Task / dataset-registration errors
+
+    Filters out huggingface_hub HEAD ``MaxRetryError`` (recoverable),
+    ``WARNING``-level entries, retry-loop chatter.
+    """
+    if not stderr:
+        return []
+
+    errors: list[str] = []
+    state = "NORMAL"
+
+    for raw_line in stderr.splitlines():
+        line = raw_line.rstrip()
+
+        if state == "NORMAL":
+            if not line:
+                continue
+            if _is_noise(line):
+                continue
+            if line.endswith(_TRACEBACK_START) or line.strip() == _TRACEBACK_START:
+                state = "IN_TRACEBACK"
+                continue
+            for pat in _ERROR_PATTERNS:
+                m = pat.search(line)
+                if m:
+                    msg = m.group("msg").strip() if "msg" in m.groupdict() else m.group(0).strip()
+                    if msg:
+                        errors.append(msg)
+                    break
+
+        elif state == "IN_TRACEBACK":
+            if not line:
+                # Blank line — keep collecting; some tracebacks have blank
+                # lines inside chained "During handling of the above..." sections.
+                continue
+            if line.startswith((" ", "\t")):
+                # Indented frame / source line — skip, we only want the summary.
+                continue
+            # First non-indented line: exception summary.
+            m = _EXCEPTION_LINE.match(line)
+            if m:
+                errors.append(f"{m.group(1)}: {m.group(2).strip()}")
+            else:
+                # Catch unusual top-level lines (e.g. "During handling ...").
+                # Keep state in NORMAL and reprocess via patterns next iter.
+                state = "NORMAL"
+                continue
+            state = "NORMAL"
+
+    # Dedup preserving first-occurrence order
+    return list(dict.fromkeys(errors))
+
 
 # ---------------------------------------------------------------------------
 # lmms-eval task name mapping
@@ -302,6 +424,60 @@ class LmmsEvalAdapter(BackendAdapter):
     def name(self) -> str:
         return "lmmseval"
 
+    # ---- Model directory resolution (mirrors lmms-eval source) ----
+
+    # Order matters — must match
+    # ``GeneralConfigTracker._get_model_name`` in
+    # ``lmms-eval/lmms_eval/loggers/evaluation_tracker.py`` exactly.
+    # ``peft=`` / ``delta=`` are checked before ``pretrained=`` because
+    # PEFT/delta runs include ``pretrained`` for the base weights but
+    # the result dir is named after the adapter.
+    _MODEL_NAME_PREFIXES: tuple[str, ...] = (
+        "peft=", "delta=", "pretrained=", "model=", "model_version=",
+        "model_name=", "model_id=", "path=", "engine=",
+    )
+
+    # Special chars sanitized to "__" — mirror
+    # ``utils.sanitize_model_name`` (default branch, full_path=False).
+    _SANITIZE_RE = re.compile(r"[\"<>:/\|\\?\*\[\]]+")
+
+    @classmethod
+    def model_name_from_args(cls, model_args: str, fallback: str = "") -> str:
+        """Extract model name from a comma-separated model_args string.
+
+        Mirrors ``GeneralConfigTracker._get_model_name``: checks each
+        prefix in priority order, returns the value of the first match
+        (delimited by the next comma).  Falls back to *fallback* (default
+        ``""``) when no recognized prefix is present.
+        """
+        for prefix in cls._MODEL_NAME_PREFIXES:
+            if prefix in model_args:
+                # Slice after first occurrence; stop at first comma.
+                return model_args.split(prefix, 1)[1].split(",", 1)[0]
+        return fallback
+
+    @classmethod
+    def sanitize_model_name(cls, model_name: str) -> str:
+        """Mirror ``utils.sanitize_model_name`` (full_path=False).
+
+        Keeps the last 2 path segments (e.g. ``org/sub/model`` →
+        ``sub/model``), then replaces special chars with ``__``.
+        """
+        if not model_name:
+            return ""
+        parts = model_name.split("/")
+        last_two = "/".join(parts[-2:]) if len(parts) > 1 else parts[-1]
+        return cls._SANITIZE_RE.sub("__", last_two)
+
+    def model_dir(self, output_dir: Path, fallback_model_name: str = "") -> Path:
+        """Resolve the lmms-eval result directory for this adapter's run.
+
+        Equivalent to ``<output_dir>/<sanitize_model_name(_get_model_name(model_args))>``,
+        which is exactly where lmms-eval writes results.
+        """
+        model_name = self.model_name_from_args(self.model_args, fallback=fallback_model_name)
+        return Path(output_dir) / self.sanitize_model_name(model_name)
+
     def get_env_overrides(self) -> dict[str, str]:
         """Env vars for the subprocess.
 
@@ -352,6 +528,15 @@ class LmmsEvalAdapter(BackendAdapter):
             "--log_samples",
         ]
 
+        # Sample-level resume via lmms-eval's response cache (SQLite + JSONL
+        # crash-recovery log).  Mirrors VLMEvalKit's ``--reuse`` semantics:
+        # default ON; ``--rerun`` (self.rerun=True) opts out for a fresh run.
+        # Cache is keyed on model + model_args + task config, so changing any
+        # of those auto-invalidates without manual intervention.
+        if not self.rerun:
+            cache_root = output_dir / ".lmms_eval_cache"
+            cmd += ["--use_cache", str(cache_root)]
+
         if verbose:
             cmd += ["--verbosity", "DEBUG"]
 
@@ -385,6 +570,278 @@ class LmmsEvalAdapter(BackendAdapter):
         if self.rerun:
             return set()
         return super().find_completed_tasks(model_dir, model_name, benchmarks)
+
+    # ---- Rich verification (parity with VLMEvalKit) ----
+
+    def verify_results(
+        self,
+        model_dir: Path,
+        model_name: str,
+        benchmarks: dict[str, str],
+        stderr_text: str = "",
+    ) -> list[BenchmarkResult]:
+        """Per-benchmark verification with sample counts + diagnostics.
+
+        Mirrors VLMEvalKit's soft-check precedent: ``success=True`` iff the
+        backend's aggregation completed (``*_results.json`` has a task
+        entry).  Sample-count shortfall is reported as a soft WARNING in
+        ``errors`` rather than flipping ``success``.
+
+        When ``stderr_text`` is provided, parses it via
+        ``parse_errors_lmmseval`` and attaches surfaced errors to failed
+        benchmarks (best-effort attribution by task-name substring match;
+        falls back to broadcasting errors across all failed benches).
+        """
+        merged = _load_all_results(model_dir)
+        log_errors = parse_errors_lmmseval(stderr_text) if stderr_text else []
+        results: list[BenchmarkResult] = []
+
+        # Build initial results without log-error attribution; second pass
+        # below attaches log_errors to failed entries.
+        for key, task_name in benchmarks.items():
+            has_results = task_name in merged
+            completed, total = self._count_samples(model_dir, task_name)
+            errors: list[str] = []
+
+            if not has_results:
+                errors.append(
+                    "results.json missing for this task — eval did not "
+                    "complete aggregation (likely killed before end-of-task)"
+                )
+                success = False
+            else:
+                success = True
+                if total > 0 and completed < total:
+                    skipped = total - completed
+                    errors.append(
+                        f"WARNING: {skipped}/{total} samples missing or "
+                        "empty (counted as wrong; rerun if not acceptable)"
+                    )
+                elif total == 0 and completed == 0:
+                    # results.json present but no n-samples + no JSONL —
+                    # legacy artifact or --log_samples was disabled.
+                    errors.append(
+                        "WARNING: sample counts unavailable "
+                        "(no n-samples in results.json and no samples JSONL)"
+                    )
+
+            results.append(BenchmarkResult(
+                key=key, success=success,
+                completed=completed, total=total,
+                errors=errors,
+            ))
+
+        # Attribute log-parsed errors to failed benchmarks.
+        if log_errors:
+            for r in results:
+                if r.success:
+                    continue
+                task_name = benchmarks[r.key]
+                attached = self._match_errors_to_task(log_errors, task_name)
+                # Cap broadcast fallback at 3 to avoid spam when many benches
+                # fail under the same global error condition.
+                if attached:
+                    r.errors.extend(attached[:3])
+
+        return results
+
+    @staticmethod
+    def _match_errors_to_task(
+        log_errors: list[str], task_name: str,
+    ) -> list[str]:
+        """Best-effort: prefer errors that mention the task name.
+
+        Falls back to all global errors when nothing mentions the task —
+        loud-but-safe so a critical OOM/NCCL doesn't get hidden just
+        because the message didn't include the task slug.
+        """
+        if not log_errors:
+            return []
+        by_name = [e for e in log_errors if task_name in e]
+        return by_name if by_name else log_errors
+
+    def _count_samples(
+        self, model_dir: Path, task_name: str,
+    ) -> tuple[int, int]:
+        """Return (completed, total) for one lmms-eval task.
+
+        * ``total`` — ``n-samples.original`` from the latest results.json
+          mentioning the task (0 if not found).
+        * ``completed`` — lines in samples JSONL with non-empty
+          ``filtered_resps`` / ``resps`` / ``prediction`` (0 if no JSONL).
+        """
+        total = self._n_samples_for_task(model_dir, task_name)
+        samples_file = self._find_samples_file(model_dir, task_name)
+        if samples_file is None:
+            return 0, total
+
+        completed = 0
+        try:
+            with open(samples_file) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        item = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if self._has_nonempty_response(item):
+                        completed += 1
+        except OSError:
+            return 0, total
+        return completed, total
+
+    def _find_samples_file(
+        self, model_dir: Path, task_name: str,
+    ) -> Path | None:
+        """Latest samples JSONL for a task by mtime."""
+        candidates = sorted(
+            model_dir.glob(f"*_samples_{task_name}.jsonl"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        return candidates[0] if candidates else None
+
+    def _n_samples_for_task(
+        self, model_dir: Path, task_name: str,
+    ) -> int:
+        """Return ``n-samples.original`` for a task across all results files.
+
+        Walks newest-first; returns the first match.
+        """
+        for path in sorted(model_dir.glob("*_results.json"), reverse=True):
+            try:
+                data = json.loads(path.read_text())
+            except (json.JSONDecodeError, OSError):
+                continue
+            ns = (data.get("n-samples") or {}).get(task_name)
+            if ns is not None:
+                try:
+                    return int(ns.get("original", 0))
+                except (TypeError, ValueError):
+                    return 0
+        return 0
+
+    @staticmethod
+    def _has_nonempty_response(item: dict) -> bool:
+        """Check whether a samples JSONL row has a non-empty model response."""
+        for field_name in ("filtered_resps", "resps", "prediction"):
+            resp = item.get(field_name)
+            if resp is None:
+                continue
+            if isinstance(resp, list):
+                if any(bool(str(r).strip()) for r in resp):
+                    return True
+            elif bool(str(resp).strip()):
+                return True
+        return False
+
+    # ---- Extraction quality check (parity with VLMEvalKit) ----
+
+    def check_extraction_quality(
+        self,
+        model_dir: Path,
+        model_name: str,
+        benchmarks: dict[str, str],
+    ) -> dict[str, ExtractionReport]:
+        """Per-benchmark extraction failure rate.
+
+        Universal signal: empty ``filtered_resps`` (model returned nothing).
+        Optional task-specific overlay: mmsi_bench's ``note: "cannot find
+        answer"`` marker emitted by ``extract_single_choice_with_word_boundary``
+        when MCQ extraction fails.
+
+        Unlike VLMEvalKit, lmms-eval has no post-hoc judge rerun
+        mechanism — extraction happens inline during eval via each task's
+        ``process_results``.  This report is therefore informational: it
+        tells the user how often the model produced unparseable output,
+        without offering a corrective action.  ``method="empty_response"``
+        in the report distinguishes this from VLMEvalKit's
+        ``"extract_matching"`` / ``"multiple_choice"`` methods.
+        """
+        reports: dict[str, ExtractionReport] = {}
+        for key, task_name in benchmarks.items():
+            report = self._check_extraction_lmmseval(model_dir, task_name)
+            reports[key] = report or ExtractionReport(
+                total=0, failed=0, failure_rate=0.0,
+                method="skipped_no_artifact",
+            )
+        return reports
+
+    def _check_extraction_lmmseval(
+        self, model_dir: Path, task_name: str,
+    ) -> ExtractionReport | None:
+        """Walk samples JSONL and count extraction failures.
+
+        Returns ``None`` when the JSONL file is missing — caller emits a
+        ``skipped_no_artifact`` report so the entry still appears in
+        ``extraction_report.json``.
+        """
+        samples_file = self._find_samples_file(model_dir, task_name)
+        if samples_file is None:
+            return None
+        total = 0
+        failed = 0
+        try:
+            with open(samples_file) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        item = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    total += 1
+                    if self._is_extraction_failure(item, task_name):
+                        failed += 1
+        except OSError:
+            return None
+        return ExtractionReport(
+            total=total,
+            failed=failed,
+            failure_rate=(failed / total) if total > 0 else 0.0,
+            method="empty_response",
+        )
+
+    @staticmethod
+    def _is_extraction_failure(item: dict, task_name: str) -> bool:
+        """True if a samples-JSONL row indicates the model's output couldn't
+        be parsed into a usable answer.
+
+        Universal: empty ``filtered_resps`` (or fallback fields) means the
+        model produced nothing usable.  Task-specific overlays add markers
+        emitted by per-task extractors when they detect malformed output.
+        """
+        # Universal: empty model output
+        for field_name in ("filtered_resps", "resps", "prediction"):
+            resp = item.get(field_name)
+            if resp is None:
+                continue
+            if isinstance(resp, list):
+                if not any(bool(str(r).strip()) for r in resp):
+                    return True
+                # Non-empty list — the model produced *something*, no longer
+                # an "empty response" failure under the universal signal.
+                break
+            elif not str(resp).strip():
+                return True
+            else:
+                break
+        else:
+            # All three fields absent — treat as failure.
+            return True
+
+        # Task-specific overlay: mmsi_bench's "cannot find answer" note.
+        # Emitted by extract_single_choice_with_word_boundary when the
+        # response doesn't contain a parseable letter.
+        if task_name == "mmsi_bench":
+            for v in item.values():
+                if isinstance(v, dict) and v.get("note") == "cannot find answer":
+                    return True
+
+        return False
 
     # ---- Result files ----
 

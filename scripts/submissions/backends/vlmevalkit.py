@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .base import BackendAdapter, BenchmarkScores, ExtractionReport
+from .base import BackendAdapter, BenchmarkResult, BenchmarkScores, ExtractionReport
 
 # ---------------------------------------------------------------------------
 # VLMEvalKit-specific constants
@@ -24,6 +24,7 @@ from .base import BackendAdapter, BenchmarkScores, ExtractionReport
 _HF_REPO = "lmms-lab-si/EASI-Leaderboard-Data"
 _TSV_URLS = {
     "VSI-Bench_32frame": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/VSI-Bench.tsv",
+    "VSI-Bench_128frame": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/VSI-Bench.tsv",
     "MMSIBench_wo_circular": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/MMSIBench_wo_circular.tsv",
     "MindCubeBench_tiny_raw_qa": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/MindCubeBench_tiny_raw_qa.tsv",
     "ViewSpatialBench": f"https://huggingface.co/datasets/{_HF_REPO}/resolve/main/ViewSpatialBench.tsv",
@@ -44,6 +45,10 @@ _RETRY_DELAY = 10  # seconds
 # VLMEvalKit data_name for each benchmark key
 _TASK_MAP = {
     "vsi_bench": "VSI-Bench_32frame",
+    # Opt-in only via --benchmarks vsi_bench_128frame.  Not in EASI_8 or
+    # EXTRA_KEYS — won't run by default.  Heavier (4x frames vs vsi_bench),
+    # used for ablation against the default 32-frame eval.
+    "vsi_bench_128frame": "VSI-Bench_128frame",
     "mmsi_bench": "MMSIBench_wo_circular",
     "mindcube_tiny": "MindCubeBench_tiny_raw_qa",
     "viewspatial": "ViewSpatialBench",
@@ -187,17 +192,6 @@ def prepare_datasets(
 # Result verification
 # ---------------------------------------------------------------------------
 
-@dataclass
-class BenchmarkResult:
-    key: str
-    data_name: str
-    success: bool
-    completed: int       # samples with predictions
-    total: int           # total samples (0 = unknown)
-    has_acc_csv: bool
-    errors: list[str] = field(default_factory=list)
-
-
 def count_xlsx_predictions(xlsx_path: Path) -> tuple[int, int]:
     """Count (completed, total) predictions in a VLMEvalKit xlsx."""
     if not xlsx_path.exists():
@@ -291,18 +285,23 @@ def parse_errors(stderr: str) -> list[str]:
     return list(dict.fromkeys(errors))
 
 
-def verify_results(
-    output_dir: Path,
+def _verify_vlmevalkit(
+    model_dir: Path,
     model_name: str,
     benchmarks: dict[str, str],
     stderr: str,
 ) -> list[BenchmarkResult]:
-    """Verify all benchmark results after a single VLMEvalKit run."""
+    """Internal: verify VLMEvalKit run; returns shared BenchmarkResult list.
+
+    Hard requirement for ``success=True``: ``_acc.csv`` exists (aggregation
+    completed).  Sample-count shortfall is reported as a soft WARNING in
+    ``errors`` rather than flipping ``success`` — this matches the
+    long-standing behavior; see ``LE-02`` plan.
+    """
     from scoring import find_acc_csv
 
-    model_dir = output_dir / model_name
     errors = parse_errors(stderr)
-    results = []
+    results: list[BenchmarkResult] = []
 
     for key, data_name in benchmarks.items():
         xlsx_path = model_dir / f"{model_name}_{data_name}.xlsx"
@@ -333,8 +332,8 @@ def verify_results(
                 )
 
         results.append(BenchmarkResult(
-            key=key, data_name=data_name, success=success,
-            completed=completed, total=total, has_acc_csv=has_acc,
+            key=key, success=success,
+            completed=completed, total=total,
             errors=bench_errors,
         ))
 
@@ -487,6 +486,16 @@ class VLMEvalKitAdapter(BackendAdapter):
             key: _has_acc_csv(model_dir, model_name, data_name)
             for key, data_name in benchmarks.items()
         }
+
+    def verify_results(
+        self,
+        model_dir: Path,
+        model_name: str,
+        benchmarks: dict[str, str],
+        stderr_text: str = "",
+    ) -> list[BenchmarkResult]:
+        """Rich per-benchmark verification with sample counts + diagnostics."""
+        return _verify_vlmevalkit(model_dir, model_name, benchmarks, stderr_text)
 
     def detect_judged_benchmarks(
         self,

@@ -22,6 +22,30 @@ class ExtractionReport:
     method: str  # "extract_matching" or "multiple_choice"
 
 
+@dataclass
+class BenchmarkResult:
+    """Per-benchmark verification result.
+
+    Shared schema across backends so the orchestrator's verification
+    reporting works the same regardless of ``--backend``.
+
+    * ``success`` — True iff the backend's aggregation step completed for
+      this benchmark.  A partial run (some samples missing or empty) is
+      reported as ``success=True`` with a WARNING entry in ``errors``,
+      mirroring VLMEvalKit's existing precedent.
+    * ``completed`` / ``total`` — sample-count diagnostics.  Either may be
+      0 if the backend can't determine the value.
+    * ``errors`` — human-readable warnings + hard errors for display.
+      First entry is shown next to the benchmark row in the TUI.
+    """
+
+    key: str
+    success: bool
+    completed: int = 0
+    total: int = 0
+    errors: list[str] = field(default_factory=list)
+
+
 class BackendAdapter(ABC):
     """Interface for evaluation backend adapters.
 
@@ -99,6 +123,26 @@ class BackendAdapter(ABC):
     ) -> dict[str, bool]:
         """Check which benchmarks completed. Returns {key: True/False}."""
         ...
+
+    def verify_results(
+        self,
+        model_dir: Path,
+        model_name: str,
+        benchmarks: dict[str, str],
+        stderr_text: str = "",
+    ) -> list[BenchmarkResult]:
+        """Verify each benchmark completed; return per-bench result with diagnostics.
+
+        Default implementation derives from ``detect_completion`` (boolean
+        only, no sample counts or error parsing).  Adapters that can read
+        prediction artifacts should override to populate ``completed`` /
+        ``total`` / ``errors``.
+        """
+        completion = self.detect_completion(model_dir, model_name, benchmarks)
+        return [
+            BenchmarkResult(key=k, success=ok)
+            for k, ok in completion.items()
+        ]
 
     @abstractmethod
     def get_result_files(self, model_dir: Path, model_name: str) -> list[Path]:
