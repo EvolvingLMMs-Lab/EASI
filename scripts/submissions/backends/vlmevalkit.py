@@ -821,16 +821,44 @@ class VLMEvalKitAdapter(BackendAdapter):
             method="multiple_choice",
         )
 
+    @staticmethod
+    def _archive_suffixes(data_name: str) -> list[str]:
+        """Per-bench suffix list for files that exact_matching grading produces."""
+        if data_name in MCQ_BENCHMARKS:
+            return [
+                "_exact_matching_result.xlsx",
+                "_exact_matching_result.pkl",
+                "_acc.csv",
+                "_full_acc.csv",
+                "_PREV.pkl",
+            ]
+        return [
+            "_extract_matching.xlsx",
+            "_extract_matching_acc.csv",
+            "_acc.csv",
+            "_full_acc.csv",
+            "_result.pkl",
+            "_PREV.pkl",
+        ]
+
     def archive_artifacts(
         self,
         model_dir: Path,
         model_name: str,
         data_name: str,
     ) -> None:
-        """Move exact_matching artifacts to backup dir (in newest T) before judge re-run.
+        """Move exact_matching artifacts to backup dir before judge re-run.
 
-        Also removes same-named artifacts from OLDER T dirs to prevent stale
-        acc.csv from shadowing judge results via mtime selection.
+        File-level mtime-newest policy: when multiple T-dirs contain the
+        same artifact (e.g. cross-midnight runs where predictions/grading
+        landed in T-dir A and judge re-eval creates T-dir B), pick the
+        canonical copy by mtime (with T-dir name as tie-break), archive
+        it to ``newest_T/exact_matching_backup/``, and delete duplicates
+        from other T-dirs.
+
+        Replaces the older directory-level policy that assumed canonical
+        artifacts always live in the newest T-dir — which fails when a
+        run crosses midnight and a fresh T-dir is created mid-run.
         """
         newest_t = _find_t_dir(model_dir)
         if newest_t is None:
@@ -838,58 +866,62 @@ class VLMEvalKitAdapter(BackendAdapter):
         backup = newest_t / "exact_matching_backup"
         backup.mkdir(exist_ok=True)
 
-        if data_name in MCQ_BENCHMARKS:
-            suffixes = [
-                "_exact_matching_result.xlsx",
-                "_exact_matching_result.pkl",
-                "_acc.csv",
-                "_full_acc.csv",
-                "_PREV.pkl",
-            ]
-        else:
-            suffixes = [
-                "_extract_matching.xlsx",
-                "_extract_matching_acc.csv",
-                "_acc.csv",
-                "_full_acc.csv",
-                "_result.pkl",
-                "_PREV.pkl",
-            ]
-
-        # Collect all T dirs (newest first so we archive newest, delete from older)
+        suffixes = self._archive_suffixes(data_name)
         all_t_dirs = sorted(
             [p for p in model_dir.glob("T*_G*") if p.is_dir()],
             reverse=True,
         )
 
-        for i, t_dir in enumerate(all_t_dirs):
-            for suffix in suffixes:
-                src = t_dir / f"{model_name}_{data_name}{suffix}"
-                if not src.exists():
-                    continue
-                if src.is_symlink():
-                    src = src.resolve()
-                if i == 0:
-                    # Archive files from newest T dir
-                    dest = backup / src.name
-                    if dest.exists():
-                        dest.unlink()
-                    shutil.move(str(src), str(dest))
-                else:
-                    # Delete from older T dirs to prevent shadowing
-                    src.unlink()
+        def _archive_canonical(matches: list[Path]) -> None:
+            """Archive newest-by-mtime; delete duplicates."""
+            if not matches:
+                return
+            # Sort newest-first by mtime; tie-break by path string so the
+            # alphabetically-later T-dir wins (matches our reverse glob sort).
+            matches.sort(
+                key=lambda p: (p.stat().st_mtime, str(p)),
+                reverse=True,
+            )
+            canonical, *stale = matches
+            if canonical.is_symlink():
+                canonical = canonical.resolve()
+            dest = backup / canonical.name
+            if dest.exists():
+                try:
+                    dest.unlink()
+                except FileNotFoundError:
+                    pass
+            try:
+                shutil.move(str(canonical), str(dest))
+            except (FileNotFoundError, shutil.Error):
+                # Race or already moved — proceed to dedup the rest.
+                pass
+            for s in stale:
+                try:
+                    s.unlink()
+                except FileNotFoundError:
+                    pass
 
-            # Same for _llm_* files
-            for llm_file in t_dir.glob(f"{model_name}_{data_name}_llm_*"):
-                if llm_file.is_symlink():
-                    llm_file = llm_file.resolve()
-                if i == 0:
-                    dest = backup / llm_file.name
-                    if dest.exists():
-                        dest.unlink()
-                    shutil.move(str(llm_file), str(dest))
-                else:
-                    llm_file.unlink()
+        # Suffix-based artifacts: collect occurrences across all T-dirs,
+        # archive the newest by mtime, delete the rest.
+        for suffix in suffixes:
+            matches = [
+                t / f"{model_name}_{data_name}{suffix}"
+                for t in all_t_dirs
+                if (t / f"{model_name}_{data_name}{suffix}").exists()
+            ]
+            _archive_canonical(matches)
+
+        # Glob-based ``_llm_*`` artifacts: a single judge run produces
+        # multiple files (e.g. ``_llm_gpt-4o-1120_judge.pkl`` plus
+        # ``_llm_gpt-4o-1120_judge.xlsx``).  Group by filename so each
+        # unique basename gets its own canonical/stale resolution.
+        llm_by_name: dict[str, list[Path]] = {}
+        for t_dir in all_t_dirs:
+            for f in t_dir.glob(f"{model_name}_{data_name}_llm_*"):
+                llm_by_name.setdefault(f.name, []).append(f)
+        for matches in llm_by_name.values():
+            _archive_canonical(matches)
 
         # Remove root-level symlinks so VLMEvalKit doesn't pick them up
         for suffix in suffixes:
