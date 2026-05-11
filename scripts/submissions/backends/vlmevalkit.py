@@ -42,6 +42,34 @@ _TSV_URLS = {
 _MAX_RETRIES = 5
 _RETRY_DELAY = 10  # seconds
 
+
+def _pick_torchrun_port() -> int:
+    """Choose a port for torchrun's rendezvous TCPStore.
+
+    Resolution order:
+      1. ``TORCHRUN_MASTER_PORT`` env var (caller override)
+      2. OS-assigned free port (bind to ``:0``)
+
+    Default port 29500 is avoided because concurrent EASI runs on a
+    shared node collide on it — torchrun's rendezvous binds the listener
+    socket before any worker starts, so two simultaneous orchestrators
+    deadlock with ``EADDRINUSE``.  Note: ``MASTER_PORT`` env var is not
+    honored by torchrun's rendezvous (only by downstream workers); CLI
+    ``--master-port`` is the only knob.
+    """
+    env_port = os.environ.get("TORCHRUN_MASTER_PORT")
+    if env_port:
+        try:
+            return int(env_port)
+        except ValueError:
+            pass
+    import socket
+    s = socket.socket()
+    s.bind(("", 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
 # VLMEvalKit data_name for each benchmark key
 _TASK_MAP = {
     "vsi_bench": "VSI-Bench_32frame",
@@ -444,7 +472,13 @@ class VLMEvalKitAdapter(BackendAdapter):
         data_names = list(benchmarks.values())
 
         if nproc > 1:
-            cmd = ["torchrun", f"--nproc-per-node={nproc}", str(run_py)]
+            port = _pick_torchrun_port()
+            cmd = [
+                "torchrun",
+                f"--nproc-per-node={nproc}",
+                f"--master-port={port}",
+                str(run_py),
+            ]
         else:
             cmd = [sys.executable, str(run_py)]
 
@@ -947,7 +981,13 @@ class VLMEvalKitAdapter(BackendAdapter):
         run_py = self.repo_root / "VLMEvalKit" / "run.py"
         data_names = list(benchmarks.values())
         if nproc > 1:
-            cmd = ["torchrun", f"--nproc-per-node={nproc}", str(run_py)]
+            port = _pick_torchrun_port()
+            cmd = [
+                "torchrun",
+                f"--nproc-per-node={nproc}",
+                f"--master-port={port}",
+                str(run_py),
+            ]
         else:
             cmd = [sys.executable, str(run_py)]
         cmd += [
