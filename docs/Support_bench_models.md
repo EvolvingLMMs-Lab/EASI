@@ -20,6 +20,9 @@ This page summarizes all **Spatial Intelligence models** and **benchmarks** curr
 | | UMM | `bagel` | `SenseNova-SI-1.1-BAGEL-7B-MoT` | [sensenova/SenseNova-SI-1.1-BAGEL-7B-MoT](https://huggingface.co/sensenova/SenseNova-SI-1.1-BAGEL-7B-MoT) | ✅ | ✅ |
 | **SenseNova-SI 1.2** | SI | `internvl3` | `SenseNova-SI-1.2-InternVL3-8B` | [sensenova/SenseNova-SI-1.2-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-1.2-InternVL3-8B) | ✅ | ✅ |
 | **SenseNova-SI 1.3** | SI | `internvl3` | `SenseNova-SI-1.3-InternVL3-8B` | [sensenova/SenseNova-SI-1.3-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-1.3-InternVL3-8B) | ✅ | ✅ |
+| | | `qwen3_vl` | `SenseNova-SI-1.3-Qwen3-VL-8B` | [sensenova/SenseNova-SI-1.3-Qwen3-VL-8B](https://huggingface.co/sensenova/SenseNova-SI-1.3-Qwen3-VL-8B) | ✅ | ✅ |
+| **SenseNova-SI 1.4** | SI | `internvl3` | `SenseNova-SI-1.4-InternVL3-8B` | [sensenova/SenseNova-SI-1.4-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-1.4-InternVL3-8B) | ✅ | ✅ |
+| **SenseNova-SI 1.5** | SI | `internvl3` | `SenseNova-SI-1.5-InternVL3-8B` | [sensenova/SenseNova-SI-1.5-InternVL3-8B](https://huggingface.co/sensenova/SenseNova-SI-1.4-InternVL3-8B) | ✅ | ✅ |
 | **MindCube** | SI | `qwen2_5_vl` | `MindCube-3B-RawQA-SFT` | [MLL-Lab/MindCube-Qwen2.5VL-RawQA-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-RawQA-SFT) | ✅ | ✅ |
 | | | `qwen2_5_vl` | `MindCube-3B-Aug-CGMap-FFR-Out-SFT` | [MLL-Lab/MindCube-Qwen2.5VL-Aug-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Aug-CGMap-FFR-Out-SFT) | ✅ | ✅ |
 | | | `qwen2_5_vl` | `MindCube-3B-Plain-CGMap-FFR-Out-SFT` | [MLL-Lab/MindCube-Qwen2.5VL-Plain-CGMap-FFR-Out-SFT](https://huggingface.co/MLL-Lab/MindCube-Qwen2.5VL-Plain-CGMap-FFR-Out-SFT) | ✅ | ✅ |

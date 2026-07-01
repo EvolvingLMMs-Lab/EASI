@@ -4,6 +4,24 @@ All notable changes to **EASI** are documented in this file.
 
 ---
 
+## [v0.2.2] – 2026-04-27
+
+### Added
+- 3 new models:
+  - SenseNova-SI-1.4-InternVL3-8B, SenseNova-SI-1.5-InternVL3-8B, SenseNova-SI-1.3-Qwen3-VL-8B
+- Unified CLI workflow:
+  - Added `scripts/submissions/run_easi_eval.py` for one-command EASI-8 evaluation across VLMEvalKit and lmms-eval backends.
+  - Added automated result collection, packaging, and optional leaderboard submission.
+
+### Changed
+- Refactored the unified evaluation script with backend adapters for VLMEvalKit and lmms-eval.
+- Added CLI options for backend selection, model arguments, accelerate control, and rerun behavior.
+
+### Fixed
+- Improved unified CLI stability and robustness, including lmms-eval multi-GPU execution, result extraction, archive generation, and VLMEvalKit judge handling.
+
+---
+
 ## [v0.2.1] – 2026-02-09
 
 ### Added
